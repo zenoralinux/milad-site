@@ -152,6 +152,8 @@ final class Installer
             throw new RuntimeException('ذخیره تنظیمات نصب ناموفق بود.');
         }
         @chmod(APP_ROOT . '/config/local.php', 0640);
+        $GLOBALS['app_config'] = $config;
+        date_default_timezone_set($timezone);
 
         if (file_put_contents(APP_ROOT . '/storage/install.lock', 'installed ' . gmdate('c'), LOCK_EX) === false) {
             throw new RuntimeException('ساخت قفل نصب ناموفق بود.');

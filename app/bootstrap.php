@@ -18,7 +18,7 @@ function app_config(?string $key=null): mixed {
     foreach(explode('.',$key) as $part){if(!is_array($value)||!array_key_exists($part,$value))return null;$value=$value[$part];}
     return $value;
 }
-function app_installed(): bool { return is_file(APP_ROOT.'/config/local.php') && is_file(APP_ROOT.'/storage/install.lock'); }
+function app_installed(): bool { return is_file(APP_ROOT.'/config/local.php'); }
 function db(): PDO { return Database::connection(); }
 function e(mixed $value): string { return htmlspecialchars((string)$value,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8'); }
 function base_path(): string { return rtrim((string)(parse_url((string)(app_config('app.base_url')??''),PHP_URL_PATH)??''),'/'); }

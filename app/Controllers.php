@@ -45,17 +45,27 @@ function save_page(?int $id,?array $old): never {
 function handle_projects(): void {
     require_permission('projects.manage');$pdo=db();
     if(preg_match('~^/admin/projects/(\d+)/delete$~',request_path(),$m)&&$_SERVER['REQUEST_METHOD']==='POST'){verify_csrf();$id=(int)$m[1];$pdo->prepare('DELETE FROM projects WHERE id=:id')->execute(['id'=>$id]);log_activity('project.delete','project',$id);flash('success','پروژه حذف شد.');redirect('admin/projects');}
-    if(preg_match('~^/admin/projects/(\d+)/edit$~',request_path(),$m)){$id=(int)$m[1];$q=$pdo->prepare('SELECT * FROM projects WHERE id=:id');$q->execute(['id'=>$id]);$project=$q->fetch();if(!$project){http_response_code(404);exit('پروژه پیدا نشد.');}if($_SERVER['REQUEST_METHOD']==='POST')save_project($id);render_view('admin/project-form',['project'=>$project,'pageTitle'=>'ویرایش پروژه']);return;}
-    if(request_path()==='/admin/projects/create'){if($_SERVER['REQUEST_METHOD']==='POST')save_project(null);render_view('admin/project-form',['project'=>null,'pageTitle'=>'افزودن پروژه']);return;}
+    if(preg_match('~^/admin/projects/(\d+)/edit$~',request_path(),$m)){$id=(int)$m[1];$q=$pdo->prepare('SELECT * FROM projects WHERE id=:id');$q->execute(['id'=>$id]);$project=$q->fetch();if(!$project){http_response_code(404);exit('پروژه پیدا نشد.');}if($_SERVER['REQUEST_METHOD']==='POST')save_project($id);$media=db()->query('SELECT id,original_name FROM media ORDER BY id DESC')->fetchAll();render_view('admin/project-form',['project'=>$project,'media'=>$media,'pageTitle'=>'ویرایش پروژه']);return;}
+    if(request_path()==='/admin/projects/create'){if($_SERVER['REQUEST_METHOD']==='POST')save_project(null);$media=db()->query('SELECT id,original_name FROM media ORDER BY id DESC')->fetchAll();render_view('admin/project-form',['project'=>null,'media'=>$media,'pageTitle'=>'افزودن پروژه']);return;}
     $projects=$pdo->query('SELECT id,title,slug,status,featured,updated_at FROM projects ORDER BY sort_order,id DESC')->fetchAll();render_view('admin/projects',['projects'=>$projects,'pageTitle'=>'مدیریت پروژه‌ها']);
 }
 function save_project(?int $id): never {
-    verify_csrf();$title=trim((string)($_POST['title']??''));$slug=slugify((string)($_POST['slug']??$title));$summary=trim((string)($_POST['summary']??''));$description=trim((string)($_POST['description']??''));$website=safe_url((string)($_POST['website_url']??''));$repo=safe_url((string)($_POST['repository_url']??''));$status=in_array($_POST['status']??'draft',['draft','published'],true)?(string)$_POST['status']:'draft';$featured=isset($_POST['featured'])?1:0;
+    verify_csrf();
+    $title=trim((string)($_POST['title']??''));$slug=slugify((string)($_POST['slug']??$title));
+    $summary=trim((string)($_POST['summary']??''));$description=trim((string)($_POST['description']??''));
+    $website=safe_url((string)($_POST['website_url']??''));$repo=safe_url((string)($_POST['repository_url']??''));
+    $status=in_array($_POST['status']??'draft',['draft','published'],true)?(string)$_POST['status']:'draft';
+    $featured=isset($_POST['featured'])?1:0;$image=(int)($_POST['image_media_id']??0);
     if($title===''||$slug===''){flash('error','عنوان و نشانی پروژه الزامی است.');redirect($id?"admin/projects/{$id}/edit":'admin/projects/create');}
-    $q=db()->prepare('SELECT id FROM projects WHERE slug=:g AND id!=:id LIMIT 1');$q->execute(['g'=>$slug,'id'=>$id??0]);if($q->fetch()){flash('error','این نشانی قبلاً استفاده شده است.');redirect($id?"admin/projects/{$id}/edit":'admin/projects/create');}
-    $params=['t'=>$title,'g'=>$slug,'s'=>$summary,'d'=>$description,'w'=>$website,'r'=>$repo,'status'=>$status,'f'=>$featured];
-    if($id){$params['id']=$id;db()->prepare('UPDATE projects SET title=:t,slug=:g,summary=:s,description=:d,website_url=:w,repository_url=:r,status=:status,featured=:f,updated_at=NOW() WHERE id=:id')->execute($params);log_activity('project.update','project',$id);flash('success','پروژه ذخیره شد.');redirect("admin/projects/{$id}/edit");}
-    db()->prepare('INSERT INTO projects(title,slug,summary,description,website_url,repository_url,status,featured,created_at,updated_at) VALUES(:t,:g,:s,:d,:w,:r,:status,:f,NOW(),NOW())')->execute($params);$new=(int)db()->lastInsertId();log_activity('project.create','project',$new);flash('success','پروژه ساخته شد.');redirect("admin/projects/{$new}/edit");
+    $check=db()->prepare('SELECT id FROM projects WHERE slug=:slug AND id!=:id LIMIT 1');
+    $check->execute(['slug'=>$slug,'id'=>$id??0]);
+    if($check->fetch()){flash('error','این نشانی قبلاً استفاده شده است.');redirect($id?"admin/projects/{$id}/edit":'admin/projects/create');}
+    $imageId=null;
+    if($image>0){$mediaCheck=db()->prepare('SELECT id FROM media WHERE id=:id');$mediaCheck->execute(['id'=>$image]);if(!$mediaCheck->fetchColumn()){flash('error','تصویر انتخاب‌شده وجود ندارد.');redirect($id?"admin/projects/{$id}/edit":'admin/projects/create');}$imageId=$image;}
+    $params=['title'=>$title,'slug'=>$slug,'summary'=>$summary,'description'=>$description,'website'=>$website,'repository'=>$repo,'status'=>$status,'featured'=>$featured,'image'=>$imageId];
+    if($id){$params['id']=$id;db()->prepare('UPDATE projects SET title=:title,slug=:slug,summary=:summary,description=:description,website_url=:website,repository_url=:repository,status=:status,featured=:featured,image_media_id=:image,updated_at=NOW() WHERE id=:id')->execute($params);log_activity('project.update','project',$id);flash('success','پروژه ذخیره شد.');redirect("admin/projects/{$id}/edit");}
+    db()->prepare('INSERT INTO projects(title,slug,summary,description,website_url,repository_url,status,featured,image_media_id,created_at,updated_at) VALUES(:title,:slug,:summary,:description,:website,:repository,:status,:featured,:image,NOW(),NOW())')->execute($params);
+    $new=(int)db()->lastInsertId();log_activity('project.create','project',$new);flash('success','پروژه ساخته شد.');redirect("admin/projects/{$new}/edit");
 }
 function handle_media(): void {
     require_permission('media.manage');
