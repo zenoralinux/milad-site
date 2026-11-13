@@ -1,8 +1,22 @@
 Options -Indexes
 <IfModule mod_rewrite.c>
   RewriteEngine On
+
+  # Keep application internals private.
   RewriteRule ^(app|config|database|installer|resources|storage|vendor|tests|bin|docs)(/|$) - [F,L,NC]
-  RewriteRule ^(\.env|composer\.(json|lock)|README\.md) - [F,L,NC]
+  RewriteCond %{THE_REQUEST} \s/+.*?/public(?:/|\s|\?) [NC]
+  RewriteRule ^public(?:/|$) - [F,L,NC]
+  RewriteRule ^(\.env|composer\.(json|lock)|README\.md)$ - [F,L,NC]
+
+  # When deployed as /site, expose public assets at /site/assets.
+  RewriteRule ^assets/(.*)$ public/assets/$1 [L]
+
+  # Serve the CMS front controller from the project root or a subdirectory.
+  RewriteRule ^$ public/index.php [QSA,L]
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  RewriteRule ^ public/index.php [QSA,L]
 </IfModule>
 <FilesMatch "^\.">
   Require all denied

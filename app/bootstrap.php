@@ -7,22 +7,43 @@ $local = APP_ROOT . '/config/local.php';
 $GLOBALS['app_config'] = is_file($local) ? require $local : ['app'=>['name'=>'Milad CMS','base_url'=>'','timezone'=>'UTC']];
 $tz = (string)($GLOBALS['app_config']['app']['timezone'] ?? 'UTC');
 date_default_timezone_set(in_array($tz, DateTimeZone::listIdentifiers(), true) ? $tz : 'UTC');
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_name('milad_cms_session');
-    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
-    session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>$https,'httponly'=>true,'samesite'=>'Lax']);
-    session_start();
-}
+
 function app_config(?string $key=null): mixed {
     $value=$GLOBALS['app_config']??[]; if($key===null)return $value;
     foreach(explode('.',$key) as $part){if(!is_array($value)||!array_key_exists($part,$value))return null;$value=$value[$part];}
     return $value;
 }
+
+/**
+ * Return the configured install path. Before installation, infer it from
+ * SCRIPT_NAME so the wizard also works under /site using the root .htaccess.
+ */
+function base_path(): string {
+    $configured = (string)(parse_url((string)(app_config('app.base_url')??''), PHP_URL_PATH) ?? '');
+    if ($configured !== '') return rtrim($configured, '/');
+
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    $directory = rtrim(str_replace('\\', '/', dirname($script)), '/');
+    if ($directory === '.' || $directory === '/' || $directory === '/public') return '';
+    if (str_ends_with($directory, '/public')) $directory = substr($directory, 0, -7);
+    return rtrim($directory, '/');
+}
+
 function app_installed(): bool { return is_file(APP_ROOT.'/config/local.php'); }
 function db(): PDO { return Database::connection(); }
 function e(mixed $value): string { return htmlspecialchars((string)$value,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8'); }
-function base_path(): string { return rtrim((string)(parse_url((string)(app_config('app.base_url')??''),PHP_URL_PATH)??''),'/'); }
-function url(string $path=''): string { $base=rtrim((string)(app_config('app.base_url')??''),'/');return $path===''?$base.'/':$base.'/'.ltrim($path,'/'); }
+function url(string $path=''): string {
+    $base = rtrim((string)(app_config('app.base_url')??''), '/');
+    if ($base === '') $base = base_path();
+    return $path === '' ? ($base === '' ? '/' : $base.'/') : $base.'/'.ltrim($path,'/');
+}
+function suggested_site_url(): string {
+    $configured = rtrim((string)(app_config('app.base_url')??''), '/');
+    if ($configured !== '') return $configured;
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    $host = preg_replace('/[^A-Za-z0-9.:-]/', '', (string)($_SERVER['HTTP_HOST'] ?? ''));
+    return ($https ? 'https' : 'http').'://'.$host.base_path();
+}
 function redirect(string $path): never { header('Location: '.url($path),true,303);exit; }
 function csrf_token(): string { if(empty($_SESSION['_csrf']))$_SESSION['_csrf']=bin2hex(random_bytes(32));return (string)$_SESSION['_csrf']; }
 function csrf_field(): string { return '<input type="hidden" name="_csrf" value="'.e(csrf_token()).'">'; }
@@ -60,3 +81,10 @@ function request_path(): string {
 }
 function slugify(string $s): string { $s=mb_strtolower(trim($s));$s=preg_replace('/[^\pL\pN]+/u','-',$s)??'';return trim($s,'-'); }
 function safe_url(string $s): string { $s=trim($s);if($s===''||!filter_var($s,FILTER_VALIDATE_URL))return '';return in_array(parse_url($s,PHP_URL_SCHEME),['http','https'],true)?$s:''; }
+
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_name('milad_cms_session');
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    session_set_cookie_params(['lifetime'=>0,'path'=>base_path() ?: '/','secure'=>$https,'httponly'=>true,'samesite'=>'Lax']);
+    session_start();
+}

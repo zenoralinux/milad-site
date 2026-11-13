@@ -47,7 +47,7 @@
         <h2 class="form-section-title">۲. اطلاعات وب‌سایت</h2>
         <div class="form-grid">
           <label>عنوان سایت<input name="site_title" value="<?= e($_POST['site_title']??'میلاد | فضای دیجیتال شخصی') ?>" required></label>
-          <label>آدرس کامل سایت<input name="site_url" type="url" placeholder="https://example.com" value="<?= e($_POST['site_url']??'') ?>" required></label>
+          <label>آدرس کامل سایت<input name="site_url" type="url" placeholder="https://example.com" value="<?= e($_POST['site_url']??suggested_site_url()) ?>" required></label>
           <label class="full">منطقه زمانی<select name="timezone"><?php foreach(['Europe/Berlin','Asia/Tehran','UTC','Europe/London','America/New_York'] as $z): ?><option value="<?= e($z) ?>" <?= ($_POST['timezone']??'Europe/Berlin')===$z?'selected':'' ?>><?= e($z) ?></option><?php endforeach; ?></select></label>
         </div>
         <h2 class="form-section-title">۳. ساخت حساب مالک</h2>
