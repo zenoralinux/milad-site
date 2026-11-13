@@ -2,6 +2,8 @@
 /storage/*
 !/storage/.gitkeep
 !/storage/uploads/.gitkeep
+!/storage/.htaccess
+!/storage/install.enabled
 /vendor/
 /.env
 *.log

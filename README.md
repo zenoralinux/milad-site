@@ -5,7 +5,8 @@ Installable modular PHP CMS for the Milad personal website and future portfolio-
 ## Implemented in this branch
 
 - PHP 8.1+ front controller and PDO MySQL database layer
-- Browser installer at \`/install\`, protected by a one-time installation token
+- Browser installation wizard at `/install` (no SSH or terminal command required)
+- File Manager activation gate to prevent an uninitialized public installer from being claimed
 - First owner account, secure password hashing and login
 - Session regeneration, CSRF validation and permission checks
 - Admin dashboard and activity log
@@ -21,29 +22,17 @@ Installable modular PHP CMS for the Milad personal website and future portfolio-
 
 PHP 8.1+, MySQL 8 or MariaDB 10.5+, PDO, pdo_mysql, fileinfo, DOM, JSON, OpenSSL and mbstring.
 
-## Installation
+## Installation without SSH
 
-1. Create a MySQL/MariaDB database and dedicated user. Grant SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX and REFERENCES on that database.
-2. Upload the repository and set the domain Document Root to its \`public/\` directory. Do not expose the repository root.
-3. Ensure \`config/\` and \`storage/\` are writable by PHP during installation.
-4. Using SSH/hosting terminal, run \`php bin/create-install-token.php\` from the repository root and copy the one-time token printed by the command. Alternatively configure the server environment variable \`MILAD_INSTALL_TOKEN\`.
-5. Visit \`https://your-domain.example/install\`, enter the install token, database details, site URL/timezone and the first owner account.
-6. Sign in at \`/login\`; the dashboard is at \`/admin\`. Keep \`config/local.php\`, \`storage/install.lock\` and \`storage/uploads\` private.
+1. Create a MySQL/MariaDB database and dedicated user in the hosting control panel. Grant SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX and REFERENCES on that database.
+2. Upload the repository and set the domain Document Root to its `public/` directory. Do not expose the repository root.
+3. In the hosting File Manager, open the project's `storage/` directory and create a file named `install.enabled`.
+4. Put exactly this text inside the file: `MILAD-CMS-ALLOW-FIRST-INSTALL`. Save it. Do not put this file inside `public/`.
+5. Ensure `config/` and `storage/` are writable by PHP during installation.
+6. Visit `https://your-domain.example/install`, refresh the page if needed, and complete the graphical wizard: database details, site URL/timezone and the first owner account.
+7. Sign in at `/login`; the dashboard is at `/admin`.
 
-The installer creates database tables, the first owner, configuration and the install lock. It removes the token hash and refuses to run after successful installation.
-
-## Local development
-
-\`\`\`bash
-php bin/create-install-token.php
-php -S 127.0.0.1:8000 -t public public/index.php
-\`\`\`
-
-Create an empty database first, then visit \`http://127.0.0.1:8000/install\`. Run \`php bin/verify.php\` for environment checks.
-
-## Nginx
-
-Set root to \`/var/www/milad-site/public\`, then use \`try_files $uri $uri/ /index.php?$query_string;\` and configure PHP-FPM for \`index.php\`.
+The installer verifies the activation file, creates the tables and owner account, writes `config/local.php` and creates `storage/install.lock`. On successful installation, it removes `storage/install.enabled` and refuses to run again. Never add the activation file to Git or leave it in place after installation.
 
 ## Scope
 
@@ -51,4 +40,4 @@ The visual builder currently controls homepage section order and visibility; it 
 
 ## Security
 
-Uploads are stored in \`storage/uploads\` outside the public document root. SVG and executable uploads are rejected. Use HTTPS, a dedicated database user and strong unique passwords. Back up the database and uploads before upgrades.
+Uploads are stored in `storage/uploads` outside the public document root. SVG and executable uploads are rejected. Use HTTPS, a dedicated database user and strong unique passwords. Back up the database and uploads before upgrades.

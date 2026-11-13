@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 final class Installer
 {
+    private const ACTIVATION_FILE = 'storage/install.enabled';
+    private const ACTIVATION_CONTENT = 'MILAD-CMS-ALLOW-FIRST-INSTALL';
+
     public static function handle(): void
     {
         if (app_installed()) {
@@ -12,12 +15,16 @@ final class Installer
         }
 
         $requirements = self::requirements();
+        $activationReady = self::activationReady();
         $error = null;
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             verify_csrf();
             try {
                 foreach ($requirements as $item) {
-                    if (!$item['ok']) throw new RuntimeException('پیش‌نیازهای محیط کامل نیستند. ابتدا موارد قرمز را برطرف کن.');
+                    if (!$item['ok']) {
+                        throw new RuntimeException('پیش‌نیازهای محیط کامل نیستند. ابتدا موارد قرمز را برطرف کن.');
+                    }
                 }
                 self::install();
                 redirect('login?installed=1');
@@ -25,12 +32,23 @@ final class Installer
                 $error = $exception->getMessage();
             }
         }
-        render_view('install', ['requirements' => $requirements, 'error' => $error], 'none');
+
+        render_view('install', [
+            'requirements' => $requirements,
+            'activationReady' => $activationReady,
+            'error' => $error,
+        ], 'none');
+    }
+
+    private static function activationReady(): bool
+    {
+        $file = APP_ROOT . '/' . self::ACTIVATION_FILE;
+        if (!is_file($file) || !is_readable($file)) return false;
+        return hash_equals(self::ACTIVATION_CONTENT, trim((string)file_get_contents($file)));
     }
 
     private static function requirements(): array
     {
-        $tokenConfigured = (string)getenv('MILAD_INSTALL_TOKEN') !== '' || is_file(APP_ROOT . '/storage/install-token.hash');
         return [
             ['label' => 'PHP 8.1 یا جدیدتر', 'ok' => version_compare(PHP_VERSION, '8.1.0', '>=')],
             ['label' => 'افزونه PDO و PDO MySQL', 'ok' => extension_loaded('pdo') && extension_loaded('pdo_mysql')],
@@ -38,28 +56,20 @@ final class Installer
                 extension_loaded('fileinfo') && extension_loaded('dom') && extension_loaded('json') &&
                 extension_loaded('openssl') && extension_loaded('mbstring')],
             ['label' => 'دسترسی نوشتن config و storage', 'ok' => is_writable(APP_ROOT . '/config') && is_writable(APP_ROOT . '/storage')],
-            ['label' => 'توکن نصب یک‌بارمصرف تنظیم شده', 'ok' => $tokenConfigured],
+            ['label' => 'فعال‌سازی اولیه از File Manager', 'ok' => self::activationReady()],
         ];
     }
 
-    private static function verifyInstallToken(): void
+    private static function verifyActivation(): void
     {
-        $submitted = trim((string)($_POST['install_token'] ?? ''));
-        if ($submitted === '') throw new RuntimeException('توکن نصب را وارد کن.');
-        $environmentToken = (string)getenv('MILAD_INSTALL_TOKEN');
-        if ($environmentToken !== '') {
-            if (!hash_equals($environmentToken, $submitted)) throw new RuntimeException('توکن نصب معتبر نیست.');
-            return;
+        if (!self::activationReady()) {
+            throw new RuntimeException('فایل فعال‌سازی نصب پیدا نشد یا محتوای آن صحیح نیست. راهنمای بالای صفحه را انجام بده و صفحه را تازه‌سازی کن.');
         }
-        $hashFile = APP_ROOT . '/storage/install-token.hash';
-        if (!is_file($hashFile)) throw new RuntimeException('توکن نصب تنظیم نشده است. دستور ساخت توکن را در راهنمای نصب اجرا کن.');
-        $hash = trim((string)file_get_contents($hashFile));
-        if ($hash === '' || !password_verify($submitted, $hash)) throw new RuntimeException('توکن نصب معتبر نیست.');
     }
 
     private static function install(): void
     {
-        self::verifyInstallToken();
+        self::verifyActivation();
 
         $name = trim((string)($_POST['admin_name'] ?? ''));
         $email = strtolower(trim((string)($_POST['admin_email'] ?? '')));
@@ -68,7 +78,7 @@ final class Installer
         $title = trim((string)($_POST['site_title'] ?? ''));
         $siteUrl = rtrim(trim((string)($_POST['site_url'] ?? '')), '/');
         $timezone = trim((string)($_POST['timezone'] ?? 'Europe/Berlin'));
-        $host = trim((string)($_POST['db_host'] ?? '127.0.0.1'));
+        $host = trim((string)($_POST['db_host'] ?? 'localhost'));
         $port = (int)($_POST['db_port'] ?? 3306);
         $database = trim((string)($_POST['db_name'] ?? ''));
         $dbUser = trim((string)($_POST['db_user'] ?? ''));
@@ -159,6 +169,7 @@ final class Installer
             throw new RuntimeException('ساخت قفل نصب ناموفق بود.');
         }
         @chmod(APP_ROOT . '/storage/install.lock', 0640);
+        @unlink(APP_ROOT . '/' . self::ACTIVATION_FILE);
         @unlink(APP_ROOT . '/storage/install-token.hash');
     }
 }
