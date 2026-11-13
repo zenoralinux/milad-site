@@ -1,0 +1,6 @@
+<div class="builder-intro panel"><div><span class="eyebrow">VISUAL HOMEPAGE BUILDER</span><h2>چیدمان صفحه اصلی</h2><p class="muted">بخش‌ها را با کشیدن جابه‌جا کن و نمایش هر بخش را روشن یا خاموش کن. ترتیب عمومی پس از ذخیره تغییر می‌کند.</p></div><a class="button ghost" href="<?= e(url()) ?>" target="_blank" rel="noopener">مشاهده سایت ↗</a></div>
+<form method="post" class="panel builder-panel" data-home-builder><?= csrf_field() ?>
+<input type="hidden" name="layout_json" value="<?= e(json_encode(array_map(static fn($i)=>['id'=>$i['id'],'enabled'=>$i['enabled']],$items),JSON_UNESCAPED_UNICODE)) ?>" data-builder-output>
+<div class="builder-list" data-builder-list>
+<?php foreach($items as $i=>$item): ?><div class="builder-item" draggable="true" data-section="<?= e($item['id']) ?>"><span class="drag-handle">⠿</span><span class="builder-index"><?= sprintf('%02d',$i+1) ?></span><span class="builder-title"><?= e($item['label']) ?><small><?= e($item['id']) ?></small></span><label class="switch-label"><input type="checkbox" data-builder-enabled <?= $item['enabled']?'checked':'' ?>><span>نمایش</span></label></div><?php endforeach; ?>
+</div><div class="form-actions"><button class="button primary" type="submit">ذخیره چیدمان</button><span class="muted builder-hint">تغییرات تا زمان ذخیره در سایت عمومی اعمال نمی‌شوند.</span></div></form>

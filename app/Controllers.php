@@ -91,7 +91,9 @@ function settings_all(): array {$s=[];foreach(db()->query('SELECT setting_key,se
 function public_home(): void {
     $settings=settings_all();$projects=db()->query("SELECT p.*,m.id AS image_id FROM projects p LEFT JOIN media m ON m.id=p.image_media_id WHERE p.status='published' ORDER BY p.featured DESC,p.sort_order,p.id DESC LIMIT 12")->fetchAll();
     $pages=db()->query("SELECT title,slug FROM pages WHERE status='published' ORDER BY id LIMIT 8")->fetchAll();
-    render_view('themes/milad/home',['settings'=>$settings,'projects'=>$projects,'pages'=>$pages],'none');
+    $layout=json_decode((string)($settings['homepage_layout']??'[]'),true);
+    if(!is_array($layout)||!$layout)$layout=[['id'=>'hero','enabled'=>true],['id'=>'intro','enabled'=>true],['id'=>'projects','enabled'=>true],['id'=>'about','enabled'=>true],['id'=>'contact','enabled'=>true]];
+    render_view('themes/milad/home',['settings'=>$settings,'projects'=>$projects,'pages'=>$pages,'layout'=>$layout],'none');
 }
 function public_page(string $slug): void {
     $q=db()->prepare("SELECT * FROM pages WHERE slug=:s AND status='published' LIMIT 1");$q->execute(['s'=>$slug]);$page=$q->fetch();
