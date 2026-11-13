@@ -1,4 +1,4 @@
-name: PHP checks
+name: PHP and database checks
 
 on:
   push:
@@ -9,8 +9,27 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test-password
+          MYSQL_DATABASE: milad_cms_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ptest-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      MILAD_TEST_DB_HOST: 127.0.0.1
+      MILAD_TEST_DB_PORT: 3306
+      MILAD_TEST_DB_NAME: milad_cms_ci
+      MILAD_TEST_DB_USER: root
+      MILAD_TEST_DB_PASSWORD: test-password
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,5 +43,9 @@ jobs:
         run: composer validate --no-check-publish
       - name: Check PHP syntax
         run: find app public bin resources -type f -name '*.php' -print0 | xargs -0 -n1 php -l
-      - name: Check required runtime extensions
+      - name: Check runtime requirements
         run: php bin/verify.php
+      - name: Test HTML sanitization
+        run: php bin/test-sanitizer.php
+      - name: Test MySQL schema
+        run: php bin/test-schema.php
