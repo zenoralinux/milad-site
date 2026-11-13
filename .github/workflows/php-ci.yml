@@ -1,0 +1,28 @@
+name: PHP checks
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, fileinfo, mbstring, pdo_mysql
+          coverage: none
+      - name: Validate Composer manifest
+        run: composer validate --no-check-publish
+      - name: Check PHP syntax
+        run: find app public bin resources -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Check required runtime extensions
+        run: php bin/verify.php
