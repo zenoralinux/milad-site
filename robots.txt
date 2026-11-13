@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://miladalizadw.ir/sitemap.xml
