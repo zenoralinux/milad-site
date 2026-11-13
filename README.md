@@ -5,7 +5,7 @@ Installable modular PHP CMS for the Milad personal website and future portfolio-
 ## Implemented in this branch
 
 - PHP 8.1+ front controller and PDO MySQL database layer
-- Browser installer at \`/install\`
+- Browser installer at \`/install\`, protected by a one-time installation token
 - First owner account, secure password hashing and login
 - Session regeneration, CSRF validation and permission checks
 - Admin dashboard and activity log
@@ -26,14 +26,16 @@ PHP 8.1+, MySQL 8 or MariaDB 10.5+, PDO, pdo_mysql, fileinfo, DOM, JSON, OpenSSL
 1. Create a MySQL/MariaDB database and dedicated user. Grant SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX and REFERENCES on that database.
 2. Upload the repository and set the domain Document Root to its \`public/\` directory. Do not expose the repository root.
 3. Ensure \`config/\` and \`storage/\` are writable by PHP during installation.
-4. Visit \`https://your-domain.example/install\`, enter database details, site URL/timezone and the first owner account.
-5. Sign in at \`/login\`; the dashboard is at \`/admin\`. Keep \`config/local.php\`, \`storage/install.lock\` and \`storage/uploads\` private.
+4. Using SSH/hosting terminal, run \`php bin/create-install-token.php\` from the repository root and copy the one-time token printed by the command. Alternatively configure the server environment variable \`MILAD_INSTALL_TOKEN\`.
+5. Visit \`https://your-domain.example/install\`, enter the install token, database details, site URL/timezone and the first owner account.
+6. Sign in at \`/login\`; the dashboard is at \`/admin\`. Keep \`config/local.php\`, \`storage/install.lock\` and \`storage/uploads\` private.
 
-The installer creates database tables, the first owner, configuration and the install lock. It refuses to run after successful installation.
+The installer creates database tables, the first owner, configuration and the install lock. It removes the token hash and refuses to run after successful installation.
 
 ## Local development
 
 \`\`\`bash
+php bin/create-install-token.php
 php -S 127.0.0.1:8000 -t public public/index.php
 \`\`\`
 
