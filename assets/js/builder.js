@@ -631,8 +631,17 @@
     renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
   }
   function duplicateSelectedNode(){
-    if(!selectedNodeId){if(selectedId!==null)cloneBlock(Number(selectedId));return;}
-    copySelectedNode();pasteSelectedNode();
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    const record=block&&selectedNodeId&&findNestedNode(block,selectedNodeId);
+    if(!record){if(selectedId!==null)cloneBlock(Number(selectedId));return;}
+    queueUndo(block);
+    const clone=cloneData(record.node);
+    freshenNodeIds(clone);
+    record.collection.splice(record.index+1,0,clone);
+    selectedNodeId=String(clone.id||'');
+    const payload={label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
+    status('المان تکثیر شد.','success');
   }
   function deleteSelectedNode(){
     const block=blocks.find(item=>Number(item.id)===Number(selectedId));
