@@ -49,7 +49,9 @@ function remove_named_section(string $html, string $start): string
 function public_href(string $url): string
 {
     $url = trim($url);
+    if (preg_match('/^#[a-zA-Z0-9_-]+$/', $url)) return $url;
     if (str_starts_with($url, '/') && !str_starts_with($url, '//')) return $url;
+    if (str_starts_with($url, './') && !str_contains($url, '..')) return $url;
     $parts = parse_url($url);
     if (is_array($parts) && strtolower((string) ($parts['scheme'] ?? '')) === 'https' && !empty($parts['host'])) return $url;
     return '#';
@@ -107,8 +109,7 @@ $hero = public_section('hero');
 $html = str_replace('توسعه‌دهنده مستقل · سازنده محصولات دیجیتال</div>', h($hero['eyebrow'] ?? 'توسعه‌دهنده مستقل · سازنده محصولات دیجیتال') . '</div>', $html);
 $html = replace_inner($html, '<h1>', '</h1>', h($hero['title_line1'] ?? 'ایده‌ها را') . '<br><span class="type-gradient">' . h($hero['title_line2'] ?? 'به تجربه تبدیل می‌کنم.') . '</span>');
 $html = replace_inner($html, '<p class="hero-description">', '</p>', "\n            " . h($hero['description'] ?? '') . "\n          ");
-$html = str_replace('دیدن پروژه‌ها <span aria-hidden="true">↙</span>', h($hero['primary_cta_text'] ?? 'دیدن پروژه‌ها') . ' <span aria-hidden="true">↙</span>', $html);
-$html = str_replace('href="#work"> ' . h('دیدن پروژه‌ها'), 'href="' . h(public_href((string) ($hero['primary_cta_url'] ?? '#work'))) . '">' . h($hero['primary_cta_text'] ?? 'دیدن پروژه‌ها'), $html);
+$html = str_replace('href="#work">دیدن پروژه‌ها <span aria-hidden="true">↙</span>', 'href="' . h(public_href((string) ($hero['primary_cta_url'] ?? '#work'))) . '">' . h($hero['primary_cta_text'] ?? 'دیدن پروژه‌ها') . ' <span aria-hidden="true">↙</span>', $html);
 $html = str_replace('href="#contact">ارتباط با من</a>', 'href="' . h(public_href((string) ($hero['secondary_cta_url'] ?? '#contact'))) . '">' . h($hero['secondary_cta_text'] ?? 'ارتباط با من') . '</a>', $html);
 $html = str_replace('ساختن مستقل، یادگیری مداوم، بهبود بی‌وقفه</span>', h($hero['footnote'] ?? 'ساختن مستقل، یادگیری مداوم، بهبود بی‌وقفه') . '</span>', $html);
 
