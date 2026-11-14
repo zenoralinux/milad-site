@@ -332,12 +332,13 @@
       const type = String(node.type || 'paragraph');
       const label = content.text || content.title || content.label || content.value || names[type] || type;
       const children = Array.isArray(node.children) ? node.children : (Array.isArray(content.children) ? content.children : []);
-      return '<div class="builder-layer-node-wrap"><button type="button" class="builder-layer-node' +
+      return '<details class="builder-layer-node-wrap" open data-layer-node-wrap><summary>' +
+        '<button type="button" class="builder-layer-node' +
         (String(node.id || '') === String(selectedNodeId || '') ? ' is-selected' : '') +
-        '" data-node-select="' + escapeHtml(node.id || '') + '" data-block-id="' + Number(block.id) + '">' +
-        '<span>' + escapeHtml(names[type] || type) + '</span><small>' + escapeHtml(String(label).slice(0,38)) +
-        '</small></button>' + (children.length ? '<div class="builder-layer-children">' +
-        renderNavigatorNodes(children,block,depth+1) + '</div>' : '') + '</div>';
+        '" draggable="true" data-node-select="' + escapeHtml(node.id || '') + '" data-block-id="' + Number(block.id) + '">' +
+        '<span class="builder-layer-type">' + escapeHtml(names[type] || type) + '</span><small>' + escapeHtml(String(label).slice(0,38)) +
+        '</small></button></summary>' + (children.length ? '<div class="builder-layer-children">' +
+        renderNavigatorNodes(children,block,depth+1) + '</div>' : '') + '</details>';
     }).join('');
   }
   function renderCanvas() {
@@ -365,10 +366,35 @@
         '<button type="button" data-delete="' + Number(block.id) + '" title="حذف">×</button></div></article>';
     }).join('');
 
-    $$('[data-node-select]').forEach(button => button.addEventListener('click',event => {
-      event.stopPropagation();
-      selectNestedNode(Number(button.dataset.blockId),String(button.dataset.nodeSelect));
-    }));
+    $('[data-node-select]').forEach(button => {
+      button.addEventListener('click',event => {
+        event.stopPropagation();
+        selectNestedNode(Number(button.dataset.blockId),String(button.dataset.nodeSelect));
+      });
+      button.addEventListener('dragstart',event => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('application/x-milad-node',JSON.stringify({blockId:Number(button.dataset.blockId),nodeId:String(button.dataset.nodeSelect)}));
+      });
+      button.addEventListener('dragover',event => { event.preventDefault(); button.classList.add('is-drop-target'); });
+      button.addEventListener('dragleave',() => button.classList.remove('is-drop-target'));
+      button.addEventListener('drop',event => {
+        event.preventDefault(); button.classList.remove('is-drop-target');
+        let source; try { source=JSON.parse(event.dataTransfer.getData('application/x-milad-node') || '{}'); } catch(e) { return; }
+        if (Number(source.blockId)!==Number(button.dataset.blockId) || String(source.nodeId)===String(button.dataset.nodeSelect)) return;
+        moveNestedNode(Number(source.blockId),String(source.nodeId),String(button.dataset.nodeSelect));
+      });
+    });
+    $('#builderLayerSearch')?.addEventListener('input',event => {
+      const term=String(event.target.value || '').trim().toLowerCase();
+      $('[data-layer-node-wrap]').forEach(item => {
+        const match=!term || item.textContent.toLowerCase().includes(term);
+        item.hidden=!match;
+        if (match && term) { let parent=item.parentElement.closest('[data-layer-node-wrap]'); while(parent){parent.hidden=false;parent.open=true;parent=parent.parentElement.closest('[data-layer-node-wrap]');} }
+      });
+      $('.builder-block').forEach(item => { item.hidden=!!term && !item.textContent.toLowerCase().includes(term); });
+    });
+    $('#builderLayerExpandAll')?.addEventListener('click',() => $('[data-layer-node-wrap]').forEach(item => item.open=true));
+    $('#builderLayerCollapseAll')?.addEventListener('click',() => $('[data-layer-node-wrap]').forEach(item => item.open=false));
     $$('.builder-block').forEach(node => {
       node.addEventListener('click',event => {
         if (event.target.closest('button')) return;
@@ -433,6 +459,78 @@
       status(error.message,'error');
       await load();
     }
+  }
+
+  function moveNestedNode(blockId,sourceId,targetId) {
+    const block=blocks.find(item=>Number(item.id)===Number(blockId));
+    const source=block && findNestedNode(block,sourceId), target=block && findNestedNode(block,targetId);
+    if(!source||!target||source.collection!==target.collection)return;
+    queueUndo(block);
+    const moved=source.collection.splice(source.index,1)[0];
+    const targetIndex=source.collection.findIndex(item=>String(item.id)===String(targetId));
+    source.collection.splice(targetIndex<0?source.collection.length:targetIndex,0,moved);
+    const payload={label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
+  }
+
+  function directStyleUpdate(message) {
+    const block=blocks.find(item=>blockKey(item)===String(message.key||''));
+    if(!block)return;
+    const allowed=['width','min_height','padding','margin','max_width'];
+    const patch={};
+    allowed.forEach(key=>{if(message.styles&&message.styles[key]!==undefined)patch[key]=String(message.styles[key]);});
+    if(!Object.keys(patch).length)return;
+    queueUndo(block);
+    if(message.nodeId){
+      const record=findNestedNode(block,String(message.nodeId));
+      if(!record)return;
+      record.node.styles=Object.assign({},record.node.styles||{},patch);
+    }else if(message.legacyField){
+      block.content=Object.assign({},block.content||{});
+      block.content.element_styles=Object.assign({},block.content.element_styles||{});
+      block.content.element_styles[message.legacyField]=Object.assign({},block.content.element_styles[message.legacyField]||{},patch);
+    }else{
+      block.settings=Object.assign({},block.settings||{},patch);
+    }
+    const payload={label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
+    status('ابعاد و فاصله‌های عنصر به‌روزرسانی شد.','success');
+  }
+
+  let nodeClipboard=null;
+  function freshenNodeIds(node){
+    if(!node||typeof node!=='object')return;
+    node.id=makeNodeId();
+    if(Array.isArray(node.children))node.children.forEach(freshenNodeIds);
+    if(node.content&&Array.isArray(node.content.children))node.content.children.forEach(freshenNodeIds);
+  }
+  function copySelectedNode(){
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    const record=block&&selectedNodeId&&findNestedNode(block,selectedNodeId);
+    if(!record)return;
+    nodeClipboard=cloneData(record.node);
+    status('المان کپی شد.','success');
+  }
+  function pasteSelectedNode(){
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    if(!block||!nodeClipboard)return;
+    const target=selectedNodeId&&findNestedNode(block,selectedNodeId);
+    const collection=target&&Array.isArray(target.node.children)?target.node.children:(target?target.collection:(block.content.children||(block.content.children=[])));
+    const clone=cloneData(nodeClipboard);freshenNodeIds(clone);queueUndo(block);collection.push(clone);
+    selectedNodeId=clone.id;
+    const payload={label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
+  }
+  function duplicateSelectedNode(){
+    copySelectedNode();pasteSelectedNode();
+  }
+  function deleteSelectedNode(){
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    const record=block&&selectedNodeId&&findNestedNode(block,selectedNodeId);
+    if(!record)return;
+    queueUndo(block);record.collection.splice(record.index,1);selectedNodeId=null;
+    const payload={label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
   }
 
   function selectBlock(id) {
@@ -1525,6 +1623,17 @@
   $('#builderUndo')?.addEventListener('click',undoEdit);
   $('#builderRedo')?.addEventListener('click',redoEdit);
   document.addEventListener('keydown',event => {
+    const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
+    if (['input','textarea','select'].includes(tag) || event.target?.isContentEditable) return;
+    if (event.ctrlKey || event.metaKey) {
+      const key=event.key.toLowerCase();
+      if(key==='c' && selectedNodeId){event.preventDefault();copySelectedNode();return;}
+      if(key==='v' && nodeClipboard){event.preventDefault();pasteSelectedNode();return;}
+      if(key==='d' && selectedNodeId){event.preventDefault();duplicateSelectedNode();return;}
+      if(key==='z'){event.preventDefault();if(event.shiftKey)redoEdit();else undoEdit();return;}
+    }
+  });
+  document.addEventListener('keydown',event => {
     if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
     const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
     if (['input','textarea','select'].includes(tag)) return;
@@ -1571,6 +1680,13 @@
       if (message.legacyField) selectLegacyElement(Number(block.id),String(message.legacyField));
       else if (message.nodeId) selectNestedNode(Number(block.id),String(message.nodeId));
       else selectBlock(Number(block.id));
+    } else if (message.type === 'milad-builder-direct-style') {
+      directStyleUpdate(message);
+    } else if (message.type === 'milad-builder-context-action') {
+      if(message.action==='copy')copySelectedNode();
+      else if(message.action==='paste')pasteSelectedNode();
+      else if(message.action==='duplicate')duplicateSelectedNode();
+      else if(message.action==='delete')deleteSelectedNode();
     } else if (message.type === 'milad-builder-inline-edit') {
       const block = blocks.find(item => blockKey(item) === String(message.key));
       const field = String(message.field || '');
