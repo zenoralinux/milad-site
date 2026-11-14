@@ -59,7 +59,17 @@ function app_config(): array
         throw new RuntimeException('فایل config.php باید آرایه تنظیمات PHP برگرداند.');
     }
 
-    return array_replace_recursive($defaults, $loaded);
+    // Keep host-specific secrets outside the public repository when desired.
+    $localPath = MILAD_ROOT . '/config.local.php';
+    $local = [];
+    if (is_file($localPath)) {
+        $local = require $localPath;
+        if (!is_array($local)) {
+            throw new RuntimeException('فایل config.local.php باید آرایه تنظیمات PHP برگرداند.');
+        }
+    }
+
+    return array_replace_recursive($defaults, $loaded, $local);
 }
 
 function cfg(string $key, $default = null)
