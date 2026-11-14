@@ -4,7 +4,7 @@ declare(strict_types=1);
 // Keep the original static homepage available if the PHP configuration/bootstrap
 // cannot be loaded (for example, a malformed local config.php on shared hosting).
 try {
-    require __DIR__ . '/app/bootstrap.php';
+    require_once __DIR__ . '/app/bootstrap.php';
 } catch (Throwable $e) {
     error_log('Homepage bootstrap failed: ' . $e->getMessage());
     http_response_code(200);
