@@ -180,22 +180,7 @@ $footer = public_section('footer');
 $html = str_replace('ساخته‌شده با دقت و علاقه.', h($footer['tagline'] ?? 'ساخته‌شده با دقت و علاقه.'), $html);
 $html = str_replace('تمام حقوق محفوظ است.', h($footer['copyright'] ?? 'تمام حقوق محفوظ است.'), $html);
 
-foreach ([
-    'hero' => '<section class="hero section-shell" id="home">',
-    'intro' => '<section class="intro-strip">',
-    'projects' => '<section class="work-section section-shell" id="work">',
-    'about' => '<section class="about-section section-shell" id="about">',
-    'now' => '<section class="now-section section-shell" id="now">',
-    'contact' => '<section class="contact-section section-shell" id="contact">',
-] as $key => $marker) {
-    if (isset($sections[$key]) && !$sections[$key]['is_visible']) $html = remove_named_section($html, $marker);
-}
-if (isset($sections['principles']) && !$sections['principles']['is_visible']) {
-    $html = preg_replace('/<div class="principles-grid">.*?<\/div>/s', '', $html, 1) ?? $html;
-}
-if (isset($sections['footer']) && !$sections['footer']['is_visible']) {
-    $html = remove_named_element($html, '<footer class="site-footer">', '</footer>');
-}
+// Block visibility is owned by the visual builder after its migration; keep source fragments intact for live toggling.
 $projectCount = count($projects);
 $html = str_replace('۰۵ پروژه', h(fa_digits($projectCount)) . ' پروژه', $html);
 // Prefix root-relative links from the static source with the detected installation path.
@@ -216,7 +201,8 @@ $html = preg_replace_callback(
 require_once __DIR__ . '/app/page_builder.php';
 $builderBlocks = builder_home_blocks();
 $builderDesign = builder_design_settings();
-$html = builder_apply_to_html($html, $builderBlocks, $builderDesign);
+$isBuilderPreview = isset($_GET['builder_preview']) && (string) $_GET['builder_preview'] === '1';
+$html = builder_apply_to_html($html, $builderBlocks, $builderDesign, $isBuilderPreview);
 
 if (isset($_GET['builder_preview']) && (string) $_GET['builder_preview'] === '1') {
     start_admin_session();
