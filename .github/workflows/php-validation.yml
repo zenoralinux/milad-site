@@ -49,6 +49,13 @@ jobs:
           test -f app/installer.php
           test ! -f config.example.php
           test ! -f bin/install.php
+      - name: Test installation path detection
+        run: |
+          php tests/path-routing.php /index.php ''
+          php tests/path-routing.php /portfolio/index.php /portfolio
+          php tests/path-routing.php /portfolio/admin/index.php /portfolio
+          php tests/path-routing.php /portfolio/admin /portfolio
+          php tests/path-routing.php /nested/site/v2/api/admin.php /nested/site/v2
       - name: Test automatic MySQL installation
         shell: bash
         run: |
@@ -61,13 +68,6 @@ jobs:
           ];
           PHP
           php tests/installation-smoke.php
-      - name: Test installation path detection
-        run: |
-          php tests/path-routing.php /index.php ''
-          php tests/path-routing.php /portfolio/index.php /portfolio
-          php tests/path-routing.php /portfolio/admin/index.php /portfolio
-          php tests/path-routing.php /portfolio/admin /portfolio
-          php tests/path-routing.php /nested/site/v2/api/admin.php /nested/site/v2
       - name: Check admin JavaScript syntax
         run: node --check assets/js/admin.js
       - name: Check public JavaScript syntax
