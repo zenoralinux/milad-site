@@ -17,6 +17,7 @@ require dirname(__DIR__) . '/app/bootstrap.php';
 $checks = [
     'base path' => app_base_path() === $expectedBase,
     'admin URL' => app_url('admin') === $expectedBase . '/admin',
+    'studio URL' => app_url('admin/studio.php') === $expectedBase . '/admin/studio.php',
     'API URL' => app_url('api/admin.php') === $expectedBase . '/api/admin.php',
     'absolute homepage URL' => app_absolute_url('/') === 'https://example.test' . $expectedBase . '/',
 ];

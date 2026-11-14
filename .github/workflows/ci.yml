@@ -26,6 +26,11 @@ jobs:
         run: find . -type f -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
       - name: Test self-contained internal preview
         run: php tests/internal-preview.php
+      - name: Test root and subdirectory URL routing
+        run: |
+          php tests/path-routing.php /index.php ''
+          php tests/path-routing.php /portfolio/admin/index.php /portfolio
+          php tests/path-routing.php /portfolio/admin/studio.php /portfolio
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
