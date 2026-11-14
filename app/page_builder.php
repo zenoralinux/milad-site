@@ -552,7 +552,8 @@ function builder_make_internal_preview(string $html): string
     );
 
     $inlineJs = str_ireplace('</script', '<\\/script', $js);
-    $scriptTag = '<script id="builder-embedded-site-js">' . $inlineJs . '</script>';
+    // Module scripts are deferred until the srcdoc document has been parsed, like the original defer script.
+    $scriptTag = '<script type="module" id="builder-embedded-site-js">' . $inlineJs . '</script>';
     $html = str_replace(
         '<script src="./assets/js/site.js" defer></script>',
         $scriptTag,
