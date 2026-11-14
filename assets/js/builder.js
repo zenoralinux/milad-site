@@ -436,7 +436,7 @@
       event.stopPropagation();
       deleteProject(Number(button.dataset.projectDelete));
     }));
-    $$$('.builder-project-layer').forEach(node => {
+    $$('.builder-project-layer').forEach(node => {
       node.addEventListener('dragstart',event => {
         projectDragId = Number(node.dataset.projectLayer);
         event.dataTransfer.effectAllowed = 'move';
@@ -465,7 +465,7 @@
       });
       node.addEventListener('dragend',() => {
         projectDragId = null;
-        $$$('.builder-project-layer').forEach(item => item.classList.remove('is-drop-target'));
+        $$('.builder-project-layer').forEach(item => item.classList.remove('is-drop-target'));
       });
     });
 
@@ -473,7 +473,7 @@
       event.stopPropagation();
       selectNestedNode(Number(button.dataset.blockId),String(button.dataset.nodeSelect));
     }));
-    $$$('.builder-block').forEach(node => {
+    $$('.builder-block').forEach(node => {
       node.addEventListener('click',event => {
         if (event.target.closest('button')) return;
         selectBlock(Number(node.dataset.blockId));
@@ -507,7 +507,7 @@
       node.addEventListener('dragend',() => {
         dragId = null;
         node.setAttribute('aria-grabbed','false');
-        $$$('.builder-block').forEach(item => item.classList.remove('is-drop-target'));
+        $$('.builder-block').forEach(item => item.classList.remove('is-drop-target'));
       });
     });
     $$('[data-up]').forEach(button => button.addEventListener('click',() => move(Number(button.dataset.up),-1)));
