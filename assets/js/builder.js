@@ -643,33 +643,33 @@
     renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
   }
 
-  function selectBlock(id) {
+  function selectBlock(id,inlineEditing=false) {
     selectedId = id;
     selectedNodeId = null;
     selectedLegacyField = null;
     activeInspectorTab = 'content';
     renderCanvas();
     renderInspector();
-    postPreviewState();
+    if(!inlineEditing)postPreviewState();
   }
 
-  function selectNestedNode(blockId,nodeId) {
+  function selectNestedNode(blockId,nodeId,inlineEditing=false) {
     selectedId = Number(blockId);
     selectedNodeId = String(nodeId || '');
     selectedLegacyField = null;
     activeInspectorTab = 'content';
     renderCanvas();
     renderInspector();
-    postPreviewState();
+    if(!inlineEditing)postPreviewState();
   }
-  function selectLegacyElement(blockId,field) {
+  function selectLegacyElement(blockId,field,inlineEditing=false) {
     selectedId = Number(blockId);
     selectedNodeId = null;
     selectedLegacyField = String(field || '');
     activeInspectorTab = 'content';
     renderCanvas();
     renderInspector();
-    postPreviewState();
+    if(!inlineEditing)postPreviewState();
   }
 
   function renderNodeInspector(block,host) {
@@ -1816,9 +1816,10 @@
     } else if (message.type === 'milad-builder-node-select') {
       const block = blocks.find(item => blockKey(item) === String(message.key));
       if (!block) return;
-      if (message.legacyField) selectLegacyElement(Number(block.id),String(message.legacyField));
-      else if (message.nodeId) selectNestedNode(Number(block.id),String(message.nodeId));
-      else selectBlock(Number(block.id));
+      const inlineEditing=message.inline===true;
+      if (message.legacyField) selectLegacyElement(Number(block.id),String(message.legacyField),inlineEditing);
+      else if (message.nodeId) selectNestedNode(Number(block.id),String(message.nodeId),inlineEditing);
+      else selectBlock(Number(block.id),inlineEditing);
     } else if (message.type === 'milad-builder-direct-style') {
       directStyleUpdate(message);
     } else if (message.type === 'milad-builder-context-action') {
