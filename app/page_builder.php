@@ -869,6 +869,13 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     Object.keys(fields).forEach(function(field){
       var target = node.querySelector(fields[field]);
       if (target) {
+        if (['title_line1','text_before','heading_before'].indexOf(field)!==-1 && target.firstChild && target.firstChild.nodeType===3) {
+          var prefix=document.createElement('span');
+          prefix.className='builder-inline-prefix';
+          prefix.textContent=target.firstChild.textContent;
+          target.replaceChild(prefix,target.firstChild);
+          target=prefix;
+        }
         target.setAttribute('data-builder-edit-field',field);
         target.setAttribute('data-widget-node','legacy-' + field);
       }
