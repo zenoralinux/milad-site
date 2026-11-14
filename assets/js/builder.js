@@ -1850,7 +1850,7 @@
         const record=findNestedNode(block,String(message.nodeId));
         if(!record)return;
         const type=String(record.node.type||'paragraph');
-        target=nodeContent(record.node);
+        target=(type==='principle_item'||type==='stat_item')?record.node:nodeContent(record.node);
         const rootField=path.split('.')[0];
         const allowed=(fields[type]||[]).some(([key])=>key===rootField)||Object.prototype.hasOwnProperty.call(target,rootField);
         if(!allowed||!setObjectPath(target,path,message.value))return;
