@@ -60,7 +60,10 @@ assert(paletteStudio.includes('name="color_palette"'),'Studio exposes a global p
 
 assert(preview.includes("if(widgetId.indexOf('legacy-')===0)selection.legacyField") && preview.includes("else if(widgetId)selection.nodeId"),'context menu selects nested nodes instead of their containing block');
 assert(js.includes("record.collection.splice(record.index+1,0,clone)") && js.includes("freshenNodeIds(clone)"),'duplicate nested nodes as siblings with fresh IDs');
-assert(preview.includes("if(event.target.closest('a'))event.preventDefault();") && !preview.includes("event.preventDefault();event.stopPropagation();"),'inline editor preserves click caret placement');
-assert(preview.includes("data-widget-type='principle_item'") || preview.includes("data-widget-type","principle_item"),'About principle cards support inline editing');
+const inlineClickStart=preview.indexOf("var selection={type:'milad-builder-node-select',key:block.dataset.builderKey,inline:true}");
+const inlineClickEnd=preview.indexOf("var widgetNode = event.target.closest('[data-widget-node]')",inlineClickStart);
+const inlineClickHandler=preview.slice(inlineClickStart,inlineClickEnd);
+assert(inlineClickHandler.includes("if(event.target.closest('a'))event.preventDefault();") && !inlineClickHandler.includes("event.preventDefault();event.stopPropagation();"),'inline editor preserves click caret placement');
+assert(preview.includes("tile.setAttribute('data-widget-type','principle_item')") && preview.includes("tile.setAttribute('data-widget-type','stat_item')"),'About principle and Stats cards support inline editing');
 
 console.log('Milad Studio Pro static invariants passed');
