@@ -49,11 +49,15 @@ function builder_design_css(array $settings): string
     $scale = max(0.85, min(1.2, (float) ($settings['font_scale'] ?? 1)));
     $spacing = max(32, min(180, (int) ($settings['section_spacing'] ?? 72)));
     return '<style id="builder-design-tokens">:root{--accent:' . $accent . ';--accent-strong:' . $accent .
-        ';--bg:' . $background . ';--container:' . $width . 'px;--radius-md:' . $radius .
-        'px;--builder-font-scale:' . $scale . ';--builder-section-gap:' . $spacing . 'px}' .
+        ';--container:' . $width . 'px;--radius-lg:' . $radius . 'px;--radius-md:' . $radius .
+        'px;--radius-sm:' . max(0, (int) round($radius * 0.68)) . 'px;--builder-font-scale:' . $scale .
+        ';--builder-section-gap:' . $spacing . 'px}html[data-theme="dark"]{--bg:' . $background . '}' .
         'body{font-size:calc(15px * var(--builder-font-scale,1))}' .
         '.section-shell{scroll-margin-top:110px}' .
         '.work-section,.about-section,.now-section,.contact-section{padding-block:var(--builder-section-gap,72px)}' .
+        '.builder-custom-block .panel-card{padding:clamp(20px,4vw,44px);border:1px solid var(--line);border-radius:var(--radius-lg)}' .
+        '.builder-custom-block h2{margin:0 0 12px;font-size:clamp(24px,4vw,42px)}' .
+        '.builder-custom-block p{color:var(--muted);line-height:2.1}' .
         '</style>';
 }
 
@@ -120,8 +124,13 @@ function builder_render_custom_block(array $block): string
         $buttonText = h($content['button_text'] ?? 'تماس با من');
         $url = (string) ($content['button_url'] ?? '#contact');
         $safeUrl = '#contact';
-        if (preg_match('/^#[a-zA-Z0-9_-]+$/', $url) || (strpos($url, '/') === 0 && strpos($url, '//') !== 0) ||
-            (preg_match('#^https://[a-z0-9.-]+(?::[0-9]{1,5})?(?:/.*)?$#i', $url))) $safeUrl = $url;
+        if (preg_match('/^#[a-zA-Z0-9_-]+$/', $url)) {
+            $safeUrl = $url;
+        } elseif (strpos($url, '/') === 0 && strpos($url, '//') !== 0) {
+            $safeUrl = app_url($url);
+        } elseif (preg_match('#^https://[a-z0-9.-]+(?::[0-9]{1,5})?(?:/.*)?$#i', $url)) {
+            $safeUrl = $url;
+        }
         return '<section class="section-shell builder-custom-block builder-cta-block"' . $style .
             '><div class="container"><div class="panel-card"><h2>' . $title . '</h2><p>' . $body .
             '</p><a class="button button-primary" href="' . h($safeUrl) . '">' . $buttonText . '</a></div></div></section>';
