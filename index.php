@@ -46,6 +46,18 @@ function remove_named_section(string $html, string $start): string
     if ($b === false) return $html;
     return substr($html, 0, $a) . substr($html, $b + strlen('</section>'));
 }
+function remove_named_element(string $html, string $start, string $end): string
+{
+    $a = strpos($html, $start);
+    if ($a === false) return $html;
+    $b = strpos($html, $end, $a);
+    if ($b === false) return $html;
+    return substr($html, 0, $a) . substr($html, $b + strlen($end));
+}
+function fa_digits(int $number): string
+{
+    return strtr((string) $number, ['0'=>'۰','1'=>'۱','2'=>'۲','3'=>'۳','4'=>'۴','5'=>'۵','6'=>'۶','7'=>'۷','8'=>'۸','9'=>'۹']);
+}
 function public_href(string $url): string
 {
     $url = trim($url);
@@ -104,6 +116,8 @@ $html = preg_replace('/<meta property="og:image" content="[^"]*">/', '<meta prop
 $html = preg_replace('/<meta name="twitter:title" content="[^"]*">/', '<meta name="twitter:title" content="' . h($siteTitle) . '">', $html, 1);
 $html = preg_replace('/<meta name="twitter:description" content="[^"]*">/', '<meta name="twitter:description" content="' . h($siteDescription) . '">', $html, 1);
 $html = preg_replace('/<meta name="theme-color" content="[^"]*">/', '<meta name="theme-color" content="' . h(public_setting('theme_color', '#080b12')) . '">', $html, 1);
+$html = str_replace('"url": "https://miladalizadw.ir/"', '"url": "' . h($canonical) . '"', $html);
+$html = str_replace('"image": "https://miladalizadw.ir/milad_avatar.jpg"', '"image": "' . h($avatar) . '"', $html);
 $html = str_replace('https://github.com/miladalizadw', h($github), $html);
 $html = str_replace('https://t.me/miladalizadw', h($telegram), $html);
 $html = str_replace('./milad_avatar.jpg', h($avatar), $html);
@@ -166,6 +180,12 @@ foreach ([
 ] as $key => $marker) {
     if (isset($sections[$key]) && !$sections[$key]['is_visible']) $html = remove_named_section($html, $marker);
 }
+if (isset($sections['principles']) && !$sections['principles']['is_visible']) {
+    $html = preg_replace('/<div class="principles-grid">.*?<\/div>/s', '', $html, 1) ?? $html;
+}
+if (isset($sections['footer']) && !$sections['footer']['is_visible']) {
+    $html = remove_named_element($html, '<footer class="site-footer">', '</footer>');
+}
 $projectCount = count($projects);
-$html = str_replace('۰۵ پروژه', h((string) $projectCount) . ' پروژه', $html);
+$html = str_replace('۰۵ پروژه', h(fa_digits($projectCount)) . ' پروژه', $html);
 echo $html;
