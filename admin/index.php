@@ -168,7 +168,6 @@ try {
       <div class="sidebar-label">WORKSPACE</div>
       <nav class="side-nav" aria-label="منوی مدیریت">
         <button class="side-link is-active" data-view="dashboard"><span>◫</span> نمای کلی</button>
-        <button class="side-link" data-view="content"><span>▤</span> محتوای سایت</button>
         <button class="side-link" data-view="builder"><span>✥</span> صفحه‌ساز بصری</button>
         <button class="side-link" data-view="projects"><span>▦</span> مدیریت پروژه‌ها</button>
         <button class="side-link" data-view="settings"><span>⚙</span> تنظیمات سایت</button>
@@ -189,16 +188,12 @@ try {
           <div class="stat-grid" id="dashboardStats"><div class="stat-card skeleton"></div><div class="stat-card skeleton"></div><div class="stat-card skeleton"></div></div>
           <div class="dashboard-grid">
             <section class="panel-card"><div class="panel-heading"><div><span class="section-kicker">QUICK ACCESS</span><h3>دسترسی سریع</h3></div></div><div class="quick-actions">
-              <button data-go="content"><b>▤</b><span><strong>ویرایش محتوای سایت</strong><small>متن‌ها و بخش‌های صفحه اصلی</small></span><i>↙</i></button>
+              <button data-go="builder"><b>✥</b><span><strong>طراحی و ویرایش زنده</strong><small>صفحه‌ساز بصری و پیش‌نمایش لحظه‌ای</small></span><i>↙</i></button>
               <button data-go="projects"><b>▦</b><span><strong>مدیریت پروژه‌ها</strong><small>ایجاد و ویرایش پروژه‌ها</small></span><i>↙</i></button>
               <button data-go="settings"><b>⚙</b><span><strong>تنظیمات عمومی</strong><small>اطلاعات پایه و لینک‌های سایت</small></span><i>↙</i></button>
             </div></section>
             <section class="panel-card"><div class="panel-heading"><div><span class="section-kicker">RECENT ACTIVITY</span><h3>آخرین تغییرات</h3></div><button class="inline-action" data-go="activity">مشاهده همه ↗</button></div><div class="activity-list" id="dashboardActivity"><p class="muted">در حال دریافت اطلاعات…</p></div></section>
           </div>
-        </section>
-        <section class="admin-view" id="view-content">
-          <div class="view-intro"><div><span class="section-kicker">CONTENT STUDIO</span><h2>محتوای سایت</h2><p>متن‌ها و بخش‌های صفحه اصلی را بدون تغییر کد مدیریت کن.</p></div></div>
-          <div class="content-layout"><div class="section-picker panel-card" id="sectionPicker"><div class="loading-line">در حال دریافت بخش‌ها…</div></div><section class="panel-card editor-panel" id="sectionEditor"><div class="empty-state"><b>✳</b><h3>یک بخش را انتخاب کن</h3><p>برای ویرایش، یکی از بخش‌های سمت راست را انتخاب کن.</p></div></section></div>
         </section>
         <section class="admin-view" id="view-builder">
           <div class="view-intro">
@@ -226,11 +221,14 @@ try {
                 <button class="builder-library-item" type="button" data-add-block="spacer"><b>↕</b><span>فاصله عمودی<small>تنظیم ریتم صفحه</small></span></button>
               </div>
               <div class="builder-separator"></div>
-              <div class="builder-note">سکشن‌های فعلی سایت حفظ شده‌اند. بلوک‌های تازه بدون نیاز به ویرایش کد به صفحه اضافه می‌شوند.</div>
+              <div class="builder-panel-heading"><div><strong>لایه‌های صفحه</strong><small>ترتیب، نمایش و مدیریت بخش‌ها</small></div></div>
+              <div class="builder-layers-list" id="builderCanvas"><div class="builder-empty">در حال دریافت ساختار صفحه…</div></div>
             </aside>
             <section class="builder-canvas-wrap panel-card">
-              <div class="builder-canvas-header"><strong>ساختار و ترتیب صفحه</strong><small>برای جابه‌جایی، بلوک‌ها را بکش</small></div>
-              <div class="builder-canvas" id="builderCanvas" data-device="desktop"><div class="builder-empty">در حال دریافت بلوک‌ها…</div></div>
+              <div class="builder-canvas-header"><strong>پیش‌نمایش زنده سایت</strong><small>روی هر بخش کلیک کن تا تنظیماتش باز شود؛ تغییرات در همین نما دیده می‌شوند</small></div>
+              <div class="builder-preview-frame-shell" id="builderPreviewShell" data-device="desktop">
+                <iframe id="builderPreviewFrame" title="پیش‌نمایش زنده وب‌سایت" src="<?= h(app_url('/?builder_preview=1')) ?>" loading="eager"></iframe>
+              </div>
             </section>
             <aside class="builder-inspector panel-card">
               <div class="builder-inspector-inner">
