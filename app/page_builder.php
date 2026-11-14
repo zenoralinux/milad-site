@@ -248,7 +248,7 @@ function builder_legacy_element_css(array $blocks): string
 {
     $selectors = [
         'hero' => [
-            'eyebrow' => '.hero-copy .eyebrow', 'title_line1' => '.hero-copy h1',
+            'eyebrow' => '.hero-copy .eyebrow', 'title_line1' => '.hero-copy h1', 'title_line2' => '.hero-copy h1 .type-gradient',
             'description' => '.hero-description', 'primary_cta_text' => '.hero-actions a:first-child',
             'secondary_cta_text' => '.hero-actions a:nth-child(2)', 'footnote' => '.hero-footnote span:last-child'
         ],
@@ -258,16 +258,16 @@ function builder_legacy_element_css(array $blocks): string
             'description' => '.section-heading > p'
         ],
         'about' => [
-            'section_index' => '.about-heading .section-index', 'title_line1' => '.about-heading h2',
+            'section_index' => '.about-heading .section-index', 'title_line1' => '.about-heading h2', 'title_line2' => '.about-heading h2 .type-gradient',
             'description' => '.about-heading > p', 'link_text' => '.about-heading .text-link'
         ],
         'now' => [
-            'section_index' => '.now-panel-copy .section-index', 'title_line1' => '.now-panel-copy h2',
+            'section_index' => '.now-panel-copy .section-index', 'title_line1' => '.now-panel-copy h2', 'title_line2' => '.now-panel-copy h2 .type-gradient',
             'description' => '.now-panel-copy > p', 'status_title' => '.now-note strong',
             'status_subtitle' => '.now-note small'
         ],
         'contact' => [
-            'section_index' => '.contact-copy .section-index', 'title_line1' => '.contact-copy h2',
+            'section_index' => '.contact-copy .section-index', 'title_line1' => '.contact-copy h2', 'title_line2' => '.contact-copy h2 .type-gradient',
             'description' => '.contact-copy > p'
         ],
         'footer' => ['tagline' => '.footer-brand > span:last-child', 'copyright' => '.footer-copy'],
@@ -294,8 +294,9 @@ function builder_legacy_element_css(array $blocks): string
     return $output !== '' ? '<style id="builder-element-styles">' . $output . '</style>' : '';
 }
 
-function builder_responsive_widget_css(array $widgets, string $device): string
+function builder_responsive_widget_css(array $widgets, string $device, int $depth = 0): string
 {
+    if ($depth > 8) return '';
     $propertyMap = [
         'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width',
         'max_width' => 'max-width', 'min_height' => 'min-height', 'gap' => 'gap',
@@ -324,7 +325,7 @@ function builder_responsive_widget_css(array $widgets, string $device): string
         }
         $children = is_array($widget['children'] ?? null) ? $widget['children'] : [];
         if (!$children && is_array($widget['content']['children'] ?? null)) $children = $widget['content']['children'];
-        if ($children) $rules .= builder_responsive_widget_css($children, $device);
+        if ($children) $rules .= builder_responsive_widget_css($children, $device, $depth + 1);
     }
     return $rules;
 }
@@ -909,7 +910,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     document.documentElement.style.setProperty('--builder-font-scale',d.font_scale || '1');
     document.documentElement.style.setProperty('--builder-section-gap',Math.max(32,Math.min(180,Number(d.section_spacing) || 72)) + 'px');
     if (footerNode && footerBlock) main.after(footerNode);
-    if (selectedKey) selectOutline(selectedKey);
+    if (selectedKey) selectOutline(selectedKey,selectedNodeId,selectedLegacyField);
   }
   function selectOutline(key,nodeId,legacyField){
     selectedKey = key;
@@ -926,7 +927,8 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       });
     } else if (selectedNodeId) {
       selected = Array.prototype.find.call(document.querySelectorAll('[data-widget-node]'),function(el){
-        return el.dataset.widgetNode === selectedNodeId;
+        var owner = el.closest('[data-builder-key]');
+        return owner && owner.dataset.builderKey === key && el.dataset.widgetNode === selectedNodeId;
       });
     }
     if (selected) selected.classList.add('builder-live-node-selected');
