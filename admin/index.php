@@ -41,8 +41,13 @@ try {
 
 $admin = null;
 $setupError = null;
+$setupStage = 'اتصال به MySQL';
+$setupDebug = '';
+$GLOBALS['milad_setup_stage'] = $setupStage;
+
 try {
     $pdo = db();
+    $setupStage = 'بررسی حساب مدیر';
     $adminCount = (int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn();
     if ($adminCount < 1) {
         $setupError = 'حساب مدیر ساخته نشده است. بخش admin در config.php را بررسی کن.';
@@ -50,7 +55,63 @@ try {
         $admin = current_admin();
     }
 } catch (Throwable $e) {
-    $setupError = $e->getMessage();
+    $rootCause = $e;
+    while ($rootCause->getPrevious()) {
+        $rootCause = $rootCause->getPrevious();
+    }
+
+    $setupStage = (string) ($GLOBALS['milad_setup_stage'] ?? $setupStage);
+    $driverCode = 0;
+    $sqlState = (string) $rootCause->getCode();
+    if ($rootCause instanceof PDOException) {
+        $errorInfo = $rootCause->errorInfo ?? [];
+        $sqlState = (string) ($errorInfo[0] ?? $rootCause->getCode());
+        $driverCode = (int) ($errorInfo[1] ?? 0);
+    }
+
+    $rawMessage = $rootCause->getMessage();
+    if (stripos($rawMessage, 'could not find driver') !== false) {
+        $setupError = 'افزونه pdo_mysql روی PHP هاست فعال نیست. آن را از بخش Select PHP Version / Extensions فعال کن.';
+    } else {
+        switch ($driverCode) {
+            case 1044:
+            case 1045:
+                $setupError = 'MySQL دسترسی را رد کرده است. نام کاربری، رمز عبور و اتصال کاربر به دیتابیس را بررسی کن.';
+                break;
+            case 1049:
+                $setupError = 'دیتابیس با این نام پیدا نشد. نام کامل دیتابیس را همراه پیشوند حساب هاست وارد کن.';
+                break;
+            case 2002:
+            case 2003:
+            case 2005:
+                $setupError = 'سرور MySQL در دسترس نیست. مقدار database.host و database.port را از شرکت هاستینگ بررسی کن.';
+                break;
+            case 1142:
+            case 1143:
+            case 1227:
+                $setupError = 'کاربر دیتابیس اجازه اجرای این عملیات را ندارد. دسترسی CREATE، SELECT، INSERT، UPDATE و DELETE را به دیتابیس بده.';
+                break;
+            case 1064:
+            case 1071:
+            case 1005:
+            case 1215:
+            case 3780:
+                $setupError = 'ساختار یکی از جدول‌های دیتابیس با نسخه یا تنظیمات MySQL سازگار نیست. کد خطای دیتابیس را برای بررسی ثبت کرده‌ایم.';
+                break;
+            default:
+                $setupError = 'خطای دیتابیس رخ داد. کد خطا را پایین صفحه ببین و گزارش خطای هاست را بررسی کن.';
+                break;
+        }
+    }
+
+    $setupDebug = sprintf(
+        'Type: %s | SQLSTATE: %s | MySQL code: %d | Message: %s',
+        get_class($rootCause),
+        $sqlState,
+        $driverCode,
+        $rawMessage
+    );
+    error_log('[Milad CMS setup] stage=' . $setupStage . ' | ' . $setupDebug);
 }
 ?><!doctype html>
 <html lang="fa" dir="rtl">
@@ -72,7 +133,12 @@ try {
       <li>در بخش <code>admin</code> نام کاربری و رمز ورود دلخواهت را تنظیم کن (حداقل ۱۲ نویسه).</li>
       <li>ذخیره کن و همین صفحه را تازه‌سازی کن.</li>
     </ol>
-    <p class="setup-error"><?= h(cfg('app.debug', false) ? $setupError : 'اتصال دیتابیس برقرار نشد یا کاربر دیتابیس اجازه ساخت جدول‌ها را ندارد. مقادیر config.php و دسترسی دیتابیس را بررسی کن.') ?></p>
+    <p class="setup-error"><strong>مرحله:</strong> <?= h($setupStage) ?></p>
+    <p class="setup-error"><strong>علت:</strong> <?= h($setupError) ?></p>
+    <p class="setup-hint">کد عیب‌یابی: SQLSTATE <?= h(isset($sqlState) ? $sqlState : '—') ?> · MySQL <?= h(isset($driverCode) ? (string) $driverCode : '—') ?></p>
+    <?php if (cfg('app.debug', false) && $setupDebug !== ''): ?>
+      <details class="setup-diagnostic"><summary>جزئیات فنی</summary><pre><?= h($setupDebug) ?></pre></details>
+    <?php endif; ?>
     <a class="text-link" href="<?= h(app_url('/')) ?>">بازگشت به وب‌سایت ↗</a>
   </section></main>
 <?php elseif (!$admin): ?>
