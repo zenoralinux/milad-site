@@ -1119,13 +1119,13 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       });
       if(type==='gallery')node.querySelectorAll('figure figcaption').forEach(function(el,index){el.setAttribute('data-builder-edit-field','items.'+index+'.title');});
       if(type==='timeline')node.querySelectorAll(':scope > article').forEach(function(el,index){
-        var date=el.querySelector('time'),title=el.querySelector('h4'),description=el.querySelector('p');
+        var date=el.querySelector('time'),title=el.querySelector('h3,h4'),description=el.querySelector('p');
         if(date)date.setAttribute('data-builder-edit-field','items.'+index+'.date');
         if(title)title.setAttribute('data-builder-edit-field','items.'+index+'.title');
         if(description)description.setAttribute('data-builder-edit-field','items.'+index+'.description');
       });
       if(type==='logo_cloud'||type==='team'||type==='tabs')node.querySelectorAll(':scope > article').forEach(function(el,index){
-        var primary=el.querySelector(type==='logo_cloud'?'strong':'h3,h4');
+        var primary=el.querySelector(type==='logo_cloud'?'strong,h3,h4':'h3,h4');
         var secondary=el.querySelector('p');
         if(primary)primary.setAttribute('data-builder-edit-field','items.'+index+'.'+(type==='logo_cloud'?'name':(type==='team'?'name':'title')));
         if(secondary)secondary.setAttribute('data-builder-edit-field','items.'+index+'.'+(type==='team'?'role':'description'));
