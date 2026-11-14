@@ -100,7 +100,12 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
                 </div>
               </div>
               <div class="builder-library-view" data-library-panel="structure" hidden>
-                <div class="builder-panel-heading"><div><strong>لایه‌های صفحه</strong><small>ترتیب، نمایش و مدیریت بخش‌ها</small></div></div>
+                <div class="builder-panel-heading"><div><strong>Navigator · ساختار صفحه</strong><small>درخت عناصر، انتخاب، جست‌وجو و جابه‌جایی</small></div></div>
+                <div class="builder-layers-tools">
+                  <input id="builderLayerSearch" type="search" placeholder="جست‌وجوی نام یا نوع عنصر…" autocomplete="off">
+                  <button type="button" id="builderLayerExpandAll" title="باز کردن همه">⌄</button>
+                  <button type="button" id="builderLayerCollapseAll" title="بستن همه">⌃</button>
+                </div>
                 <div class="builder-layers-list" id="builderCanvas"><div class="builder-empty">در حال دریافت ساختار صفحه…</div></div>
               </div>
             </aside>
@@ -144,18 +149,6 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
     </section>
   </div>
   <div class="builder-template-modal" id="builderTemplateModal" hidden>
-    <section class="builder-template-dialog" role="dialog" aria-modal="true" aria-labelledby="builderTemplateTitle">
-      <header><div><span class="section-kicker">STARTER TEMPLATES</span><h3 id="builderTemplateTitle">قالب‌های آماده</h3><p>یک ساختار آماده اضافه کن و سپس تمام متن‌ها و استایل‌ها را تغییر بده.</p></div><button type="button" data-template-close aria-label="بستن">×</button></header>
-      <div class="builder-template-grid">
-        <button type="button" data-template="feature-grid"><strong>گرید ویژگی‌ها</strong><small>سه کارت در چیدمان شبکه‌ای</small></button>
-        <button type="button" data-template="callout"><strong>دعوت به اقدام</strong><small>متن، توضیح و دکمه</small></button>
-        <button type="button" data-template="profile-intro"><strong>معرفی شخصی</strong><small>عنوان و توضیح در کانتینر</small></button>
-      </div>
-    </section>
-  </div>
-
-
-<div class="builder-template-modal" id="builderTemplateModal" hidden>
 <section class="builder-template-dialog studio-template-dialog" role="dialog" aria-modal="true" aria-labelledby="builderTemplateTitle">
 <header><div><span class="section-kicker">MILAD STUDIO LIBRARY</span><h3 id="builderTemplateTitle">کتابخانه قالب‌ها</h3><p>قالب‌های آماده را بر اساس کاربرد و سبک بصری پیدا کن و به صفحه اضافه کن.</p></div><button type="button" data-template-close aria-label="بستن">×</button></header>
 <div class="studio-template-tools"><input id="builderTemplateSearch" type="search" placeholder="جست‌وجوی قالب‌ها…">
