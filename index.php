@@ -218,4 +218,20 @@ $builderBlocks = builder_home_blocks();
 $builderDesign = builder_design_settings();
 $html = builder_apply_to_html($html, $builderBlocks, $builderDesign);
 
+if (isset($_GET['builder_preview']) && (string) $_GET['builder_preview'] === '1') {
+    start_admin_session();
+    if (!current_admin()) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+        exit('Preview access denied.');
+    }
+    $previewAssets = builder_preview_script();
+    $bodyEnd = stripos($html, '</body>');
+    if ($bodyEnd !== false) {
+        $html = substr($html, 0, $bodyEnd) . $previewAssets . substr($html, $bodyEnd);
+    }
+    header('Cache-Control: no-store, private');
+    header('X-Robots-Tag: noindex, nofollow');
+}
+
 echo $html;
