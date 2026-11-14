@@ -37,4 +37,24 @@ assert(preview.includes('studioPlainText(c.heading_before)') && preview.includes
 assert((studio.match(/id="builderTemplateModal"/g)||[]).length===1,'single template modal id');
 assert(index.includes('function public_plain_text($value)') && index.includes("public_plain_text($project['excerpt'] ?? '')"),'Selected Work project content is sanitized on the public page');
 assert(index.includes("public_plain_text($projectIntro['description'] ??"),'Selected Work heading and description are sanitized on the public page');
+
+const advancedTypes=['feature','pricing','accordion','testimonial','gallery','timeline','skill','logo_cloud','team','tabs','newsletter','icon_box'];
+advancedTypes.forEach(type=>{
+  assert(preview.includes("'" + type + "'"),'preview supports advanced widget ' + type);
+});
+assert(preview.includes('function markExistingWidgetTextFields()') && preview.includes('data-widget-type'),'server-rendered nested widgets expose inline-edit metadata');
+assert(preview.includes("event.type")===false || preview.includes("event.target.closest('[data-builder-edit-field]')"),'preview click handler resolves editable text fields');
+assert(preview.includes("document.addEventListener('click',function(event)") && preview.includes("fieldNode.setAttribute('contenteditable','true')"),'single-click text editing is enabled');
+assert(preview.includes("item.children) ? item.children : (Array.isArray(c.children) ? c.children : [])"),'nested preview renders content.children fallback');
+assert(preview.includes("$children = is_array($widget['children'] ?? null) ? $widget['children'] : (is_array($content['children'] ?? null) ? $content['children'] : []);"),'PHP renderer renders content.children fallback');
+assert(js.includes('const studioPalettes =') && js.includes('function applyPaletteToBlock(') && js.includes('function applyPaletteSelection('),'global palette presets recolor saved blocks');
+assert(js.includes('function setObjectPath(') && js.includes('message.nodeId') && js.includes('message.legacyField'),'inline editor persists nested and legacy content paths');
+assert(js.includes('const frameRect=frame?frame.getBoundingClientRect()') && js.includes('function showBuilderContextMenu('),'canvas context menu uses iframe-to-editor coordinates');
+assert(js.slice(js.lastIndexOf('function deleteSelectedNode()')).includes('deleteBlock(Number(block.id))'),'context delete falls back to selected root block');
+assert(js.includes('const missing=createdIds.filter') && js.includes('await flushAllPending()'),'template application verifies every saved section');
+const api=fs.readFileSync('api/admin.php','utf8');
+const studio=fs.readFileSync('admin/studio.php','utf8');
+assert(api.includes("'color_palette' => ['palette']") && api.includes("['violet','ocean','emerald','sunset','rose','graphite']"),'server validates global color palettes');
+assert(studio.includes('name="color_palette"'),'Studio exposes a global palette selector');
+
 console.log('Milad Studio Pro static invariants passed');
