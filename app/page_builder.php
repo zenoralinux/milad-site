@@ -511,7 +511,7 @@ function builder_render_custom_block(array $block): string
         foreach (array_slice($items, 0, 6) as $item) {
             if (!is_array($item)) continue;
             $itemId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($item['id'] ?? ''));
-            $itemAttr = $itemId !== '' ? ' data-widget-node="' . $itemId . '"' : '';
+            $itemAttr = ' data-widget-type="stat_item"' . ($itemId !== '' ? ' data-widget-node="' . $itemId . '"' : '');
             $itemStyle = builder_widget_style(is_array($item['styles'] ?? null) ? $item['styles'] : []);
             $cards .= '<article class="principle-card"' . $itemAttr . $itemStyle . '><span class="principle-icon">' . h($item['value'] ?? '') .
                 '</span><h3>' . h($item['label'] ?? '') . '</h3><p>' . h($item['description'] ?? '') . '</p></article>';
@@ -577,7 +577,7 @@ function builder_apply_to_html(string $html, array $blocks, array $design, bool 
                 foreach (array_slice($block['content']['principles_items'], 0, 12) as $item) {
                     if (!is_array($item)) continue;
                     $itemId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($item['id'] ?? ''));
-                    $itemAttr = $itemId !== '' ? ' data-widget-node="' . $itemId . '"' : '';
+                    $itemAttr = ' data-widget-type="principle_item"' . ($itemId !== '' ? ' data-widget-node="' . $itemId . '"' : '');
                     $itemStyle = builder_widget_style(is_array($item['styles'] ?? null) ? $item['styles'] : []);
                     $principleCards .= '<article class="principle-card reveal"' . $itemAttr . $itemStyle .
                         '><span class="principle-icon">' . h($item['number'] ?? '') . '</span><h3>' . h($item['title'] ?? '') .
@@ -964,6 +964,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
         c.principles_items.slice(0,12).forEach(function(item){
           if (!item || typeof item !== 'object') return;
           var tile = card('article','principle-card reveal');
+          tile.setAttribute('data-widget-type','principle_item');
           if (item.id) tile.setAttribute('data-widget-node',String(item.id));
           var itemStyleMap = {background:'backgroundColor',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
           Object.keys(itemStyleMap).forEach(function(key){ tile.style[itemStyleMap[key]] = item.styles && item.styles[key] !== undefined ? String(item.styles[key]) : ''; });
@@ -1002,6 +1003,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
           (Array.isArray(c.items) ? c.items : []).slice(0,6).forEach(function(item){
             if (!item || typeof item !== 'object') return;
             var tile = card('article','principle-card');
+            tile.setAttribute('data-widget-type','stat_item');
             if (item.id) tile.setAttribute('data-widget-node',String(item.id));
             var itemStyleMap = {background:'backgroundColor',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
             Object.keys(itemStyleMap).forEach(function(key){ tile.style[itemStyleMap[key]] = item.styles && item.styles[key] !== undefined ? String(item.styles[key]) : ''; });
@@ -1107,6 +1109,8 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       pricing:{title:'h3',price:'.builder-pricing-price',period:'small',description:'p',button_text:'a.button'},
       testimonial:{quote:'blockquote',author:'figcaption strong',role:'figcaption span'},
       skill:{title:'strong'},newsletter:{title:'h3',description:'p'},
+      principle_item:{number:'.principle-icon',title:'h3',description:'p'},
+      stat_item:{value:'.principle-icon',label:'h3',description:'p'},
       gallery:{title:':scope > h3'},timeline:{title:':scope > h3'},
       logo_cloud:{title:':scope > h3'},team:{title:':scope > h3'},tabs:{title:':scope > h3'}
     };
