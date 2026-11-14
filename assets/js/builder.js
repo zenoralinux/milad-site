@@ -290,6 +290,30 @@
     };
   }
 
+  async function loadRevisionHistory(blockId) {
+    const list = $('#builderRevisionList');
+    if (!list) return;
+    list.innerHTML = '<small>در حال دریافت نسخه‌ها…</small>';
+    try {
+      const data = await request('builder-revisions','GET',null,blockId);
+      const revisions = data.revisions || [];
+      list.innerHTML = revisions.length ? revisions.map(revision => {
+        const date = new Date(String(revision.created_at).replace(' ','T') + 'Z');
+        const label = Number.isNaN(date.getTime()) ? revision.created_at : date.toLocaleString('fa-IR');
+        return '<div class="builder-revision-item"><span>' + escapeHtml(label) + '</span><button type="button" data-restore-revision="' + Number(revision.id) + '">بازیابی</button></div>';
+      }).join('') : '<small>هنوز نسخه‌ای ثبت نشده است.</small>';
+    } catch (error) { list.innerHTML = '<small>' + escapeHtml(error.message) + '</small>'; }
+  }
+  async function restoreRevision(revisionId) {
+    const block = blocks.find(item => Number(item.id) === Number(selectedId));
+    if (!block || !window.confirm('نسخه انتخاب‌شده جایگزین محتوای فعلی این بلوک شود؟')) return;
+    try {
+      await request('builder-revision-restore','POST',{block_id:Number(block.id),revision_id:Number(revisionId)});
+      await load(Number(block.id));
+      status('نسخه انتخاب‌شده بازیابی شد.','success');
+    } catch (error) { status(error.message,'error'); }
+  }
+
   function setInspectorTab(tab) {
     activeInspectorTab = tab;
     $$('[data-inspector-tab]').forEach(button => {
@@ -358,6 +382,7 @@
       '<label>نام در Navigator<input name="label" maxlength="140" value="' + escapeHtml(block.label || names[block.block_type]) + '"></label>' +
       '<label class="builder-check"><input type="checkbox" name="visible" ' + (block.is_visible ? 'checked' : '') + '> نمایش این بخش در سایت</label>' +
       '<div class="builder-note">کلید داخلی: <code>' + escapeHtml(block.block_key || '') + '</code><br>برای ویرایش مستقیم متن، روی متن در پیش‌نمایش دوبار کلیک کن.</div>' +
+      '<div class="builder-revision-panel"><div class="builder-panel-heading"><div><strong>تاریخچه نسخه‌ها</strong><small>۳۰ نسخه اخیر این بلوک</small></div><button type="button" class="secondary-button compact" data-load-revisions>بارگذاری</button></div><div class="builder-revision-list" id="builderRevisionList"><small>برای مشاهده نسخه‌ها بارگذاری کن.</small></div></div>' +
       '<div class="builder-form-actions"><button class="primary-button compact" type="button" id="builderSaveNow">ذخیره همین حالا</button></div></section>' +
       '</form>';
 
@@ -392,6 +417,7 @@
       flushSave(Number(block.id),true);
     });
     setInspectorTab(activeInspectorTab);
+    loadRevisionHistory(Number(block.id));
   }
 
   const undoStack = [];
@@ -704,6 +730,10 @@
     if (upChild) updateNestedChildren('up',Number(upChild.dataset.childUp));
     const downChild = event.target.closest('[data-child-down]');
     if (downChild) updateNestedChildren('down',Number(downChild.dataset.childDown));
+    const loadHistory = event.target.closest('[data-load-revisions]');
+    if (loadHistory && selectedId !== null) loadRevisionHistory(Number(selectedId));
+    const restore = event.target.closest('[data-restore-revision]');
+    if (restore) restoreRevision(Number(restore.dataset.restoreRevision));
   });
   document.getElementById('builderMediaUpload')?.addEventListener('submit',async event => {
     event.preventDefault();
