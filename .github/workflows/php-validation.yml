@@ -1,0 +1,76 @@
+name: Application validation
+
+on:
+  push:
+    branches:
+      - feature/admin-cms-blueprint-20261114
+      - main
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-22.04
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          MYSQL_DATABASE: milad_site_ci
+          MYSQL_USER: milad_ci
+          MYSQL_PASSWORD: ci-database-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-root-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['7.4', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: pdo_mysql, mbstring
+      - name: Lint PHP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            php -l "$file"
+          done < <(find . -type f -name '*.php' -not -path './.git/*' -print0)
+      - name: Verify one-file shared-hosting setup
+        run: |
+          test -f config.php
+          test -f app/installer.php
+          test ! -f config.example.php
+          test ! -f bin/install.php
+      - name: Test installation path detection
+        run: |
+          php tests/path-routing.php /index.php ''
+          php tests/path-routing.php /portfolio/index.php /portfolio
+          php tests/path-routing.php /portfolio/admin/index.php /portfolio
+          php tests/path-routing.php /portfolio/admin /portfolio
+          php tests/path-routing.php /nested/site/v2/api/admin.php /nested/site/v2
+      - name: Test automatic MySQL installation
+        shell: bash
+        run: |
+          cat > config.php <<'PHP'
+          <?php
+          return [
+            'app' => ['base_url' => 'http://localhost', 'base_path' => '', 'timezone' => 'UTC', 'session_name' => 'milad_ci'],
+            'database' => ['host' => '127.0.0.1', 'port' => 3306, 'name' => 'milad_site_ci', 'username' => 'milad_ci', 'password' => 'ci-database-password', 'charset' => 'utf8mb4'],
+            'admin' => ['username' => 'ci-admin', 'display_name' => 'CI Admin', 'password' => 'CI-Only-Strong-Password-2026!'],
+          ];
+          PHP
+          php tests/installation-smoke.php
+      - name: Check admin JavaScript syntax
+        run: node --check assets/js/admin.js
+      - name: Check public JavaScript syntax
+        run: node --check assets/js/site.js
+      - name: Validate patch whitespace
+        run: git diff --check

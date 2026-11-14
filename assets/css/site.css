@@ -509,3 +509,20 @@ html[data-theme="light"] .now-panel { background: radial-gradient(ellipse at 77%
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .has-motion .reveal { opacity: 1; transform: none; }
 }
+
+
+/* CMS-generated project cards */
+.generic-project-mark {
+  position: relative;
+  z-index: 2;
+  color: #f1ebff;
+  font-family: Arial, sans-serif;
+  font-size: clamp(70px, 10vw, 112px);
+  font-weight: 800;
+  letter-spacing: -10px;
+  text-shadow: 0 15px 48px rgba(7, 6, 24, .55);
+}
+.generic-project-mark span { color: var(--cyan); }
+.project-visual--generic {
+  background: radial-gradient(circle at 50% 45%, #394766, #182232 72%);
+}
