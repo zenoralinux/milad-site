@@ -7,6 +7,9 @@ RewriteRule ^index\.html$ / [R=302,L]
 RewriteRule ^admin/?$ admin/index.php [L,QSA]
 RewriteRule ^api/admin/?$ api/admin.php [L,QSA]
 
+# Keep application internals, configuration, SQL, and runtime storage private.
+RewriteRule ^(?:app|bin|config|database|storage|docs|\.git)(?:/|$) - [F,L]
+
 <FilesMatch "^(config\.php|config\.example\.php|\.env|composer\.(json|lock)|.*\.sql)$">
   Require all denied
 </FilesMatch>
