@@ -8,6 +8,7 @@ declare(strict_types=1);
 $scriptName = $argv[1] ?? '/index.php';
 $expectedBase = $argv[2] ?? '';
 $_SERVER['SCRIPT_NAME'] = $scriptName;
+$_SERVER['MILAD_FORCE_BASE_PATH'] = true;
 $_SERVER['HTTP_HOST'] = 'example.test';
 $_SERVER['HTTPS'] = 'on';
 
