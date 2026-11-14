@@ -33,7 +33,7 @@
 
 ## پیش‌نیازها
 
-- PHP 8.2 یا جدیدتر
+- PHP 7.4 یا جدیدتر (PHP 7.4.33 نیز پشتیبانی می‌شود)
 - MySQL 8+ یا MariaDB 10.6+
 - افزونه‌های PHP: pdo_mysql و mbstring (در نبود mbstring، fallback متنی داخلی استفاده می‌شود)
 - Apache با mod_rewrite و اجازه استفاده از .htaccess، یا تنظیم معادل در Nginx
