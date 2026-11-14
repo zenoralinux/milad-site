@@ -1313,7 +1313,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     if (fieldNode && block.contains(fieldNode)) {
       var widgetForField=fieldNode.closest('[data-widget-node]');
       var widgetId=widgetForField?String(widgetForField.dataset.widgetNode||''):'';
-      var selection={type:'milad-builder-node-select',key:block.dataset.builderKey};
+      var selection={type:'milad-builder-node-select',key:block.dataset.builderKey,inline:true};
       if(widgetId.indexOf('legacy-')===0) selection.legacyField=widgetId.replace(/^legacy-/,'');
       else if(widgetId) selection.nodeId=widgetId;
       else selection.field=fieldNode.dataset.builderEditField;
