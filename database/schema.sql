@@ -91,3 +91,10 @@ CREATE TABLE IF NOT EXISTS admin_activity_logs (
   CONSTRAINT fk_activity_admin FOREIGN KEY (admin_user_id) REFERENCES admin_users(id) ON DELETE SET NULL,
   INDEX idx_activity_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS app_installation (
+  id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+  schema_version VARCHAR(20) NOT NULL DEFAULT '1',
+  installed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
