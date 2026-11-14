@@ -45,7 +45,7 @@ try {
     $pdo = db();
     $adminCount = (int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn();
     if ($adminCount < 1) {
-        $setupError = 'Initial database setup is incomplete. Run php bin/install.php from the project root.';
+        $setupError = 'حساب مدیر ساخته نشده است. بخش admin در config.php را بررسی کن.';
     } else {
         $admin = current_admin();
     }
@@ -63,10 +63,16 @@ try {
 <body data-mode="<?= $setupError ? 'setup' : ($admin ? 'admin' : 'login') ?>" data-csrf="<?= h($csrf) ?>" data-base-path="<?= h(app_base_path()) ?>">
 <?php if ($setupError): ?>
   <main class="setup-screen"><section class="setup-card">
-    <div class="brand-mark">M<span>.</span></div><span class="eyebrow">ADMIN CMS · SETUP REQUIRED</span>
-    <h1>پنل آماده راه‌اندازی است</h1><p>برای فعال شدن پنل، اتصال پایگاه داده را تنظیم و نصب اولیه را از خط فرمان اجرا کن.</p>
-    <ol><li>فایل <code>config.example.php</code> را به <code>config.php</code> کپی کن.</li><li>اطلاعات MySQL را وارد و Secret را با یک مقدار تصادفی طولانی جایگزین کن.</li><li>در ترمینال اجرا کن: <code>php bin/install.php</code></li></ol>
-    <p class="setup-error"><?= h(cfg('app.debug', false) ? $setupError : 'پیکربندی دیتابیس هنوز انجام نشده یا ارتباط با آن برقرار نیست.') ?></p>
+    <div class="brand-mark">M<span>.</span></div><span class="eyebrow">ADMIN CMS · DATABASE SETUP</span>
+    <h1>فقط یک تنظیم باقی مانده</h1>
+    <p>نصب سایت خودکار است و به ترمینال نیاز ندارد. اطلاعات دیتابیس و حساب مدیر را فقط در فایل <code>config.php</code> در پوشه اصلی سایت وارد کن.</p>
+    <ol>
+      <li>در File Manager هاست، فایل <code>config.php</code> را باز کن.</li>
+      <li>مقادیر <code>database.name</code>، <code>database.username</code> و <code>database.password</code> را از پنل هاست وارد کن.</li>
+      <li>در بخش <code>admin</code> نام کاربری و رمز ورود دلخواهت را تنظیم کن (حداقل ۱۲ نویسه).</li>
+      <li>ذخیره کن و همین صفحه را تازه‌سازی کن.</li>
+    </ol>
+    <p class="setup-error"><?= h(cfg('app.debug', false) ? $setupError : 'اتصال دیتابیس برقرار نشد یا کاربر دیتابیس اجازه ساخت جدول‌ها را ندارد. مقادیر config.php و دسترسی دیتابیس را بررسی کن.') ?></p>
     <a class="text-link" href="<?= h(app_url('/')) ?>">بازگشت به وب‌سایت ↗</a>
   </section></main>
 <?php elseif (!$admin): ?>
