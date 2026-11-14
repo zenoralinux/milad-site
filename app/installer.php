@@ -10,6 +10,7 @@ function ensure_app_installed(PDO $pdo): void
 
     // Normal requests only need this cheap marker lookup; acquire the advisory lock
     // exclusively while the one-time schema/seed installation is still pending.
+    $GLOBALS['milad_setup_stage'] = 'بررسی نصب قبلی';
     try {
         $installed = $pdo->query('SELECT schema_version FROM app_installation WHERE id = 1')->fetchColumn();
         if ($installed !== false) {
@@ -20,6 +21,7 @@ function ensure_app_installed(PDO $pdo): void
         // First run: app_installation does not exist yet.
     }
 
+    $GLOBALS['milad_setup_stage'] = 'قفل‌گذاری نصب اولیه';
     $lockName = 'milad_site_setup_' . substr(hash('sha256', (string) cfg('database.name', 'site')), 0, 24);
     $lock = $pdo->prepare('SELECT GET_LOCK(?, 10)');
     $lock->execute([$lockName]);
@@ -38,15 +40,22 @@ function ensure_app_installed(PDO $pdo): void
             // First request: installation marker table does not exist yet.
         }
 
+        $GLOBALS['milad_setup_stage'] = 'خواندن ساختار دیتابیس';
         $schemaPath = MILAD_ROOT . '/database/schema.sql';
         $schema = is_file($schemaPath) ? file_get_contents($schemaPath) : false;
         if ($schema === false) {
             throw new RuntimeException('فایل database/schema.sql پیدا نشد. همه فایل‌های پروژه را آپلود کن.');
         }
         foreach (array_filter(array_map('trim', explode(';', $schema))) as $statement) {
+            $tableName = 'جدول دیتابیس';
+            if (preg_match('/^CREATE\\s+TABLE\\s+IF\\s+NOT\\s+EXISTS\\s+([a-z0-9_]+)/i', $statement, $tableMatch)) {
+                $tableName = $tableMatch[1];
+            }
+            $GLOBALS['milad_setup_stage'] = 'ساخت ' . $tableName;
             $pdo->exec($statement);
         }
 
+        $GLOBALS['milad_setup_stage'] = 'بررسی تنظیمات حساب مدیر';
         $adminCount = (int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn();
         if ($adminCount === 0) {
             $username = trim((string) cfg('admin.username', ''));
@@ -62,6 +71,7 @@ function ensure_app_installed(PDO $pdo): void
             if ($displayName === '') $displayName = $username;
         }
 
+        $GLOBALS['milad_setup_stage'] = 'ثبت تنظیمات اولیه سایت';
         $pdo->beginTransaction();
         try {
             $settings = [
@@ -91,6 +101,7 @@ function ensure_app_installed(PDO $pdo): void
                 'contact' => ['section_index' => '04 — LET’S CONNECT', 'title_line1' => 'ایده‌ای داری؟', 'title_line2' => 'گفت‌وگو کنیم.', 'description' => 'برای دیدن کدها، دنبال‌کردن پروژه‌ها یا شروع یک گفت‌وگوی فنی، از این مسیرها در دسترسم.'],
                 'footer' => ['tagline' => 'ساخته‌شده با دقت و علاقه.', 'copyright' => 'تمام حقوق محفوظ است.'],
             ];
+            $GLOBALS['milad_setup_stage'] = 'ثبت بخش‌های اولیه سایت';
             $sectionStmt = $pdo->prepare('INSERT IGNORE INTO site_sections (section_key, content_json, is_visible, sort_order) VALUES (?, ?, 1, ?)');
             $order = 0;
             foreach ($sections as $key => $content) {
@@ -99,6 +110,7 @@ function ensure_app_installed(PDO $pdo): void
                 $sectionStmt->execute([$key, $encoded, $order++]);
             }
 
+            $GLOBALS['milad_setup_stage'] = 'ثبت پروژه‌های اولیه';
             $projectCount = (int) $pdo->query('SELECT COUNT(*) FROM projects')->fetchColumn();
             if ($projectCount === 0) {
                 $projects = [
@@ -120,10 +132,12 @@ function ensure_app_installed(PDO $pdo): void
             }
 
             if ($adminCount === 0) {
+                $GLOBALS['milad_setup_stage'] = 'ساخت حساب مدیر';
                 $adminStmt = $pdo->prepare("INSERT INTO admin_users (username, password_hash, display_name, role) VALUES (?, ?, ?, 'owner')");
                 $adminStmt->execute([$username, password_hash($password, PASSWORD_DEFAULT), $displayName]);
             }
 
+            $GLOBALS['milad_setup_stage'] = 'ثبت پایان نصب';
             $pdo->exec("INSERT INTO app_installation (id, schema_version) VALUES (1, '1') ON DUPLICATE KEY UPDATE schema_version = VALUES(schema_version)");
             $pdo->commit();
         } catch (Throwable $e) {
