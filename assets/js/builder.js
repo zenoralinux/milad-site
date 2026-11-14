@@ -311,6 +311,22 @@
     if (toggle) toggle.textContent = block.is_visible ? '◉' : '○';
   }
 
+  function renderNavigatorNodes(items,block,depth=0) {
+    if (!Array.isArray(items) || depth > 8) return '';
+    return items.slice(0,40).map(node => {
+      if (!node || typeof node !== 'object') return '';
+      const content = node.content || node;
+      const type = String(node.type || 'paragraph');
+      const label = content.text || content.title || content.label || content.value || names[type] || type;
+      const children = Array.isArray(node.children) ? node.children : (Array.isArray(content.children) ? content.children : []);
+      return '<div class="builder-layer-node-wrap"><button type="button" class="builder-layer-node' +
+        (String(node.id || '') === String(selectedNodeId || '') ? ' is-selected' : '') +
+        '" data-node-select="' + escapeHtml(node.id || '') + '" data-block-id="' + Number(block.id) + '">' +
+        '<span>' + escapeHtml(names[type] || type) + '</span><small>' + escapeHtml(String(label).slice(0,38)) +
+        '</small></button>' + (children.length ? '<div class="builder-layer-children">' +
+        renderNavigatorNodes(children,block,depth+1) + '</div>' : '') + '</div>';
+    }).join('');
+  }
   function renderCanvas() {
     const canvas = $('#builderCanvas');
     if (!blocks.length) {
@@ -327,7 +343,9 @@
         '<div class="builder-block-copy"><strong>' + escapeHtml(block.label || names[block.block_type] || block.block_type) +
         '</strong><small>' + escapeHtml(names[block.block_type] || block.block_type) + ' · ' +
         (hidden ? 'مخفی' : 'نمایش در سایت') + '</small><div class="builder-block-preview"><b>' +
-        escapeHtml(titleOf(block)) + '</b><br>' + escapeHtml(summarize(block)).slice(0,100) + '</div></div>' +
+        escapeHtml(titleOf(block)) + '</b><br>' + escapeHtml(summarize(block)).slice(0,100) + '</div>' +
+        renderNavigatorNodes((block.content && (block.content.children || block.content.principles_items || block.content.items)) || [],block) +
+        '</div>' +
         '<div class="builder-block-actions"><button type="button" data-up="' + Number(block.id) + '" title="بالا">↑</button>' +
         '<button type="button" data-down="' + Number(block.id) + '" title="پایین">↓</button>' +
         (cloneable ? '<button type="button" data-clone="' + Number(block.id) + '" title="تکثیر">＋</button>' : '') +
