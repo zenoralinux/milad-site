@@ -57,6 +57,7 @@ function builder_design_css(array $settings): string
         '.builder-custom-block .panel-card{padding:clamp(20px,4vw,44px);border:1px solid var(--line);border-radius:var(--radius-lg)}' .
         '.builder-custom-block h2{margin:0 0 12px;font-size:clamp(24px,4vw,42px)}' .
         '.builder-custom-block p{color:var(--muted);line-height:2.1}' .
+        '[data-builder-key][hidden],.principles-grid[hidden]{display:none!important}' .
         '</style>';
 }
 
