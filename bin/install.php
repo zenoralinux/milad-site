@@ -111,10 +111,21 @@ try {
 
     $adminCount = (int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn();
     if ($adminCount === 0) {
-        $username = trim((string) readline('Create admin username: '));
-        $displayName = trim((string) readline('Display name [Milad]: '));
+        $readInput = static function (string $prompt): string {
+            echo $prompt;
+            return trim((string) fgets(STDIN));
+        };
+        $username = trim((string) (getenv('MILAD_ADMIN_USERNAME') ?: $readInput('Create admin username: ')));
+        $displayName = trim((string) (getenv('MILAD_ADMIN_DISPLAY_NAME') ?: $readInput('Display name [Milad]: ')));
         $displayName = $displayName !== '' ? $displayName : 'Milad';
-        $password = (string) readline('Create admin password (minimum 12 characters): ');
+        $password = (string) (getenv('MILAD_ADMIN_PASSWORD') ?: '');
+        if ($password === '') {
+            echo "Create admin password (minimum 12 characters): ";
+            $hiddenInput = DIRECTORY_SEPARATOR !== '\\' && function_exists('shell_exec');
+            if ($hiddenInput) shell_exec('stty -echo');
+            $password = trim((string) fgets(STDIN));
+            if ($hiddenInput) { shell_exec('stty echo'); echo PHP_EOL; }
+        }
         if (!preg_match('/^[a-zA-Z0-9_.-]{3,80}$/', $username)) throw new RuntimeException('Username must be 3-80 characters (letters, numbers, dot, dash, underscore).');
         if (strlen($password) < 12) throw new RuntimeException('Password must contain at least 12 characters.');
         $stmt = $pdo->prepare("INSERT INTO admin_users (username, password_hash, display_name, role) VALUES (?, ?, ?, 'owner')");
