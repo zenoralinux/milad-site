@@ -24,6 +24,7 @@ assert(js.includes('Array.isArray(template.blocks)') && js.includes('const creat
   assert(api.includes("'" + type + "' =>"),'API default for ' + type);
   assert(renderer.includes("'" + type + "'"),'server renderer registry for ' + type);
 });
+const index=fs.readFileSync('index.php','utf8');
 const preview=fs.readFileSync('app/page_builder.php','utf8');
 assert(js.includes('function directStyleUpdate(message)') && js.includes("message.type === 'milad-builder-direct-style'"),'direct canvas sizing and style persistence');
 assert(js.includes('function moveNestedNode(') && js.includes('data-layer-node-wrap'),'tree navigator and nested drag reorder');
