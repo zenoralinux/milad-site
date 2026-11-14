@@ -80,27 +80,51 @@ function public_href(string $url): string
 }
 function render_project_card(array $project, int $number): string
 {
-    $categoryLabels = ['os' => 'سیستم‌عامل', 'apps' => 'اپلیکیشن', 'tools' => 'ابزارها'];
+    $category = in_array((string) ($project['category'] ?? ''), ['os', 'apps', 'tools'], true)
+        ? (string) $project['category'] : 'tools';
+    $variant = in_array((string) ($project['visual_variant'] ?? ''), ['zenora', 'chat', 'android', 'arm', 'wsl', 'generic'], true)
+        ? (string) $project['visual_variant'] : 'generic';
+    $status = (string) ($project['status'] ?? 'project');
     $statusLabels = ['active' => 'فعال', 'in_progress' => 'در توسعه', 'paused' => 'متوقف', 'project' => 'پروژه', 'archived' => 'بایگانی'];
-    $category = (string) ($project['category'] ?? 'tools');
-    $variant = (string) ($project['visual_variant'] ?? 'generic');
+    $projectId = max(0, (int) ($project['id'] ?? 0));
+    $title = (string) ($project['title'] ?? '');
+    $slug = (string) ($project['slug'] ?? '');
+    $excerpt = (string) ($project['excerpt'] ?? '');
+    $kind = (string) ($project['kind_label'] ?? '');
+    $technologies = is_array($project['technologies'] ?? null) ? $project['technologies'] : [];
+    $links = is_array($project['links'] ?? null) ? $project['links'] : [];
+    $searchParts = [$title, $slug, $excerpt, (string) ($project['description'] ?? ''), $kind];
+    foreach ($technologies as $technology) {
+        if (is_scalar($technology)) $searchParts[] = (string) $technology;
+    }
+    $search = trim(implode(' ', $searchParts));
     $featured = !empty($project['is_featured']);
-    $search = trim(implode(' ', [
-        $project['title'] ?? '', $project['slug'] ?? '', $project['excerpt'] ?? '',
-        $project['description'] ?? '', $project['kind_label'] ?? '',
-        implode(' ', $project['technologies'] ?? [])
-    ]));
-    $html = '<article class="project-card' . ($featured ? ' project-card--featured' : '') . ' reveal" data-category="' . h($category) . '" data-search="' . h($search) . '">';
-    $html .= '<div class="project-card-top"><span class="project-number">' . sprintf('%02d', $number) . '</span><span class="project-kind">' . h($project['kind_label']) . '</span></div>';
+    $nodeId = 'project-card-' . $projectId;
+
+    // The outer markup is generated here; every database-backed value is escaped.
+    // Visual artwork comes only from project_visual_markup()'s fixed variant registry.
+    $html = '<article class="project-card' . ($featured ? ' project-card--featured' : '') . ' reveal"'
+        . ' data-project-card="1" data-project-id="' . $projectId . '" data-widget-node="' . h($nodeId) . '"'
+        . ' data-category="' . h($category) . '" data-search="' . h($search) . '">';
+    $html .= '<div class="project-card-top"><span class="project-number">' . sprintf('%02d', $number)
+        . '</span><span class="project-kind">' . h($kind) . '</span></div>';
     $html .= '<div class="project-visual project-visual--' . h($variant) . '">' . project_visual_markup($variant) . '</div>';
-    $html .= '<div class="project-card-content"><div class="project-title-row"><h3>' . h($project['title']) . '</h3><span class="project-status"><i></i>' . h($statusLabels[$project['status']] ?? 'پروژه') . '</span></div>';
-    $html .= '<p>' . h($project['excerpt']) . '</p><div class="tag-list">';
-    foreach ($project['technologies'] as $technology) $html .= '<span>' . h($technology) . '</span>';
+    $html .= '<div class="project-card-content"><div class="project-title-row"><h3>' . h($title)
+        . '</h3><span class="project-status"><i></i>' . h($statusLabels[$status] ?? 'پروژه') . '</span></div>';
+    $html .= '<p>' . h($excerpt) . '</p><div class="tag-list">';
+    foreach ($technologies as $technology) {
+        if (!is_scalar($technology)) continue;
+        $html .= '<span>' . h((string) $technology) . '</span>';
+    }
     $html .= '</div><div class="project-actions">';
-    foreach ($project['links'] as $link) {
-        $url = public_href((string) $link['url']);
-        $external = str_starts_with($url, 'https://');
-        $html .= '<a href="' . h($url) . '"' . ($external ? ' target="_blank" rel="noopener noreferrer"' : '') . '>' . h($link['label']) . ' <span>↗</span></a>';
+    foreach ($links as $link) {
+        if (!is_array($link)) continue;
+        $url = public_href((string) ($link['url'] ?? ''));
+        $label = (string) ($link['label'] ?? '');
+        if ($url === '#' || $label === '') continue;
+        $external = strpos($url, 'https://') === 0;
+        $html .= '<a href="' . h($url) . '"' . ($external ? ' target="_blank" rel="noopener noreferrer"' : '')
+            . '>' . h($label) . ' <span>↗</span></a>';
     }
     $html .= '</div></div></article>';
     return $html;
@@ -145,12 +169,20 @@ $html = replace_inner($html, '<p>', '</p>', h($intro['text_before'] ?? 'تمرک
 $projectIntro = public_section('projects');
 $html = str_replace('چیزهایی که <span class="type-gradient">می‌سازم.</span>', h($projectIntro['heading_before'] ?? 'چیزهایی که') . ' <span class="type-gradient">' . h($projectIntro['heading_emphasis'] ?? 'می‌سازم.') . '</span>', $html);
 $html = str_replace('مجموعه‌ای از پروژه‌ها و تجربه‌هایی که بخشی از مسیر من در توسعه نرم‌افزار هستند.', h($projectIntro['description'] ?? 'مجموعه‌ای از پروژه‌ها و تجربه‌هایی که بخشی از مسیر من در توسعه نرم‌افزار هستند.'), $html);
-$projectStart = '        <div class="projects-grid" id="projectsGrid">';
-$projectEnd = '        <p class="empty-filter" id="emptyFilter"';
-$cards = '<div class="projects-grid" id="projectsGrid">';
-foreach ($projects as $index => $project) $cards .= render_project_card($project, $index + 1);
-$cards .= "</div>\n";
-$html = replace_inner($html, $projectStart, $projectEnd, substr($cards, strlen($projectStart)));
+$projectCards = '';
+foreach ($projects as $index => $project) {
+    $projectCards .= render_project_card($project, $index + 1);
+}
+if ($projectCards === '') {
+    $projectCards = '<p class="project-empty-state">هنوز پروژه‌ای برای نمایش ثبت نشده است.</p>';
+}
+$projectMarker = '<!-- MILAD_PROJECT_CARDS -->';
+if (substr_count($html, $projectMarker) === 1) {
+    $html = str_replace($projectMarker, $projectCards, $html);
+} else {
+    // Fail closed rather than attempting a fragile partial HTML replacement.
+    error_log('Selected Work project renderer marker is missing or duplicated.');
+}
 
 $about = public_section('about');
 $html = str_replace('02 — A LITTLE ABOUT ME', h($about['section_index'] ?? '02 — A LITTLE ABOUT ME'), $html);
