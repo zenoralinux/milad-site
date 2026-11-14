@@ -106,15 +106,18 @@
   function makeNodeId() {
     return 'node-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,9);
   }
-  function normalizeNestedIds(block) {
+  function normalizeNestedIds(block,usedIds) {
     let changed = false;
+    usedIds = usedIds || new Set();
     const visited = [];
     function walk(items,depth) {
       if (!Array.isArray(items) || depth > 8 || visited.indexOf(items) !== -1) return;
       visited.push(items);
       items.slice(0,40).forEach(item => {
         if (!item || typeof item !== 'object') return;
-        if (!String(item.id || '').trim()) { item.id = makeNodeId(); changed = true; }
+        let nodeId = String(item.id || '').trim();
+        if (!nodeId || usedIds.has(nodeId)) { nodeId = makeNodeId(); item.id = nodeId; changed = true; }
+        usedIds.add(nodeId);
         const lists = [];
         if (Array.isArray(item.children)) lists.push(item.children);
         if (item.content && Array.isArray(item.content.children)) lists.push(item.content.children);
@@ -206,7 +209,7 @@
       const flag = form.elements[flagName], input = form.elements[inputName];
       if (!flag || !input) return;
       const update = () => { input.disabled = flag.checked; };
-      flag.addEventListener('change',() => { update(); sync(); });
+      flag.addEventListener('change',update);
       update();
     });
   }
@@ -910,7 +913,8 @@
       const data = await request('builder');
       blocks = data.blocks || [];
       const normalizedBlocks = [];
-      blocks.forEach(block => { if (normalizeNestedIds(block)) normalizedBlocks.push(block); });
+      const usedNodeIds = new Set();
+      blocks.forEach(block => { if (normalizeNestedIds(block,usedNodeIds)) normalizedBlocks.push(block); });
       design = data.design || {};
       if (selectId !== null) { selectedId = Number(selectId); selectedNodeId = null; selectedLegacyField = null; }
       if (!blocks.some(item => Number(item.id) === Number(selectedId))) {
