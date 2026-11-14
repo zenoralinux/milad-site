@@ -300,10 +300,9 @@ try {
                 'settings_json' => $existing['settings_json'],
                 'is_visible' => (int) $existing['is_visible']
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            $recentRevision = $pdo->prepare("SELECT created_at FROM content_revisions WHERE entity_type='block' AND entity_id=? ORDER BY id DESC LIMIT 1");
+            $recentRevision = $pdo->prepare("SELECT COUNT(*) FROM content_revisions WHERE entity_type='block' AND entity_id=? AND created_at >= (UTC_TIMESTAMP() - INTERVAL 5 MINUTE)");
             $recentRevision->execute([$id]);
-            $lastRevision = $recentRevision->fetchColumn();
-            if (!$lastRevision || strtotime((string) $lastRevision) < time() - 300) {
+            if ((int) $recentRevision->fetchColumn() === 0) {
                 $revision = $pdo->prepare("INSERT INTO content_revisions (entity_type,entity_id,snapshot_json,created_by) VALUES ('block',?,?,?)");
                 $revision->execute([$id,$snapshot,(int) $admin['id']]);
             }
