@@ -565,6 +565,13 @@ function builder_make_internal_preview(string $html): string
 
     $imageUri = 'data:image/jpeg;base64,' . base64_encode($avatar);
     $html = str_replace(['./milad_avatar.jpg', 'milad_avatar.jpg'], $imageUri, $html);
+    $html = preg_replace_callback(
+        '/<img\\b(?=[^>]*\\balt="تصویر پروفایل میلاد")[^>]*>/i',
+        static function (array $match) use ($imageUri): string {
+            return preg_replace('/\\bsrc="[^"]*"/i', 'src="' . $imageUri . '"', $match[0], 1) ?? $match[0];
+        },
+        $html
+    ) ?? $html;
 
     // Metadata and schema links are irrelevant inside an editor preview.
     $html = preg_replace_callback(
