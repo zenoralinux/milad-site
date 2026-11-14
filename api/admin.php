@@ -280,10 +280,12 @@ try {
             foreach ($allowedStyles as $key) {
                 if (!array_key_exists($key, $settings)) continue;
                 if (in_array($key, ['background','text_color'], true)) {
-                    $value = (string) $settings[$key];
-                    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $value)) api_fail('VALIDATION_ERROR', 'رنگ بلوک معتبر نیست.', 422);
-                    $cleanSettings[$key] = $value;
+                    if (!is_string($settings[$key]) || !preg_match('/^#[0-9a-fA-F]{6}$/', $settings[$key])) {
+                        api_fail('VALIDATION_ERROR', 'رنگ بلوک معتبر نیست.', 422);
+                    }
+                    $cleanSettings[$key] = $settings[$key];
                 } else {
+                    if (!is_numeric($settings[$key])) api_fail('VALIDATION_ERROR', 'مقدار ظاهری بلوک معتبر نیست.', 422);
                     $cleanSettings[$key] = max(0, min($key === 'padding' ? 180 : 48, (int) $settings[$key]));
                 }
             }
@@ -404,6 +406,7 @@ try {
             $clean = [];
             foreach ($rules as $key => $rule) {
                 if (!array_key_exists($key, $data)) continue;
+                if (!is_scalar($data[$key])) api_fail('VALIDATION_ERROR', 'یکی از مقادیر ظاهری معتبر نیست.', 422);
                 $value = trim((string) $data[$key]);
                 if ($rule[0] === 'color') {
                     if (!preg_match('/^#[0-9a-fA-F]{6}$/', $value)) api_fail('VALIDATION_ERROR', 'یکی از رنگ‌ها معتبر نیست.', 422);
