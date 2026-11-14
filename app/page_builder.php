@@ -1013,11 +1013,13 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   document.addEventListener('focusout',function(event){
     var target = event.target.closest('[contenteditable="true"][data-builder-edit-field]');
     if (!target) return;
+    var owner = target.closest('[data-builder-key]');
     target.removeAttribute('contenteditable');
     target.classList.remove('builder-inline-editing');
+    if (!owner) return;
     window.parent.postMessage({
       type:'milad-builder-inline-edit',
-      key:target.dataset.builderKey,
+      key:owner.dataset.builderKey,
       field:target.dataset.builderEditField,
       value:target.textContent
     },location.origin);
