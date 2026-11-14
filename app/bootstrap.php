@@ -38,7 +38,6 @@ function app_config(): array
             'timezone' => 'Europe/Berlin',
             'debug' => false,
             'session_name' => 'milad_admin',
-            'ip_hash_key' => '',
         ],
         'database' => [
             'host' => 'localhost',
@@ -50,51 +49,17 @@ function app_config(): array
         ],
     ];
 
-    $configuredPath = getenv('MILAD_SITE_CONFIG');
-    $configPath = $configuredPath !== false && $configuredPath !== ''
-        ? $configuredPath
-        : (is_file(MILAD_ROOT . '/config.php')
-            ? MILAD_ROOT . '/config.php'
-            : MILAD_ROOT . '/config.local.php');
-
-    $loaded = [];
-    if (is_file($configPath)) {
-        $value = require $configPath;
-        if (!is_array($value)) {
-            throw new RuntimeException('The PHP configuration file must return an array.');
-        }
-        $loaded = $value;
+    $configPath = MILAD_ROOT . '/config.php';
+    if (!is_file($configPath)) {
+        throw new RuntimeException('فایل config.php در پوشه اصلی سایت پیدا نشد.');
     }
 
-    $config = array_replace_recursive($defaults, $loaded);
-
-    $environmentMap = [
-        'app.base_url' => 'MILAD_APP_BASE_URL',
-        'app.base_path' => 'MILAD_APP_BASE_PATH',
-        'app.timezone' => 'MILAD_APP_TIMEZONE',
-        'app.ip_hash_key' => 'MILAD_APP_IP_HASH_KEY',
-        'database.host' => 'MILAD_DB_HOST',
-        'database.port' => 'MILAD_DB_PORT',
-        'database.name' => 'MILAD_DB_NAME',
-        'database.username' => 'MILAD_DB_USER',
-        'database.password' => 'MILAD_DB_PASSWORD',
-    ];
-    foreach ($environmentMap as $key => $variable) {
-        $value = getenv($variable);
-        if ($value === false) continue;
-        $parts = explode('.', $key);
-        $target = &$config;
-        foreach ($parts as $part) $target = &$target[$part];
-        $target = $key === 'database.port' ? (int) $value : $value;
-        unset($target);
+    $loaded = require $configPath;
+    if (!is_array($loaded)) {
+        throw new RuntimeException('فایل config.php باید آرایه تنظیمات PHP برگرداند.');
     }
 
-    $debug = getenv('MILAD_APP_DEBUG');
-    if ($debug !== false) {
-        $config['app']['debug'] = filter_var($debug, FILTER_VALIDATE_BOOLEAN);
-    }
-
-    return $config;
+    return array_replace_recursive($defaults, $loaded);
 }
 
 function cfg(string $key, $default = null)
@@ -190,7 +155,7 @@ function db(): PDO
     $database = cfg('database', []);
     foreach (['host', 'name', 'username', 'password'] as $key) {
         if (!isset($database[$key]) || ($key !== 'password' && trim((string) $database[$key]) === '')) {
-            throw new RuntimeException('Database configuration is incomplete. Set the database values in config.php/config.local.php or environment variables.');
+            throw new RuntimeException('اطلاعات دیتابیس در config.php کامل نیست.');
         }
     }
 
@@ -208,6 +173,10 @@ function db(): PDO
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
+
+    // First normal request installs the schema and seed content automatically.
+    require_once MILAD_ROOT . '/app/installer.php';
+    ensure_app_installed($pdo);
     return $pdo;
 }
 
@@ -308,7 +277,7 @@ function json_body(): array
 
 function request_ip_hash(): string
 {
-    $secret = (string) cfg('app.ip_hash_key', 'change-this-secret');
+    $secret = hash('sha256', (string) cfg('database.password', '') . '|milad-site-ip-hash');
     return hash_hmac('sha256', (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), $secret);
 }
 
