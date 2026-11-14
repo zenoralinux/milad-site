@@ -129,5 +129,40 @@ function run_app_migrations(PDO $pdo): void
         $version = 1;
     }
 
+    if ($version < 2) {
+        $pageId = (int) $pdo->query("SELECT id FROM pages WHERE slug='home' LIMIT 1")->fetchColumn();
+        $sections = $pdo->query("SELECT section_key,content_json,is_visible,sort_order FROM site_sections")->fetchAll(PDO::FETCH_ASSOC);
+        $sectionMap = [];
+        foreach ($sections as $section) $sectionMap[(string) $section['section_key']] = $section;
+
+        $about = isset($sectionMap['about']) ? json_decode((string) $sectionMap['about']['content_json'], true) : [];
+        $about = is_array($about) ? $about : [];
+        $principles = isset($sectionMap['principles']) ? json_decode((string) $sectionMap['principles']['content_json'], true) : [];
+        $about['principles_items'] = is_array($principles) && isset($principles['items']) && is_array($principles['items']) ? $principles['items'] : [];
+        $about['show_principles'] = !isset($sectionMap['principles']) || (int) $sectionMap['principles']['is_visible'] === 1;
+        $aboutJson = json_encode($about, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($aboutJson !== false) {
+            $updateAbout = $pdo->prepare("UPDATE page_blocks SET content_json=? WHERE page_id=? AND block_key='about' AND block_type='about'");
+            $updateAbout->execute([$aboutJson,$pageId]);
+        }
+
+        if (isset($sectionMap['footer'])) {
+            $footer = json_decode((string) $sectionMap['footer']['content_json'], true);
+            $footer = is_array($footer) ? $footer : [];
+            $insertFooter = $pdo->prepare("INSERT IGNORE INTO page_blocks
+                (page_id,block_key,block_type,label,content_json,settings_json,is_visible,sort_order)
+                VALUES (?,'footer','footer','پاورقی سایت',?,'{}',?,?)");
+            $insertFooter->execute([
+                $pageId,
+                json_encode($footer, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                (int) $sectionMap['footer']['is_visible'],
+                (int) $sectionMap['footer']['sort_order']
+            ]);
+        }
+
+        $pdo->exec("INSERT IGNORE INTO schema_migrations (version,migration_name) VALUES (2,'live_visual_editor')");
+        $version = 2;
+    }
+
     $completed = true;
 }
