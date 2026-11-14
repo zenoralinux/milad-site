@@ -52,9 +52,9 @@ assert(js.includes('function setObjectPath(') && js.includes('message.nodeId') &
 assert(js.includes('const frameRect=frame?frame.getBoundingClientRect()') && js.includes('function showBuilderContextMenu('),'canvas context menu uses iframe-to-editor coordinates');
 assert(js.slice(js.lastIndexOf('function deleteSelectedNode()')).includes('deleteBlock(Number(block.id))'),'context delete falls back to selected root block');
 assert(js.includes('const missing=createdIds.filter') && js.includes('await flushAllPending()'),'template application verifies every saved section');
-const api=fs.readFileSync('api/admin.php','utf8');
-const studio=fs.readFileSync('admin/studio.php','utf8');
-assert(api.includes("'color_palette' => ['palette']") && api.includes("['violet','ocean','emerald','sunset','rose','graphite']"),'server validates global color palettes');
-assert(studio.includes('name="color_palette"'),'Studio exposes a global palette selector');
+const paletteApi=fs.readFileSync('api/admin.php','utf8');
+const paletteStudio=fs.readFileSync('admin/studio.php','utf8');
+assert(paletteApi.includes("'color_palette' => ['palette']") && paletteApi.includes("['violet','ocean','emerald','sunset','rose','graphite']"),'server validates global color palettes');
+assert(paletteStudio.includes('name="color_palette"'),'Studio exposes a global palette selector');
 
 console.log('Milad Studio Pro static invariants passed');
