@@ -397,6 +397,10 @@ function builder_responsive_css(array $blocks): string
             if ($declarations) $rules .= '[data-builder-key="' . $key . '"]{' . implode(';', $declarations) . '}';
             $children = is_array($block['content']['children'] ?? null) ? $block['content']['children'] : [];
             if ($children) $rules .= builder_responsive_widget_css($children, $device);
+            $principles = is_array($block['content']['principles_items'] ?? null) ? $block['content']['principles_items'] : [];
+            $items = is_array($block['content']['items'] ?? null) ? $block['content']['items'] : [];
+            if ($principles) $rules .= builder_responsive_widget_css($principles, $device);
+            if ($items) $rules .= builder_responsive_widget_css($items, $device);
         }
         if ($rules !== '') $css .= '@media ' . $query . '{' . $rules . '}';
     }
@@ -434,7 +438,10 @@ function builder_render_custom_block(array $block): string
         $cards = '';
         foreach (array_slice($items, 0, 6) as $item) {
             if (!is_array($item)) continue;
-            $cards .= '<article class="principle-card"><span class="principle-icon">' . h($item['value'] ?? '') .
+            $itemId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($item['id'] ?? ''));
+            $itemAttr = $itemId !== '' ? ' data-widget-node="' . $itemId . '"' : '';
+            $itemStyle = builder_widget_style(is_array($item['styles'] ?? null) ? $item['styles'] : []);
+            $cards .= '<article class="principle-card"' . $itemAttr . $itemStyle . '><span class="principle-icon">' . h($item['value'] ?? '') .
                 '</span><h3>' . h($item['label'] ?? '') . '</h3><p>' . h($item['description'] ?? '') . '</p></article>';
         }
         return '<section class="section-shell builder-custom-block builder-stats-block" data-builder-key="' . $key . '" data-builder-id="' . (int) $block['id'] . '"' . $style .
@@ -493,6 +500,22 @@ function builder_apply_to_html(string $html, array $blocks, array $design, bool 
         $fragment = $fragments[$type] ?? '';
         if ($fragment !== '') {
             $fragment = builder_apply_fragment_attributes($fragment, $block);
+            if ($type === 'about' && isset($block['content']['principles_items']) && is_array($block['content']['principles_items'])) {
+                $principleCards = '';
+                foreach (array_slice($block['content']['principles_items'], 0, 12) as $item) {
+                    if (!is_array($item)) continue;
+                    $itemId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($item['id'] ?? ''));
+                    $itemAttr = $itemId !== '' ? ' data-widget-node="' . $itemId . '"' : '';
+                    $itemStyle = builder_widget_style(is_array($item['styles'] ?? null) ? $item['styles'] : []);
+                    $principleCards .= '<article class="principle-card reveal"' . $itemAttr . $itemStyle .
+                        '><span class="principle-icon">' . h($item['number'] ?? '') . '</span><h3>' . h($item['title'] ?? '') .
+                        '</h3><p>' . h($item['description'] ?? '') . '</p></article>';
+                }
+                $fragment = preg_replace_callback('/<div class="principles-grid"[^>]*>.*?<\\/div>/s', static function (array $match) use ($principleCards): string {
+                    if (!preg_match('/^<div\\b[^>]*>/', $match[0], $opening)) return $match[0];
+                    return $opening[0] . $principleCards . '</div>';
+                }, $fragment, 1) ?? $fragment;
+            }
             if ($type === 'about' && isset($block['content']['show_principles']) &&
                 !$block['content']['show_principles']) {
                 $fragment = preg_replace('/<div class="principles-grid">/', '<div class="principles-grid" hidden>', $fragment, 1) ?? $fragment;
