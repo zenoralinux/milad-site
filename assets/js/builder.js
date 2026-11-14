@@ -502,8 +502,9 @@
       let invalid = false;
       specs.forEach(([key]) => {
         const field = form.elements[key];
-        if (!field) return;
-        if (key === 'items' && form.querySelector('[data-repeater="items"]')) {
+        const hasRepeater = key === 'items' && !!form.querySelector('[data-repeater="items"]');
+        if (!field && !hasRepeater) return;
+        if (hasRepeater) {
           nextContent[key] = readRepeater(form,key) || [];
         } else if (['items','principles_items'].includes(key)) {
           try {
@@ -627,7 +628,8 @@
     let validationFailed = false;
     specs.forEach(([key]) => {
       const field = form.elements[key];
-      if (!field) return;
+      const hasRepeater = key === 'items' && !!form.querySelector('[data-repeater="items"]');
+      if (!field && !hasRepeater) return;
       if (key === 'show_principles') {
         content[key] = field.checked;
       } else if (key === 'items' && form.querySelector('[data-repeater="items"]')) {
@@ -1186,8 +1188,8 @@
         } else if (current && repeaterAction.hasAttribute('data-repeater-remove')) current.remove();
         else if (current && repeaterAction.hasAttribute('data-repeater-up') && current.previousElementSibling) host.insertBefore(current,current.previousElementSibling);
         else if (current && repeaterAction.hasAttribute('data-repeater-down') && current.nextElementSibling) host.insertBefore(current.nextElementSibling,current);
-        const form = repeaterAction.closest('form'), first = host.querySelector('[data-repeater-field]');
-        if (form && first) first.dispatchEvent(new Event('input',{bubbles:true}));
+        const form = repeaterAction.closest('form');
+        if (form) host.dispatchEvent(new Event('input',{bubbles:true}));
       }
       return;
     }

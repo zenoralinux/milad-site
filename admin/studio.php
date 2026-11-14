@@ -42,6 +42,7 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
 <div class="studio-document"><span class="studio-live-dot"></span><span>صفحه اصلی</span><small>ذخیره خودکار فعال است</small></div>
 <div class="studio-top-actions"><a class="secondary-button compact" href="<?= h(app_url('admin')) ?>">بازگشت به مدیریت</a><a class="secondary-button compact" href="<?= h(app_url('/')) ?>" target="_blank" rel="noopener">مشاهده سایت ↗</a></div>
 </header>
+<main class="studio-editor" id="studioEditor">
 <div class="builder-toolbar panel-card">
             <div class="builder-toolbar-start"><strong>صفحه اصلی</strong><span class="builder-status" id="builderStatus">در حال آماده‌سازی…</span></div>
             <div class="builder-toolbar-end">

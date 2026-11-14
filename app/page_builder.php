@@ -763,7 +763,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       node.setAttribute('aria-hidden','true');
       return node;
     }
-    if (['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video'].indexOf(block.block_type) !== -1) {
+    if (['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video','feature','pricing','accordion','testimonial','gallery','timeline','skill','logo_cloud','team','tabs','newsletter','icon_box'].indexOf(block.block_type) !== -1) {
       node = card('section','section-shell builder-custom-block builder-widget-root builder-' + block.block_type + '-block');
       container = card('div','container');
       container.appendChild(makeNestedWidget({type:block.block_type,content:c,styles:block.settings || {},children:c.children || []},0));
