@@ -684,13 +684,13 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   }
   function markEditable(node,type){
     var maps = {
-      hero:{eyebrow:'.hero-copy .eyebrow',title_line1:'.hero-copy h1',description:'.hero-description',
+      hero:{eyebrow:'.hero-copy .eyebrow',title_line1:'.hero-copy h1',title_line2:'.hero-copy h1 .type-gradient',description:'.hero-description',
         primary_cta_text:'.hero-actions a:first-child',secondary_cta_text:'.hero-actions a:nth-child(2)',footnote:'.hero-footnote span:last-child'},
       intro:{text_before:'.intro-strip-inner p',text_emphasis:'.intro-strip-inner p span'},
       projects:{heading_before:'.section-heading h2',heading_emphasis:'.section-heading h2 span',description:'.section-heading > p'},
-      about:{section_index:'.about-heading .section-index',title_line1:'.about-heading h2',description:'.about-heading > p',link_text:'.about-heading .text-link'},
-      now:{section_index:'.now-panel-copy .section-index',title_line1:'.now-panel-copy h2',description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
-      contact:{section_index:'.contact-copy .section-index',title_line1:'.contact-copy h2',description:'.contact-copy > p'},
+      about:{section_index:'.about-heading .section-index',title_line1:'.about-heading h2',title_line2:'.about-heading h2 .type-gradient',description:'.about-heading > p',link_text:'.about-heading .text-link'},
+      now:{section_index:'.now-panel-copy .section-index',title_line1:'.now-panel-copy h2',title_line2:'.now-panel-copy h2 .type-gradient',description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
+      contact:{section_index:'.contact-copy .section-index',title_line1:'.contact-copy h2',title_line2:'.contact-copy h2 .type-gradient',description:'.contact-copy > p'},
       footer:{tagline:'.footer-brand > span:last-child',copyright:'.footer-copy'},
       text:{title:'h2',body:'p'},cta:{title:'h2',body:'p',button_text:'a.button'},stats:{title:'h2'},
       heading:{text:'h1,h2,h3,h4,h5,h6'},paragraph:{text:'p'},button:{text:'a.button'},
@@ -707,13 +707,13 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   }
   function applyLegacyElementStyles(node,block){
     var maps = {
-      hero:{eyebrow:'.hero-copy .eyebrow',title_line1:'.hero-copy h1',description:'.hero-description',
+      hero:{eyebrow:'.hero-copy .eyebrow',title_line1:'.hero-copy h1',title_line2:'.hero-copy h1 .type-gradient',description:'.hero-description',
         primary_cta_text:'.hero-actions a:first-child',secondary_cta_text:'.hero-actions a:nth-child(2)',footnote:'.hero-footnote span:last-child'},
       intro:{text_before:'.intro-strip-inner p',text_emphasis:'.intro-strip-inner p span'},
       projects:{heading_before:'.section-heading h2',heading_emphasis:'.section-heading h2 span',description:'.section-heading > p'},
-      about:{section_index:'.about-heading .section-index',title_line1:'.about-heading h2',description:'.about-heading > p',link_text:'.about-heading .text-link'},
-      now:{section_index:'.now-panel-copy .section-index',title_line1:'.now-panel-copy h2',description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
-      contact:{section_index:'.contact-copy .section-index',title_line1:'.contact-copy h2',description:'.contact-copy > p'},
+      about:{section_index:'.about-heading .section-index',title_line1:'.about-heading h2',title_line2:'.about-heading h2 .type-gradient',description:'.about-heading > p',link_text:'.about-heading .text-link'},
+      now:{section_index:'.now-panel-copy .section-index',title_line1:'.now-panel-copy h2',title_line2:'.now-panel-copy h2 .type-gradient',description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
+      contact:{section_index:'.contact-copy .section-index',title_line1:'.contact-copy h2',title_line2:'.contact-copy h2 .type-gradient',description:'.contact-copy > p'},
       footer:{tagline:'.footer-brand > span:last-child',copyright:'.footer-copy'},
       text:{title:'h2',body:'p'},cta:{title:'h2',body:'p',button_text:'a.button'},stats:{title:'h2'}
     };
@@ -881,6 +881,23 @@ html[data-builder-preview="1"] body{padding-top:0!important}
           });
           if (declarations.length) rules += '[data-builder-key="' + key + '"]{' + declarations.join(';') + '}';
         }
+        var elementStyles = block.content && block.content.element_styles || {};
+        Object.keys(elementStyles).forEach(function(field){
+          var legacy = elementStyles[field] && elementStyles[field].responsive && elementStyles[field].responsive[device];
+          if (!legacy || typeof legacy !== 'object') return;
+          var declarations = [];
+          Object.keys(properties).forEach(function(property){
+            if (legacy[property] === undefined) return;
+            var value = String(legacy[property]).trim();
+            if (property === 'text_align') {
+              if (['right','left','center','justify','start','end'].indexOf(value) === -1) return;
+            } else if (property === 'display') {
+              if (['none','block','flex','grid','inline-flex'].indexOf(value) === -1) return;
+            } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
+            declarations.push(properties[property] + ':' + value);
+          });
+          if (declarations.length) rules += '[data-builder-key="' + key + '"] [data-widget-node="legacy-' + String(field).replace(/[^a-zA-Z0-9_-]/g,'') + '"]{' + declarations.join(';') + '}';
+        });
         rules += widgetRules(block.content && block.content.children,device);
       });
       if (rules) output += '@media ' + media[device] + '{' + rules + '}';
