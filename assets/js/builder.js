@@ -77,6 +77,79 @@
     stat_item:[['value','مقدار / نشان'],['label','عنوان'],['description','توضیحات']]
   };
 
+  const studioPalettes = {
+    violet:{accent:'#a58aff',accentStrong:'#8c6bfa',pageBg:'#080b12',surface:'#101722',surfaceRaised:'#172235',accentSurface:'#211b3b',text:'#f3f5fb',onAccent:'#ffffff',muted:'#9aa4b5',border:'#343049',cyan:'#59d5c9'},
+    ocean:{accent:'#38bdf8',accentStrong:'#0284c7',pageBg:'#06131d',surface:'#0c1d2b',surfaceRaised:'#122b3c',accentSurface:'#12344a',text:'#eaf7ff',onAccent:'#ffffff',muted:'#91b7ca',border:'#21465a',cyan:'#67e8f9'},
+    emerald:{accent:'#34d399',accentStrong:'#059669',pageBg:'#071713',surface:'#0d241d',surfaceRaised:'#153329',accentSurface:'#123c30',text:'#eafff5',onAccent:'#ffffff',muted:'#91b8a8',border:'#24483b',cyan:'#5eead4'},
+    sunset:{accent:'#fb923c',accentStrong:'#ea580c',pageBg:'#1a0d0b',surface:'#2b1713',surfaceRaised:'#3a211a',accentSurface:'#4b2518',text:'#fff4eb',onAccent:'#ffffff',muted:'#d4a997',border:'#573326',cyan:'#fda4af'},
+    rose:{accent:'#fb7185',accentStrong:'#e11d48',pageBg:'#1a0b13',surface:'#2a111d',surfaceRaised:'#391827',accentSurface:'#471a2b',text:'#fff0f4',onAccent:'#ffffff',muted:'#d3a2b1',border:'#553040',cyan:'#f0abfc'},
+    graphite:{accent:'#a3a3a3',accentStrong:'#737373',pageBg:'#101010',surface:'#1b1b1b',surfaceRaised:'#292929',accentSurface:'#333333',text:'#f5f5f5',onAccent:'#ffffff',muted:'#a3a3a3',border:'#454545',cyan:'#d4d4d4'}
+  };
+  function colorLuminance(hex){
+    const value=String(hex||'').replace('#','');
+    if(!/^[0-9a-f]{6}$/i.test(value))return 0.5;
+    const channels=[0,2,4].map(index=>parseInt(value.slice(index,index+2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));
+    return channels[0]*0.2126+channels[1]*0.7152+channels[2]*0.0722;
+  }
+  function paletteColorFor(value,key,palette){
+    const luminance=colorLuminance(value);
+    if(key==='background')return luminance>0.78?palette.surfaceRaised:(luminance<0.16?palette.surface:palette.accentSurface);
+    if(key==='text_color')return luminance>0.72?palette.onAccent:palette.text;
+    if(key==='color')return luminance>0.82?palette.onAccent:(luminance<0.16?palette.text:palette.accent);
+    return value;
+  }
+  function applyPaletteToBlock(block,paletteName){
+    const palette=studioPalettes[paletteName]||studioPalettes.violet;
+    block.content=cloneData(block.content||{});
+    block.settings=cloneData(block.settings||{});
+    const sources=block.content.__studio_palette_sources&&typeof block.content.__studio_palette_sources==='object'
+      ? block.content.__studio_palette_sources : {};
+    function walk(value,path){
+      if(!value||typeof value!=='object')return;
+      if(Array.isArray(value)){value.forEach((item,index)=>walk(item,path.concat(String(index))));return;}
+      Object.keys(value).forEach(key=>{
+        if(key==='__studio_palette_sources')return;
+        const current=value[key], location=path.concat(key).join('.');
+        if(typeof current==='string' && ['background','text_color','color'].includes(key) && /^#[0-9a-f]{6}$/i.test(current)){
+          if(!Object.prototype.hasOwnProperty.call(sources,location))sources[location]=current;
+          value[key]=paletteColorFor(sources[location],key,palette);
+        }else if(typeof current==='string' && key==='border' && /#[0-9a-f]{6}/i.test(current)){
+          if(!Object.prototype.hasOwnProperty.call(sources,location))sources[location]=current;
+          value[key]=sources[location].replace(/#[0-9a-f]{6}/i,palette.border);
+        }else if(current&&typeof current==='object')walk(current,path.concat(key));
+      });
+    }
+    walk(block.settings,['settings']);
+    walk(block.content,['content']);
+    if(Object.keys(sources).length)block.content.__studio_palette_sources=sources;
+    return block;
+  }
+  function setObjectPath(target,path,value){
+    const parts=String(path||'').split('.');
+    if(!parts.length||parts.length>6||parts.some(part=>!part||['__proto__','prototype','constructor'].includes(part)))return false;
+    let cursor=target;
+    for(let index=0;index<parts.length-1;index++){
+      const key=parts[index];
+      if(Array.isArray(cursor)){
+        if(!/^\d+$/.test(key)||Number(key)>=cursor.length)return false;
+        cursor=cursor[Number(key)];
+      }else{
+        if(!cursor||typeof cursor!=='object'||!Object.prototype.hasOwnProperty.call(cursor,key))return false;
+        cursor=cursor[key];
+      }
+      if(!cursor||typeof cursor!=='object')return false;
+    }
+    const last=parts[parts.length-1];
+    if(Array.isArray(cursor)){
+      if(!/^\d+$/.test(last)||Number(last)>=cursor.length)return false;
+      cursor[Number(last)]=String(value??'');
+    }else{
+      if(!cursor||typeof cursor!=='object'||!Object.prototype.hasOwnProperty.call(cursor,last))return false;
+      cursor[last]=String(value??'');
+    }
+    return true;
+  }
+
   let blocks = [];
   let design = {};
   let selectedId = null;
