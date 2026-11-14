@@ -4,7 +4,17 @@ require dirname(__DIR__) . '/app/bootstrap.php';
 start_admin_session();
 $admin = null;
 $setupError = null;
-try { db(); $admin = current_admin(); } catch (Throwable $e) { $setupError = $e->getMessage(); }
+try {
+    $pdo = db();
+    $adminCount = (int) $pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn();
+    if ($adminCount < 1) {
+        $setupError = 'Initial database setup is incomplete. Run php bin/install.php from the project root.';
+    } else {
+        $admin = current_admin();
+    }
+} catch (Throwable $e) {
+    $setupError = $e->getMessage();
+}
 $csrf = csrf_token();
 ?><!doctype html>
 <html lang="fa" dir="rtl">
