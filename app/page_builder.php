@@ -238,6 +238,9 @@ function builder_preview_script(): string
 html[data-builder-preview="1"] [data-builder-key]{cursor:pointer;outline:1px dashed transparent;outline-offset:3px;transition:outline-color .12s,box-shadow .12s}
 html[data-builder-preview="1"] [data-builder-key]:hover{outline-color:rgba(139,120,255,.9);box-shadow:0 0 0 4px rgba(139,120,255,.08)}
 html[data-builder-preview="1"] [data-builder-key].builder-live-selected{outline:2px solid #9c83ff!important;outline-offset:3px!important;box-shadow:0 0 0 5px rgba(156,131,255,.13)!important}
+html[data-builder-preview="1"] [data-builder-edit-field]{cursor:text}
+html[data-builder-preview="1"] [data-builder-edit-field]:hover{outline:1px dashed rgba(156,131,255,.8);outline-offset:2px}
+html[data-builder-preview="1"] .builder-inline-editing{outline:2px solid #9c83ff!important;outline-offset:3px;background:rgba(156,131,255,.07);cursor:text}
 html[data-builder-preview="1"] body{padding-top:0!important}
 </style>
 <script>
@@ -303,6 +306,24 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     }
     node.appendChild(container);
     return node;
+  }
+  function markEditable(node,type){
+    var maps = {
+      hero:{description:'.hero-description',footnote:'.hero-footnote span:last-child'},
+      projects:{description:'.section-heading > p'},
+      about:{description:'.about-heading > p',link_text:'.about-heading .text-link'},
+      now:{description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
+      contact:{description:'.contact-copy > p'},
+      footer:{tagline:'.footer-brand > span:last-child'},
+      text:{title:'h2',body:'p'},
+      cta:{title:'h2',body:'p',button_text:'a.button'},
+      stats:{title:'h2'}
+    };
+    var fields = maps[type] || {};
+    Object.keys(fields).forEach(function(field){
+      var target = node.querySelector(fields[field]);
+      if (target) target.setAttribute('data-builder-edit-field',field);
+    });
   }
   function updateContent(node, block){
     var c = block.content || {};
@@ -419,6 +440,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       node.style.paddingBlock = block.settings && block.settings.padding !== undefined ? Number(block.settings.padding) + 'px' : '';
       node.style.borderRadius = block.settings && block.settings.radius !== undefined ? Number(block.settings.radius) + 'px' : '';
       updateContent(node,block);
+      markEditable(node,block.block_type);
       main.appendChild(node);
     });
     var footerBlock = data.blocks.find(function(block){ return block.block_type === 'footer'; });
@@ -427,6 +449,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       footerNode.dataset.builderId = String(footerBlock.id);
       footerNode.hidden = !footerBlock.is_visible;
       updateContent(footerNode,footerBlock);
+      markEditable(footerNode,'footer');
     } else if (footerNode) {
       footerNode.hidden = true;
     }
@@ -448,6 +471,39 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     var selected = Array.prototype.find.call(document.querySelectorAll('[data-builder-key]'),function(el){ return el.dataset.builderKey === key; });
     if (selected) selected.classList.add('builder-live-selected');
   }
+  document.addEventListener('dblclick',function(event){
+    var target = event.target.closest('[data-builder-key][data-builder-edit-field]');
+    if (!target) return;
+    event.preventDefault();
+    event.stopPropagation();
+    target.setAttribute('contenteditable','true');
+    target.setAttribute('spellcheck','true');
+    target.setAttribute('role','textbox');
+    target.classList.add('builder-inline-editing');
+    target.focus();
+  },true);
+  document.addEventListener('input',function(event){
+    var target = event.target.closest('[contenteditable="true"][data-builder-edit-field]');
+    if (!target) return;
+    window.parent.postMessage({
+      type:'milad-builder-inline-edit',
+      key:target.dataset.builderKey,
+      field:target.dataset.builderEditField,
+      value:target.textContent
+    },location.origin);
+  },true);
+  document.addEventListener('focusout',function(event){
+    var target = event.target.closest('[contenteditable="true"][data-builder-edit-field]');
+    if (!target) return;
+    target.removeAttribute('contenteditable');
+    target.classList.remove('builder-inline-editing');
+    window.parent.postMessage({
+      type:'milad-builder-inline-edit',
+      key:target.dataset.builderKey,
+      field:target.dataset.builderEditField,
+      value:target.textContent
+    },location.origin);
+  },true);
   document.addEventListener('click',function(event){
     var target = event.target.closest('[data-builder-key]');
     if (!target) return;
