@@ -1335,7 +1335,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       else selection.field=fieldNode.dataset.builderEditField;
       sendToParent(selection);
       if(event.target.closest('a'))event.preventDefault();
-      event.preventDefault();event.stopPropagation();
+      event.stopPropagation();
       if(!fieldNode.isContentEditable){
         fieldNode.setAttribute('contenteditable','true');
         fieldNode.setAttribute('spellcheck','true');
