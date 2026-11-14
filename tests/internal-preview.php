@@ -93,7 +93,7 @@ $checks = array_merge($checks, [
         strpos($nestedResponsive, '[data-widget-node="node-heading-test"]{font-size:20px}') !== false &&
         strpos($nestedResponsive, '@media (max-width: 767px)') !== false,
     'legacy element styles persist with responsive overrides' =>
-        strpos($legacyStyles, '[data-builder-key="hero"] .hero-description{font-size:21px;color:#abcdef}') !== false &&
+        strpos($legacyStyles, '[data-builder-key="hero"] .hero-description{color:#abcdef;font-size:21px}') !== false &&
         strpos($legacyStyles, '@media (max-width: 767px)') !== false &&
         strpos($legacyStyles, 'font-size:14px') !== false,
     'preview script sends exact node selection messages' =>
