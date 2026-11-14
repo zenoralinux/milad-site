@@ -513,7 +513,11 @@
     }
     if (key === 'src') {
       return '<label>' + escapeHtml(label) + '<input name="src" value="' + escapeHtml(value || '') + '" dir="ltr" placeholder="https://…">' +
-        '<button type="button" class="secondary-button compact builder-open-media" data-open-media>انتخاب از کتابخانه رسانه</button></label>';
+        '<button type="button" class="secondary-button compact builder-open-media" data-open-media="image">انتخاب تصویر از کتابخانه رسانه</button></label>';
+    }
+    if (key === 'url') {
+      return '<label>' + escapeHtml(label) + '<input name="url" value="' + escapeHtml(value || '') + '" dir="ltr" placeholder="https://…">' +
+        '<button type="button" class="secondary-button compact builder-open-media" data-open-media="video">انتخاب ویدیو از کتابخانه رسانه</button></label>';
     }
     if (key === 'items' || key === 'principles_items' || key === 'children') {
       return '<label>' + escapeHtml(label) + '<textarea name="' + key + '" dir="ltr" spellcheck="false">' +
@@ -996,40 +1000,63 @@
     if (!response.ok || result.ok === false) throw new Error(result.error?.message || 'عملیات رسانه ناموفق بود.');
     return result.data || {};
   }
+  let mediaItems = [];
+  let mediaPickerKind = 'image';
+  function renderMediaItems() {
+    if (!mediaGrid) return;
+    const term = String(document.getElementById('builderMediaSearch')?.value || '').trim().toLowerCase();
+    const filter = String(document.getElementById('builderMediaFilter')?.value || 'all');
+    const visible = mediaItems.filter(file => {
+      const kind = String(file.mime_type || '').startsWith('image/') ? 'image' : 'video';
+      return (filter === 'all' || filter === kind) &&
+        (!term || String(file.filename || '').toLowerCase().includes(term) || String(file.alt_text || '').toLowerCase().includes(term));
+    });
+    mediaGrid.innerHTML = visible.length ? visible.map(file => {
+      const image = String(file.mime_type || '').startsWith('image/');
+      const preview = image
+        ? '<img src="' + escapeHtml(file.url) + '" alt="' + escapeHtml(file.alt_text || '') + '" loading="lazy">'
+        : '<video src="' + escapeHtml(file.url) + '" muted preload="metadata"></video>';
+      return '<article class="builder-media-item" data-media-id="' + Number(file.id) + '">' + preview +
+        '<div><strong>' + escapeHtml(file.filename) + '</strong><small>' + escapeHtml(file.mime_type) + '</small></div>' +
+        '<button type="button" class="secondary-button compact" data-media-select="' + Number(file.id) +
+        '" data-media-kind="' + (image ? 'image' : 'video') + '" data-media-url="' + escapeHtml(file.url) +
+        '" data-media-alt="' + escapeHtml(file.alt_text || '') + '">انتخاب</button></article>';
+    }).join('') : '<p class="builder-empty">فایلی با این فیلتر پیدا نشد.</p>';
+  }
   async function loadMedia() {
     if (!mediaGrid) return;
     mediaGrid.innerHTML = '<p class="builder-empty">در حال دریافت فایل‌ها…</p>';
     try {
       const data = await mediaRequest();
-      const files = data.files || [];
-      mediaGrid.innerHTML = files.length ? files.map(file => {
-        const isImage = String(file.mime_type || '').indexOf('image/') === 0;
-        const preview = isImage
-          ? '<img src="' + escapeHtml(file.url) + '" alt="' + escapeHtml(file.alt_text || '') + '" loading="lazy">'
-          : '<div class="builder-media-video">VIDEO</div>';
-        return '<article class="builder-media-item" data-media-id="' + Number(file.id) + '">' + preview +
-          '<div><strong>' + escapeHtml(file.filename) + '</strong><small>' + escapeHtml(file.mime_type) + '</small></div>' +
-          '<button type="button" class="secondary-button compact" data-media-select="' + Number(file.id) + '" data-media-url="' + escapeHtml(file.url) + '">انتخاب</button></article>';
-      }).join('') : '<p class="builder-empty">هنوز فایلی بارگذاری نشده است.</p>';
-    } catch (error) {
-      mediaGrid.innerHTML = '<p class="builder-empty">' + escapeHtml(error.message) + '</p>';
-    }
+      mediaItems = data.files || [];
+      renderMediaItems();
+    } catch (error) { mediaGrid.innerHTML = '<p class="builder-empty">' + escapeHtml(error.message) + '</p>'; }
   }
-  function openMediaPicker() {
+  function openMediaPicker(kind='image') {
     if (!mediaModal) return;
+    mediaPickerKind = kind;
+    const filter = document.getElementById('builderMediaFilter');
+    if (filter) filter.value = kind === 'video' ? 'video' : 'all';
     mediaModal.hidden = false;
     loadMedia();
   }
+  document.getElementById('builderMediaSearch')?.addEventListener('input',renderMediaItems);
+  document.getElementById('builderMediaFilter')?.addEventListener('change',renderMediaItems);
   if (mediaModal) {
     mediaModal.addEventListener('click',event => {
       if (event.target === mediaModal || event.target.closest('[data-media-close]')) mediaModal.hidden = true;
       const select = event.target.closest('[data-media-select]');
       if (select) {
         const form = $('#builderNodeForm') || $('#builderLegacyForm') || $('#builderBlockForm');
-        const input = form && form.elements.src;
-        if (input) {
+        const kind = select.dataset.mediaKind || 'image';
+        const input = form && form.elements[kind === 'video' ? 'url' : 'src'];
+        if (input && kind === mediaPickerKind) {
           input.value = select.dataset.mediaUrl || '';
           input.dispatchEvent(new Event('input',{bubbles:true}));
+          if (kind === 'image' && form.elements.alt && !form.elements.alt.value) {
+            form.elements.alt.value = select.dataset.mediaAlt || '';
+            form.elements.alt.dispatchEvent(new Event('input',{bubbles:true}));
+          }
         }
         mediaModal.hidden = true;
       }
@@ -1054,7 +1081,8 @@
   });
   root.addEventListener('dragend',() => { nestedDragSource = null; });
   root.addEventListener('click',event => {
-    if (event.target.closest('[data-open-media]')) openMediaPicker();
+    const mediaTrigger = event.target.closest('[data-open-media]');
+    if (mediaTrigger) openMediaPicker(mediaTrigger.dataset.openMedia || 'image');
     const addChild = event.target.closest('[data-child-add]');
     if (addChild) updateNestedChildren('add',-1);
     const removeChild = event.target.closest('[data-child-delete]');
