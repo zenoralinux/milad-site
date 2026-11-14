@@ -440,7 +440,7 @@
     const isArrayItem = type === 'principle_item' || type === 'stat_item';
     const content = isArrayItem ? node : nodeContent(node);
     const specs = (fields[type] || []).filter(([key]) => key !== 'children');
-    const controls = specs.map(([key,label]) => fieldControl(key,label,content[key])).join('');
+    const controls = specs.map(([key,label]) => fieldControl(key,label,content[key],type === 'video' && key === 'url' ? 'video' : '')).join('');
     const nested = ['container','grid','card'].includes(type);
     const children = Array.isArray(node.children) ? node.children : (Array.isArray(content.children) ? content.children : []);
     const nestedTools = nested
@@ -537,7 +537,7 @@
     setInspectorTab(activeInspectorTab);
   }
 
-  function fieldControl(key,label,value) {
+  function fieldControl(key,label,value,mediaKind='') {
     if (key === 'show_principles') {
       return '<label class="builder-check"><input type="checkbox" name="' + key + '" ' +
         (value === false || value === 0 || value === '0' ? '' : 'checked') + '> ' + escapeHtml(label) + '</label>';
@@ -549,7 +549,7 @@
       return '<label>' + escapeHtml(label) + '<input name="src" value="' + escapeHtml(value || '') + '" dir="ltr" placeholder="https://…">' +
         '<button type="button" class="secondary-button compact builder-open-media" data-open-media="image">انتخاب تصویر از کتابخانه رسانه</button></label>';
     }
-    if (key === 'url') {
+    if (key === 'url' && mediaKind === 'video') {
       return '<label>' + escapeHtml(label) + '<input name="url" value="' + escapeHtml(value || '') + '" dir="ltr" placeholder="https://…">' +
         '<button type="button" class="secondary-button compact builder-open-media" data-open-media="video">انتخاب ویدیو از کتابخانه رسانه</button></label>';
     }
@@ -663,7 +663,7 @@
     if (selectedNodeId) { renderNodeInspector(block,host); return; }
     if (selectedLegacyField) { renderLegacyFieldInspector(block,host); return; }
     const specs = fields[block.block_type] || [];
-    const controls = specs.map(([key,label]) => fieldControl(key,label,(block.content || {})[key])).join('');
+    const controls = specs.map(([key,label]) => fieldControl(key,label,(block.content || {})[key],block.block_type === 'video' && key === 'url' ? 'video' : '')).join('');
     const settings = block.settings || {};
     const nestedChildren = Array.isArray(block.content?.children) ? block.content.children : [];
     const supportsChildren = ['container','grid','card'].includes(block.block_type);
