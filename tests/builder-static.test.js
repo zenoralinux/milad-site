@@ -34,4 +34,6 @@ assert(js.includes("activeDevice==='desktop'") && js.includes('target.responsive
 assert(preview.includes('milad-direct-overlay') && preview.includes('data-md-axis="both"'),'in-preview resize handles');
 assert(preview.includes('studioPlainText(c.heading_before)') && preview.includes('studioPlainText(c.description)'),'Selected Work plain-text sanitization');
 assert((studio.match(/id="builderTemplateModal"/g)||[]).length===1,'single template modal id');
+assert(index.includes('function public_plain_text($value)') && index.includes("public_plain_text($project['excerpt'] ?? '')"),'Selected Work project content is sanitized on the public page');
+assert(index.includes("public_plain_text($projectIntro['description'] ??"),'Selected Work heading and description are sanitized on the public page');
 console.log('Milad Studio Pro static invariants passed');
