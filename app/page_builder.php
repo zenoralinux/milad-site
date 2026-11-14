@@ -567,12 +567,36 @@ function builder_make_internal_preview(string $html): string
     $html = str_replace(['./milad_avatar.jpg', 'milad_avatar.jpg'], $imageUri, $html);
 
     // Metadata and schema links are irrelevant inside an editor preview.
-    $schemaPattern = "#<script\\\\b[^>]*type=[\\\"']application/ld\\\\+json[\\\"'][^>]*>.*?</script>#is";
-    $linkMetadataPattern = "#<link\\\\b(?=[^>]*\\\\brel=[\\\"'](?:canonical|icon|preload)[\\\"'])[^>]*>#i";
-    $socialMetadataPattern = "#<meta\\\\b(?=[^>]*(?:property=[\\\"']og:|name=[\\\"']twitter:))[^>]*>#i";
-    $html = preg_replace($schemaPattern, '', $html) ?? $html;
-    $html = preg_replace($linkMetadataPattern, '', $html) ?? $html;
-    $html = preg_replace($socialMetadataPattern, '', $html) ?? $html;
+    $html = preg_replace_callback(
+        '/<script\\b[^>]*>.*?<\\/script>/is',
+        static function (array $match): string {
+            return stripos($match[0], 'application/ld+json') !== false ? '' : $match[0];
+        },
+        $html
+    ) ?? $html;
+    $html = preg_replace_callback(
+        '/<link\\b[^>]*>/i',
+        static function (array $match): string {
+            $tag = strtolower($match[0]);
+            foreach (['rel="canonical"', "rel='canonical'", 'rel="icon"', "rel='icon'", 'rel="preload"', "rel='preload'"] as $needle) {
+                if (strpos($tag, $needle) !== false) return '';
+            }
+            return $match[0];
+        },
+        $html
+    ) ?? $html;
+    $html = preg_replace_callback(
+        '/<meta\\b[^>]*>/i',
+        static function (array $match): string {
+            $tag = strtolower($match[0]);
+            if (strpos($tag, 'property="og:') !== false || strpos($tag, "property='og:") !== false ||
+                strpos($tag, 'name="twitter:') !== false || strpos($tag, "name='twitter:") !== false) {
+                return '';
+            }
+            return $match[0];
+        },
+        $html
+    ) ?? $html;
 
     // Fail closed if a future template change reintroduces remote assets.
     $remoteAssetPattern = "#<(?:script|link|img|source)\\\\b[^>]*(?:src|href|srcset)=[\\\"']https?://#i";
