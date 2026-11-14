@@ -948,8 +948,13 @@
       selectedProjectId = null;
     }
   function renderInspector() {
-    const block = blocks.find(item => Number(item.id) === Number(selectedId));
     const host = $('#builderInspectorForm');
+    if (selectedProjectId !== null) {
+      const project = projects.find(item => Number(item.id) === Number(selectedProjectId));
+      if (project) { renderProjectInspector(project,host); return; }
+      selectedProjectId = null;
+    }
+    const block = blocks.find(item => Number(item.id) === Number(selectedId));
     if (!block) {
       host.innerHTML = '<div class="builder-empty">برای ویرایش، روی یک بخش در پیش‌نمایش کلیک کن یا از ساختار صفحه انتخابش کن.</div>';
       setInspectorTab(activeInspectorTab);
@@ -1285,10 +1290,11 @@
     try {
       const pending = Array.from(saveStates.keys());
       const results = await Promise.all(pending.map(id => flushSave(id,true)));
+      const projectResult = await flushAllProjectSaves();
       if (designSaveTimer) window.clearTimeout(designSaveTimer);
       designSaveTimer = null;
       const designResult = await persistDesign();
-      if (results.every(result => result !== false) && designResult !== false) {
+      if (results.every(result => result !== false) && projectResult !== false && designResult !== false) {
         status('همه تغییرات ذخیره شدند.','success');
       }
     } finally {
@@ -1759,13 +1765,195 @@
   }
 
   $('#builderUndo')?.addEventListener('click',undoEdit);
+  let canvasClipboard = null;
+  const canvasContextMenu = document.getElementById('builderCanvasContextMenu');
+  function openCanvasContextMenu(target) {
+    if (!canvasContextMenu || !frame) return;
+    const rect = frame.getBoundingClientRect();
+    canvasContextMenu.style.left = Math.max(8,Math.min(window.innerWidth - 228,rect.left + target.x)) + 'px';
+    canvasContextMenu.style.top = Math.max(8,Math.min(window.innerHeight - 420,rect.top + target.y)) + 'px';
+    canvasContextMenu.hidden = false;
+  }
+  function closeCanvasContextMenu() { if (canvasContextMenu) canvasContextMenu.hidden = true; }
+  function activeProject() { return projects.find(item => Number(item.id) === Number(selectedProjectId)) || null; }
+  function copySelectedElement() {
+    const project = activeProject();
+    const block = blocks.find(item => Number(item.id) === Number(selectedId));
+    if (project) canvasClipboard = {kind:'project',data:cloneData(project)};
+    else if (block && selectedNodeId) {
+      const node = findNestedNode(block,selectedNodeId);
+      if (node) canvasClipboard = {kind:'node',data:cloneData(node.node)};
+    } else if (block) canvasClipboard = {kind:'block',data:cloneData(block)};
+    if (canvasClipboard) status('المان انتخاب‌شده کپی شد.','success');
+  }
+  async function pasteSelectedElement() {
+    if (!canvasClipboard) return;
+    try {
+      if (canvasClipboard.kind === 'project') {
+        const copy=cloneData(canvasClipboard.data);
+        copy.slug=String(copy.slug||'project')+'-copy-'+Date.now().toString(36);
+        copy.title=String(copy.title||'پروژه')+' (کپی)';
+        copy.sort_order=projects.length+1;
+        const result=await request('projects','POST',copy);
+        await load(); selectProject(Number(result.id)); return;
+      }
+      if (canvasClipboard.kind === 'block') {
+        const source=cloneData(canvasClipboard.data);
+        const result=await request('builder-block-add','POST',{type:source.block_type});
+        await load(Number(result.id));
+        const block=blocks.find(item=>Number(item.id)===Number(result.id));
+        if (!block) return;
+        queueUndo(block); block.label=String(source.label||names[source.block_type]||source.block_type);
+        block.content=cloneData(source.content||{}); block.settings=cloneData(source.settings||{});
+        block.is_visible=source.is_visible!==false; normalizeNestedIds(block,new Set());
+        scheduleSave(block,{label:block.label,content:block.content,settings:block.settings,is_visible:!!block.is_visible});
+        renderCanvas();renderInspector();postPreviewState(); return;
+      }
+      if (canvasClipboard.kind === 'node') {
+        const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+        if (!block) return;
+        let collection=null;
+        if (selectedNodeId) {
+          const parent=findNestedNode(block,selectedNodeId);
+          if (parent && ['container','grid','card'].includes(String(parent.node.type||''))) {
+            if (!Array.isArray(parent.node.children)) parent.node.children=[];
+            collection=parent.node.children;
+          }
+        } else if (['container','grid','card'].includes(block.block_type)) {
+          block.content=Object.assign({},block.content||{});
+          if (!Array.isArray(block.content.children)) block.content.children=[];
+          collection=block.content.children;
+        }
+        if (!collection || collection.length>=40) { status('برای جای‌گذاری، یک کانتینر یا گرید با ظرفیت خالی انتخاب کن.','error'); return; }
+        const copy=cloneData(canvasClipboard.data); regenerateNodeIds(copy); queueUndo(block); collection.push(copy);
+        selectedNodeId=copy.id; renderCanvas();renderInspector();postPreviewState();
+        scheduleSave(block,{label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible});
+      }
+    } catch(error) { status(error.message,'error'); }
+  }
+  function duplicateSelectedElement() {
+    const project=activeProject();
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    if(project) return duplicateProject(project.id);
+    if(!block) return;
+    if(!selectedNodeId) return cloneBlock(Number(block.id));
+    const record=findNestedNode(block,selectedNodeId);
+    if(!record) return;
+    queueUndo(block);
+    const copy=cloneData(record.node);regenerateNodeIds(copy);
+    record.collection.splice(record.index+1,0,copy);selectedNodeId=copy.id;
+    renderCanvas();renderInspector();postPreviewState();
+    scheduleSave(block,{label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible});
+  }
+  function renameSelectedElement() {
+    const project=activeProject();
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    const record=block&&selectedNodeId?findNestedNode(block,selectedNodeId):null;
+    const current=project?project.title:(record?record.node.name||names[record.node.type]||'':block&&block.label);
+    const next=window.prompt('نام المان:',String(current||''));
+    if(next===null||!next.trim())return;
+    if(project){project.title=next.trim();scheduleProjectSave(project,projectFormPayloadForProject(project));renderCanvas();postPreviewState();renderInspector();}
+    else if(block){queueUndo(block);if(record)record.node.name=next.trim();else block.label=next.trim();renderCanvas();scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});}
+  }
+  function projectFormPayloadForProject(project) {
+    return {slug:project.slug,title:project.title,category:project.category,kind_label:project.kind_label,excerpt:project.excerpt,description:project.description,status:project.status,visual_variant:project.visual_variant,is_featured:!!project.is_featured,is_published:!!project.is_published,sort_order:Number(project.sort_order||0),technologies:project.technologies||[],links:project.links||[]};
+  }
+  function hideSelectedElement() {
+    const project=activeProject();
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    if(project){project.is_published=!project.is_published;scheduleProjectSave(project,projectFormPayloadForProject(project));renderCanvas();postPreviewState();return;}
+    if(!block)return;queueUndo(block);block.is_visible=!block.is_visible;
+    renderCanvas();postPreviewState();scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
+  }
+  function resetSelectedStyles() {
+    const project=activeProject();
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    if(project){project.visual_variant='generic';scheduleProjectSave(project,projectFormPayloadForProject(project));renderCanvas();postPreviewState();renderInspector();return;}
+    if(!block)return;queueUndo(block);
+    if(selectedNodeId){const record=findNestedNode(block,selectedNodeId);if(!record)return;record.node.styles={};}
+    else block.settings={};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
+  }
+  function moveSelectedElement(delta) {
+    const project=activeProject();
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    if(project){
+      const from=projects.findIndex(item=>Number(item.id)===Number(project.id)),to=from+delta;
+      if(from<0||to<0||to>=projects.length)return;
+      const item=projects.splice(from,1)[0];projects.splice(to,0,item);saveProjectOrder();return;
+    }
+    if(!block)return;
+    if(selectedNodeId){
+      const record=findNestedNode(block,selectedNodeId);if(!record)return;
+      const to=record.index+delta;if(to<0||to>=record.collection.length)return;
+      queueUndo(block);const item=record.collection.splice(record.index,1)[0];record.collection.splice(to,0,item);
+      renderCanvas();renderInspector();postPreviewState();scheduleSave(block,{label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible});return;
+    }
+    move(Number(block.id),delta);
+  }
+  function selectParentElement() {
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    if(!block||!selectedNodeId)return;
+    const record=findNestedNode(block,selectedNodeId);if(!record)return;
+    if(record.parent&&record.parent.id)selectNestedNode(block.id,record.parent.id);else selectBlock(block.id);
+  }
+  function selectFirstChildElement() {
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));if(!block)return;
+    const parent=selectedNodeId?findNestedNode(block,selectedNodeId)?.node:null;
+    const list=parent?(parent.children||parent.content?.children||[]):(block.content?.children||[]);
+    if(Array.isArray(list)&&list[0]?.id)selectNestedNode(block.id,list[0].id);
+  }
+  if(canvasContextMenu) {
+    canvasContextMenu.addEventListener('click',event=>{
+      const button=event.target.closest('[data-canvas-action]');if(!button)return;
+      const action=button.dataset.canvasAction;closeCanvasContextMenu();
+      if(action==='edit'){if(selectedProjectId!==null)selectProject(selectedProjectId);else if(selectedNodeId)selectNestedNode(selectedId,selectedNodeId);else if(selectedId)selectBlock(selectedId);}
+      else if(action==='copy')copySelectedElement();
+      else if(action==='paste')pasteSelectedElement();
+      else if(action==='duplicate')duplicateSelectedElement();
+      else if(action==='delete'){if(selectedProjectId!==null)deleteProject(selectedProjectId);else if(selectedNodeId)deleteSelectedNode();else if(selectedId)deleteBlock(Number(selectedId));}
+      else if(action==='rename')renameSelectedElement();
+      else if(action==='up')moveSelectedElement(-1);
+      else if(action==='down')moveSelectedElement(1);
+      else if(action==='hide')hideSelectedElement();
+      else if(action==='reset-styles')resetSelectedStyles();
+      else if(action==='parent')selectParentElement();
+      else if(action==='child')selectFirstChildElement();
+      else if(action==='copy-styles'){
+        const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+        const record=block&&selectedNodeId?findNestedNode(block,selectedNodeId):null;
+        const style=activeProject()?{visual_variant:activeProject().visual_variant}:record?(record.node.styles||{}):block?(block.settings||{}):null;
+        if(style)canvasClipboard={kind:'styles',data:cloneData(style)};
+      } else if(action==='paste-styles'&&canvasClipboard&&canvasClipboard.kind==='styles'){
+        const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+        if(activeProject()){Object.assign(activeProject(),canvasClipboard.data);scheduleProjectSave(activeProject(),projectFormPayloadForProject(activeProject()));}
+        else if(block&&selectedNodeId){const r=findNestedNode(block,selectedNodeId);if(r)r.node.styles=cloneData(canvasClipboard.data);}
+        else if(block)block.settings=cloneData(canvasClipboard.data);
+        if(block)scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
+        renderCanvas();renderInspector();postPreviewState();
+      }
+    });
+    document.addEventListener('pointerdown',event=>{if(!canvasContextMenu.hidden&&!canvasContextMenu.contains(event.target))closeCanvasContextMenu();});
+    document.addEventListener('keydown',event=>{if(!canvasContextMenu.hidden&&event.key==='Escape')closeCanvasContextMenu();});
+  }
+
+
   $('#builderRedo')?.addEventListener('click',redoEdit);
   document.addEventListener('keydown',event => {
-    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
-    const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
-    if (['input','textarea','select'].includes(tag)) return;
-    event.preventDefault();
-    if (event.shiftKey) redoEdit(); else undoEdit();
+    const tag=event.target&&event.target.tagName?event.target.tagName.toLowerCase():'';
+    const typing=['input','textarea','select'].includes(tag)||(event.target&&event.target.isContentEditable);
+    const key=String(event.key||'').toLowerCase();
+    if((event.ctrlKey||event.metaKey)&&!typing){
+      if(key==='z'){event.preventDefault();if(event.shiftKey)redoEdit();else undoEdit();return;}
+      if(key==='y'){event.preventDefault();redoEdit();return;}
+      if(key==='c'){event.preventDefault();copySelectedElement();return;}
+      if(key==='v'){event.preventDefault();pasteSelectedElement();return;}
+      if(key==='d'){event.preventDefault();duplicateSelectedElement();return;}
+    }
+    if(!typing&&(key==='delete'||key==='backspace')){
+      if(selectedId!==null||selectedProjectId!==null){event.preventDefault();if(selectedProjectId!==null)deleteProject(selectedProjectId);else if(selectedNodeId)deleteSelectedNode();else deleteBlock(Number(selectedId));}
+    }
+    if(!typing&&key==='f2'){event.preventDefault();renameSelectedElement();}
   });
   $('#builderDesignForm')?.addEventListener('submit',saveDesign);
   $('#builderDesignForm')?.addEventListener('input',onDesignInput);
@@ -1792,58 +1980,82 @@
       pingPreview();
     });
   }
+  const acceptedPreviewMessages = new Set(['milad-builder-ready','milad-builder-select','milad-builder-node-select','milad-builder-project-select','milad-builder-context-menu','milad-builder-direct-resize','milad-builder-inline-edit']);
   window.addEventListener('message',event => {
     if (!frame || event.source !== frame.contentWindow || (event.origin !== window.location.origin && event.origin !== 'null')) return;
-    const message = event.data || {};
+    const message = event.data;
+    if (!message || typeof message !== 'object' || Array.isArray(message) || typeof message.type !== 'string' || !acceptedPreviewMessages.has(message.type)) return;
     if (message.type === 'milad-builder-ready') {
       previewReady = true;
       postPreviewState();
     } else if (message.type === 'milad-builder-select') {
-      const block = blocks.find(item => blockKey(item) === String(message.key));
+      if (typeof message.key !== 'string' || message.key.length > 90) return;
+      const block = blocks.find(item => blockKey(item) === message.key);
       if (block) selectBlock(Number(block.id));
     } else if (message.type === 'milad-builder-node-select') {
-      const block = blocks.find(item => blockKey(item) === String(message.key));
+      if (typeof message.key !== 'string' || message.key.length > 90) return;
+      if (message.nodeId !== undefined && (typeof message.nodeId !== 'string' || message.nodeId.length > 120)) return;
+      if (message.legacyField !== undefined && (typeof message.legacyField !== 'string' || message.legacyField.length > 80)) return;
+      const block = blocks.find(item => blockKey(item) === message.key);
       if (!block) return;
-      if (message.legacyField) selectLegacyElement(Number(block.id),String(message.legacyField));
-      else if (message.nodeId) selectNestedNode(Number(block.id),String(message.nodeId));
+      if (message.legacyField) selectLegacyElement(Number(block.id),message.legacyField);
+      else if (message.nodeId) selectNestedNode(Number(block.id),message.nodeId);
       else selectBlock(Number(block.id));
+    } else if (message.type === 'milad-builder-project-select') {
+      const projectId = Number(message.projectId);
+      if (!Number.isSafeInteger(projectId) || projectId < 1 || !projects.some(item => Number(item.id) === projectId)) return;
+      selectProject(projectId);
+    } else if (message.type === 'milad-builder-context-menu') {
+      const x = Number(message.x), y = Number(message.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > 10000 || y > 10000) return;
+      if (message.projectId !== undefined) {
+        const projectId = Number(message.projectId);
+        if (!Number.isSafeInteger(projectId) || !projects.some(item => Number(item.id) === projectId)) return;
+        selectProject(projectId);
+        openCanvasContextMenu({projectId:projectId,x:x,y:y});
+      } else {
+        if (typeof message.key !== 'string' || message.key.length > 90) return;
+        const block = blocks.find(item => blockKey(item) === message.key);
+        if (!block || (message.nodeId && (typeof message.nodeId !== 'string' || message.nodeId.length > 120))) return;
+        if (message.nodeId) selectNestedNode(Number(block.id),message.nodeId); else selectBlock(Number(block.id));
+        openCanvasContextMenu({blockId:Number(block.id),nodeId:message.nodeId || '',x:x,y:y});
+      }
     } else if (message.type === 'milad-builder-direct-resize') {
       applyDirectResize(message);
     } else if (message.type === 'milad-builder-inline-edit') {
-      const block = blocks.find(item => blockKey(item) === String(message.key));
-      const field = String(message.field || '');
+      if (typeof message.key !== 'string' || message.key.length > 90 || typeof message.field !== 'string' || message.field.length > 80 || typeof message.value !== 'string' || message.value.length > 5000) return;
+      const block = blocks.find(item => blockKey(item) === message.key);
+      const field = message.field;
       const allowed = block && (fields[block.block_type] || []).some(([key]) => key === field);
       if (!allowed) return;
       block.content = Object.assign({},block.content || {});
-      block.content[field] = String(message.value ?? '');
+      block.content[field] = message.value;
       const form = $('#builderLegacyForm') || $('#builderBlockForm');
       if (form && form.elements[field]) form.elements[field].value = block.content[field];
       renderCanvas();
-      scheduleSave(block,{
-        label:form && form.elements.label ? form.elements.label.value : block.label,
-        content:block.content,
-        settings:block.settings || {},
-        is_visible:!!block.is_visible
-      });
+      scheduleSave(block,{label:form && form.elements.label ? form.elements.label.value : block.label,content:block.content,settings:block.settings || {},is_visible:!!block.is_visible});
     }
   });
 
   function applyDirectResize(message) {
     const block = blocks.find(item => blockKey(item) === String(message.key || ''));
-    if (!block) return;
-    const width = Math.max(24,Math.min(100,Number(message.widthPercent) || 100)).toFixed(2) + '%';
-    const height = Math.max(0,Math.min(2400,Number(message.height) || 0));
+    if (!block || !message || typeof message !== 'object') return;
+    const rawWidth = Number(message.widthPercent);
+    const rawHeight = Number(message.height);
+    if (!Number.isFinite(rawWidth) || !Number.isFinite(rawHeight) || rawWidth < 1 || rawWidth > 100 || rawHeight < 0 || rawHeight > 4000) return;
+    const width = rawWidth.toFixed(2) + '%';
+    const height = Math.round(rawHeight);
+    const record = message.nodeId ? findNestedNode(block,String(message.nodeId)) : null;
+    if (message.nodeId && !record) return;
     queueUndo(block);
     if (message.nodeId) {
-      const record = findNestedNode(block,String(message.nodeId));
-      if (!record) return;
       record.node.styles = Object.assign({},record.node.styles || {},{width:width});
-      if (height) record.node.styles.min_height = Math.round(height) + 'px';
+      if (height) record.node.styles.min_height = height + 'px';
       selectedNodeId = String(message.nodeId);
       selectedLegacyField = null;
     } else {
       block.settings = Object.assign({},block.settings || {},{width:width});
-      if (height) block.settings.min_height = Math.round(height) + 'px';
+      if (height) block.settings.min_height = height + 'px';
       selectedNodeId = null;
       selectedLegacyField = null;
     }
