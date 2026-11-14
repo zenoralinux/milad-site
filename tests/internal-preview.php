@@ -83,6 +83,7 @@ $legacyStyles = builder_legacy_element_css([[
 ]]);
 $previewScript = builder_preview_script();
 $unsafeStyle = builder_widget_style(['font_size' => '12px;position:fixed', 'background' => 'url(javascript:alert(1))']);
+$multiValueStyle = builder_widget_style(['margin' => '0 auto 16px', 'padding' => '12px 18px']);
 
 $checks = array_merge($checks, [
     'nested widgets expose stable selectable IDs' =>
@@ -101,6 +102,9 @@ $checks = array_merge($checks, [
         strpos($previewScript, 'data-widget-node') !== false &&
         strpos($previewScript, 'selectOutline(key,nodeId,legacyField)') !== false,
     'unsafe element styles are rejected' => $unsafeStyle === '',
+    'safe multi-value margin and padding are accepted' =>
+        strpos($multiValueStyle, 'margin:0 auto 16px') !== false &&
+        strpos($multiValueStyle, 'padding:12px 18px') !== false,
 ]);
 
 foreach ($checks as $label => $passed) {
