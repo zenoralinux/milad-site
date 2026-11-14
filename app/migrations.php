@@ -124,7 +124,7 @@ function run_app_migrations(PDO $pdo): void
         $insertDesign = $pdo->prepare("INSERT IGNORE INTO design_settings (setting_key, setting_value) VALUES (?, ?)");
         foreach ($defaults as $key => $value) $insertDesign->execute([$key, $value]);
 
-        $mark = $pdo->prepare("INSERT INTO schema_migrations (version, migration_name) VALUES (1, 'visual_page_builder')");
+        $mark = $pdo->prepare("INSERT IGNORE INTO schema_migrations (version, migration_name) VALUES (1, 'visual_page_builder')");
         $mark->execute();
         $version = 1;
     }
