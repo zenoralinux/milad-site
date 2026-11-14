@@ -10,6 +10,21 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-22.04
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          MYSQL_DATABASE: milad_site_ci
+          MYSQL_USER: milad_ci
+          MYSQL_PASSWORD: ci-database-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-root-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     strategy:
       fail-fast: false
       matrix:
@@ -34,6 +49,18 @@ jobs:
           test -f app/installer.php
           test ! -f config.example.php
           test ! -f bin/install.php
+      - name: Test automatic MySQL installation
+        shell: bash
+        run: |
+          cat > config.php <<'PHP'
+          <?php
+          return [
+            'app' => ['base_url' => 'http://localhost', 'base_path' => '', 'timezone' => 'UTC', 'session_name' => 'milad_ci'],
+            'database' => ['host' => '127.0.0.1', 'port' => 3306, 'name' => 'milad_site_ci', 'username' => 'milad_ci', 'password' => 'ci-database-password', 'charset' => 'utf8mb4'],
+            'admin' => ['username' => 'ci-admin', 'display_name' => 'CI Admin', 'password' => 'CI-Only-Strong-Password-2026!'],
+          ];
+          PHP
+          php tests/installation-smoke.php
       - name: Test installation path detection
         run: |
           php tests/path-routing.php /index.php ''
