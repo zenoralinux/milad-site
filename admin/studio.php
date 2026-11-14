@@ -33,7 +33,7 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
 <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#080b12">
 <title>Milad Studio Pro | ویرایشگر بصری</title>
 <link rel="stylesheet" href="<?= h(app_url('assets/css/admin.css')) ?>">
-<link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css?v=studio-pro-20261114-3')) ?>">
+<link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css?v=studio-pro-20261114-4')) ?>">
 <script src="<?= h(app_url('assets/js/builder.js?v=studio-pro-20261114-4')) ?>" defer></script>
 </head>
 <body class="studio-page" data-mode="admin" data-csrf="<?= h($csrf) ?>" data-base-path="<?= h(app_base_path()) ?>">
