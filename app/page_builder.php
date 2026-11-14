@@ -545,17 +545,19 @@ function builder_make_internal_preview(string $html): string
     }
 
     $styleTag = '<style id="builder-embedded-site-css">' . $css . '</style>';
+    $cssPattern = "#<link\\\\b(?=[^>]*href=[\\\"'](?:\\\\./)?assets/css/site\\\\.css[\\\"'])[^>]*>#i";
     $html = preg_replace_callback(
-        '#<link\\b(?=[^>]*href=["\\'](?:\\./)?assets/css/site\\.css["\\'])[^>]*>#i',
+        $cssPattern,
         static function () use ($styleTag): string { return $styleTag; },
         $html,
         1
     ) ?? $html;
 
-    $inlineJs = str_ireplace('</script', '<\\/script', $js);
+    $inlineJs = str_ireplace('</script', '<\\\\/script', $js);
     $scriptTag = '<script id="builder-embedded-site-js">' . $inlineJs . '</script>';
+    $jsPattern = "#<script\\\\b(?=[^>]*src=[\\\"'](?:\\\\./)?assets/js/site\\\\.js[\\\"'])[^>]*>\\\\s*</script>#i";
     $html = preg_replace_callback(
-        '#<script\\b(?=[^>]*src=["\\'](?:\\./)?assets/js/site\\.js["'])[^>]*>\\s*</script>#i',
+        $jsPattern,
         static function () use ($scriptTag): string { return $scriptTag; },
         $html,
         1
