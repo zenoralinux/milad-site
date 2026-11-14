@@ -149,9 +149,9 @@ if ($admin && !$setupError) {
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#080b12">
   <title>پنل مدیریت | میلاد</title><link rel="stylesheet" href="<?= h(app_url('assets/css/admin.css')) ?>">
-  <link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css?v=milad-studio-element-editor-20261114-1')) ?>">
+  <link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css?v=milad-studio-pro-fix-20261114-2')) ?>">
   <script src="<?= h(app_url('assets/js/admin.js?v=live-20261114-2')) ?>" defer></script>
-  <script src="<?= h(app_url('assets/js/builder.js?v=milad-studio-element-editor-20261114-1')) ?>" defer></script>
+  <script src="<?= h(app_url('assets/js/builder.js?v=milad-studio-pro-fix-20261114-2')) ?>" defer></script>
 </head>
 <body data-mode="<?= $setupError ? 'setup' : ($admin ? 'admin' : 'login') ?>" data-csrf="<?= h($csrf) ?>" data-base-path="<?= h(app_base_path()) ?>">
 <?php if ($setupError): ?>
