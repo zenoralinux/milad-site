@@ -48,7 +48,12 @@ assert(js.indexOf('function toggleLockSelectedElement') < js.indexOf('function m
 assert(js.includes(".split(/[\\n,]/)"), 'project technologies split on line breaks and commas');
 
 const adminApi = fs.readFileSync('api/admin.php','utf8');
+const apiText = adminApi;
+const pageBuilder = fs.readFileSync('app/page_builder.php','utf8');
 assert(adminApi.includes("'locked','responsive'"), 'block lock state persists through the authenticated block API');
 assert(adminApi.includes("'flex_direction','grid_columns','align_items','justify_content','visibility'"), 'server accepts only the new safe responsive and layout fields');
 assert(adminApi.includes("if ($key === 'locked')") && adminApi.includes("if ($key === 'grid_columns')"), 'server validates boolean lock and grid column ranges');
+
+assert(apiText.includes("'padding','margin','radius'"), 'API persists all four-sided spacing values');
+assert(pageBuilder.includes("in_array($key, ['font_size','width','height','min_width','max_width','min_height','max_height','gap','radius'], true) && is_numeric($value)"), 'numeric dimensions emit valid CSS pixel units');
 console.log('Milad Studio Pro static invariants passed');

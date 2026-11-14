@@ -157,6 +157,11 @@ function builder_widget_style(array $styles): string
         if (!isset($styles[$key]) || !is_scalar($styles[$key])) continue;
         $value = trim((string) $styles[$key]);
         if ($value === '') continue;
+        if (in_array($key, ['font_size','width','height','min_width','max_width','min_height','max_height','gap','radius'], true) && is_numeric($value)) {
+            $value .= 'px';
+        } elseif (in_array($key, ['padding','margin'], true) && is_numeric($value)) {
+            $value .= 'px';
+        }
         if (in_array($key, ['background','color','text_color'], true)) {
             if (!preg_match('/^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/', $value)) continue;
         } elseif ($key === 'text_align') {

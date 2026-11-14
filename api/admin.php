@@ -306,7 +306,7 @@ try {
                 }
                 if (is_string($value) && mb_strlen($value) > 5000) api_fail('VALIDATION_ERROR', 'یکی از فیلدهای بلوک بیش از حد طولانی است.', 422);
             }
-            $allowedStyles = ['background','text_color','padding','radius','font_size','font_weight','line_height','text_align','width','height','min_width','max_width','min_height','max_height','gap','border','shadow','display','flex_direction','grid_columns','align_items','justify_content','visibility','locked','responsive'];
+            $allowedStyles = ['background','text_color','padding','margin','radius','font_size','font_weight','line_height','text_align','width','height','min_width','max_width','min_height','max_height','gap','border','shadow','display','flex_direction','grid_columns','align_items','justify_content','visibility','locked','responsive'];
             $cleanSettings = [];
             foreach ($allowedStyles as $key) {
                 if (!array_key_exists($key, $settings)) continue;
