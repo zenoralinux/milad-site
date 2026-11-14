@@ -138,6 +138,11 @@ $checks = array_merge($checks, [
     'stats cards render with independent element styling' =>
         strpos($statsHtml, 'data-widget-node="stat-card-test"') !== false &&
         strpos($statsHtml, 'border-radius:12px') !== false,
+    'preview script supports opaque srcdoc origins safely' =>
+        strpos($previewScript, "function sendToParent(message)") !== false &&
+        strpos($previewScript, "window.parent.postMessage(message,'*')") !== false &&
+        strpos($previewScript, 'event.source !== window.parent') !== false &&
+        strpos($previewScript, ',location.origin);') === false,
     'preview script sends exact node selection messages' =>
         strpos($previewScript, 'milad-builder-node-select') !== false &&
         strpos($previewScript, 'data-widget-node') !== false &&

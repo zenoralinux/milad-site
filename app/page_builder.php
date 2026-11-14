@@ -573,6 +573,9 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   if (window.parent === window) return;
   document.documentElement.dataset.builderPreview = '1';
   var selectedKey = null, selectedNodeId = '', selectedLegacyField = '';
+  function sendToParent(message){
+    if (window.parent !== window) sendToParent(message,'*');
+  }
   function safeHref(value){
     var raw = String(value || '');
     if (/^#[a-zA-Z0-9_-]+$/.test(raw)) return raw;
@@ -1038,12 +1041,12 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     if (!target) return;
     var owner = target.closest('[data-builder-key]');
     if (!owner) return;
-    window.parent.postMessage({
+    sendToParent({
       type:'milad-builder-inline-edit',
       key:owner.dataset.builderKey,
       field:target.dataset.builderEditField,
       value:target.textContent
-    },location.origin);
+    });
   },true);
   document.addEventListener('focusout',function(event){
     var target = event.target.closest('[contenteditable="true"][data-builder-edit-field]');
@@ -1052,12 +1055,12 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     target.removeAttribute('contenteditable');
     target.classList.remove('builder-inline-editing');
     if (!owner) return;
-    window.parent.postMessage({
+    sendToParent({
       type:'milad-builder-inline-edit',
       key:owner.dataset.builderKey,
       field:target.dataset.builderEditField,
       value:target.textContent
-    },location.origin);
+    });
   },true);
   document.addEventListener('click',function(event){
     var block = event.target.closest('[data-builder-key]');
@@ -1066,33 +1069,33 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     event.stopPropagation();
     var fieldNode = event.target.closest('[data-builder-edit-field]');
     if (fieldNode && block.contains(fieldNode)) {
-      window.parent.postMessage({
+      sendToParent({
         type:'milad-builder-node-select',key:block.dataset.builderKey,
         legacyField:fieldNode.dataset.builderEditField
-      },location.origin);
+      });
       return;
     }
     var widgetNode = event.target.closest('[data-widget-node]');
     if (widgetNode && block.contains(widgetNode)) {
-      window.parent.postMessage({
+      sendToParent({
         type:'milad-builder-node-select',key:block.dataset.builderKey,
         nodeId:widgetNode.dataset.widgetNode
-      },location.origin);
+      });
       return;
     }
-    window.parent.postMessage({type:'milad-builder-select',key:block.dataset.builderKey},location.origin);
+    sendToParent({type:'milad-builder-select',key:block.dataset.builderKey});
   },true);
   window.addEventListener('message',function(event){
-    if (event.origin !== location.origin || event.source !== window.parent) return;
+    if (event.source !== window.parent) return;
     var message = event.data || {};
     if (message.type === 'milad-builder-ping') {
-      window.parent.postMessage({type:'milad-builder-ready'},location.origin);
+      sendToParent({type:'milad-builder-ready'});
       return;
     }
     if (message.type === 'milad-builder-state') applyState(message);
     if (message.type === 'milad-builder-select-outline') selectOutline(String(message.key || ''),String(message.nodeId || ''),String(message.legacyField || ''));
   });
-  window.parent.postMessage({type:'milad-builder-ready'},location.origin);
+  sendToParent({type:'milad-builder-ready'});
 })();
 </script>
 HTML;

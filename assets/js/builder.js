@@ -288,12 +288,12 @@
       type:'milad-builder-state',
       blocks:blocks,
       design:design
-    },window.location.origin);
+    },'*');
     if (selectedId !== null) {
       const selected = blocks.find(item => Number(item.id) === Number(selectedId));
       if (selected) frame.contentWindow.postMessage({
         type:'milad-builder-select-outline',key:blockKey(selected),nodeId:selectedNodeId || '',legacyField:selectedLegacyField || ''
-      },window.location.origin);
+      },'*');
     }
   }
 
@@ -352,11 +352,11 @@
         '<button type="button" data-delete="' + Number(block.id) + '" title="حذف">×</button></div></article>';
     }).join('');
 
-    $('[data-node-select]').forEach(button => button.addEventListener('click',event => {
+    $$('[data-node-select]').forEach(button => button.addEventListener('click',event => {
       event.stopPropagation();
       selectNestedNode(Number(button.dataset.blockId),String(button.dataset.nodeSelect));
     }));
-    $('.builder-block').forEach(node => {
+    $$('.builder-block').forEach(node => {
       node.addEventListener('click',event => {
         if (event.target.closest('button')) return;
         selectBlock(Number(node.dataset.blockId));
@@ -390,13 +390,13 @@
       node.addEventListener('dragend',() => {
         dragId = null;
         node.setAttribute('aria-grabbed','false');
-        $$('.builder-block').forEach(item => item.classList.remove('is-drop-target'));
+        $$$('.builder-block').forEach(item => item.classList.remove('is-drop-target'));
       });
     });
     $$('[data-up]').forEach(button => button.addEventListener('click',() => move(Number(button.dataset.up),-1)));
     $$('[data-down]').forEach(button => button.addEventListener('click',() => move(Number(button.dataset.down),1)));
     $$('[data-clone]').forEach(button => button.addEventListener('click',() => cloneBlock(Number(button.dataset.clone))));
-    $('[data-delete]').forEach(button => button.addEventListener('click',() => deleteBlock(Number(button.dataset.delete))));
+    $$('[data-delete]').forEach(button => button.addEventListener('click',() => deleteBlock(Number(button.dataset.delete))));
     renderContextToolbar();
   }
 
@@ -1228,7 +1228,7 @@
   });
 
 
-  $('[data-add-block]').forEach(button => button.addEventListener('click',() => addBlock(button.dataset.addBlock)));
+  $$('[data-add-block]').forEach(button => button.addEventListener('click',() => addBlock(button.dataset.addBlock)));
   $$('[data-library-tab]').forEach(button => button.addEventListener('click',() => setLibraryTab(button.dataset.libraryTab)));
   $$('[data-inspector-tab]').forEach(button => button.addEventListener('click',() => setInspectorTab(button.dataset.inspectorTab)));
   $('#builderSaveAll')?.addEventListener('click',saveAll);
@@ -1337,7 +1337,7 @@
   let previewHandshakeAttempts = 0;
   function pingPreview() {
     if (previewReady || !frame || !frame.contentWindow) return;
-    frame.contentWindow.postMessage({type:'milad-builder-ping'},window.location.origin);
+    frame.contentWindow.postMessage({type:'milad-builder-ping'},'*');
     previewHandshakeAttempts += 1;
     if (previewHandshakeAttempts < 12) window.setTimeout(pingPreview,250);
   }
@@ -1349,7 +1349,7 @@
     });
   }
   window.addEventListener('message',event => {
-    if (event.origin !== window.location.origin || !frame || event.source !== frame.contentWindow) return;
+    if (!frame || event.source !== frame.contentWindow || (event.origin !== window.location.origin && event.origin !== 'null')) return;
     const message = event.data || {};
     if (message.type === 'milad-builder-ready') {
       previewReady = true;

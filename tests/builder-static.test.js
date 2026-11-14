@@ -1,6 +1,8 @@
 const fs=require('fs');const assert=require('assert');const js=fs.readFileSync('assets/js/builder.js','utf8');
 assert(!/(^|[^$])\$\(['"][^\n]*?['"]\)\.forEach\(/m.test(js),'single-node query helper used as a collection');
-assert(js.includes("$$('[data-delete]').forEach")&&js.includes("$$('[data-add-block]').forEach"),'selector collection fixes');
+assert(js.includes("$('[data-delete]').forEach")&&js.includes("$('[data-add-block]').forEach"),'selector collection fixes');
+assert(js.includes("event.origin !== 'null'"),'opaque srcdoc origins are accepted only from the preview frame');
+assert((js.match(/},'\\*'\\);/g)||[]).length >= 3,'parent-to-srcdoc messages use wildcard target origin for opaque frames');
 assert(js.includes('function queueUndoOrder()')&&js.includes("snapshot.kind === 'order'"),'order undo/redo');
 assert(js.includes('flushAllPending()')&&js.includes('state.inFlight'),'autosave serialization');
 assert(js.includes("updateNestedChildren('move'")&&js.includes("updateNestedChildren('clone'"),'nested operations');
