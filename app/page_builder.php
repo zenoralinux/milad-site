@@ -1058,8 +1058,9 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       node.hidden = !block.is_visible;
       node.style.backgroundColor = block.settings && block.settings.background || '';
       node.style.color = block.settings && block.settings.text_color || '';
-      node.style.paddingBlock = block.settings && block.settings.padding !== undefined ? Number(block.settings.padding) + 'px' : '';
-      node.style.borderRadius = block.settings && block.settings.radius !== undefined ? Number(block.settings.radius) + 'px' : '';
+      node.style.padding = block.settings && block.settings.padding !== undefined ? String(block.settings.padding) : '';
+      node.style.margin = block.settings && block.settings.margin !== undefined ? String(block.settings.margin) : '';
+      node.style.borderRadius = block.settings && block.settings.radius !== undefined ? String(block.settings.radius) : '';
       var rootStyleMap = {font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',border:'border',shadow:'boxShadow',display:'display'};
       Object.keys(rootStyleMap).forEach(function(key){
         if (block.settings && block.settings[key] !== undefined) node.style[rootStyleMap[key]] = String(block.settings[key]);
