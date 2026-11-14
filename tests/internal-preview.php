@@ -25,7 +25,7 @@ $checks = [
     'stylesheet is embedded' => strpos($output, 'id="builder-embedded-site-css"') !== false,
     'site JavaScript is embedded' => strpos($output, 'id="builder-embedded-site-js"') !== false,
     'profile image is embedded as data' => strpos($output, 'data:image/jpeg;base64,') !== false &&
-        !preg_match('/<img\\b[^>]*src=["\\']https?:\\/\\//i', $output),
+        strpos($output, 'src="https://') === false && strpos($output, "src='https://") === false,
     'external metadata is removed' => strpos($output, 'https://example.test/') === false,
     'local asset paths are removed' => strpos($output, './assets/') === false && strpos($output, '../assets/') === false,
     'favicon reference is removed' => strpos($output, './favicon.svg') === false,
