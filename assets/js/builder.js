@@ -513,7 +513,10 @@
   $('#builderDesignForm')?.addEventListener('submit',saveDesign);
   $('#builderDesignForm')?.addEventListener('input',onDesignInput);
   $('#builderReload')?.addEventListener('click',() => {
-    if (frame) frame.contentWindow.location.reload();
+    if (frame) {
+      const internalDocument = frame.getAttribute('srcdoc');
+      if (internalDocument) frame.srcdoc = internalDocument;
+    }
     load();
   });
   $$('.builder-device-tabs button').forEach(button => button.addEventListener('click',() => setDevice(button.dataset.device)));
