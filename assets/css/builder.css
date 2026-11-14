@@ -227,3 +227,27 @@
 .builder-revision-item span{font-size:9px;color:var(--muted);direction:ltr;text-align:left}
 .builder-revision-item button{padding:5px 8px;border:1px solid var(--builder-line);border-radius:7px;background:var(--surface);color:var(--text);font-size:9px;white-space:nowrap}
 .builder-revision-item button:hover{border-color:var(--accent)}
+
+
+/* Element-level inspector: one selected widget has isolated content and design controls. */
+#view-builder .builder-element-style-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:0}
+#view-builder .builder-element-style-grid>label{min-width:0;display:grid;gap:6px;color:var(--muted-2);font-size:10px}
+#view-builder .builder-element-style-grid input:not([type="color"]),
+#view-builder .builder-element-style-grid select,
+#view-builder .builder-element-style-grid textarea{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:#0b111c;color:var(--text);font-size:11px}
+#view-builder .builder-element-style-grid input[type="color"]{width:100%;height:36px;padding:3px;border:1px solid var(--line-strong);border-radius:9px;background:#0b111c}
+#view-builder .builder-element-style-grid input:disabled{opacity:.38;cursor:not-allowed}
+#view-builder .builder-element-style-grid .builder-responsive-label{grid-column:1/-1}
+#view-builder .builder-element-style-grid textarea{min-height:130px;resize:vertical;direction:ltr;text-align:left;font:10px/1.7 ui-monospace,monospace}
+#view-builder .builder-style-default{display:flex!important;align-items:center;gap:7px!important;margin-top:-6px}
+#view-builder .builder-style-default input{accent-color:var(--accent)}
+#view-builder #builderNodeForm,#view-builder #builderLegacyForm{display:grid;gap:12px}
+#view-builder #builderNodeForm>section,#view-builder #builderLegacyForm>section{display:grid;gap:11px;min-width:0}
+#view-builder #builderNodeForm .builder-panel-heading,
+#view-builder #builderLegacyForm .builder-panel-heading{margin-bottom:2px}
+#view-builder .builder-nested-item{grid-template-columns:18px minmax(0,1fr) 25px 25px 25px}
+#view-builder .builder-inspector .builder-note code{overflow-wrap:anywhere}
+@media(max-width:520px){
+  #view-builder .builder-element-style-grid{grid-template-columns:1fr}
+  #view-builder .builder-element-style-grid .builder-responsive-label{grid-column:auto}
+}
