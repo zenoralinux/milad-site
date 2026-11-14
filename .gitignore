@@ -1,0 +1,8 @@
+/config.local.php
+/config.production.php
+/uploads/*
+!/uploads/.gitkeep
+/storage/*
+!/storage/.gitkeep
+*.log
+.DS_Store
