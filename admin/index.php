@@ -1,19 +1,41 @@
 <?php
 declare(strict_types=1);
 
-// Load the application and start the session defensively. A malformed local
-// config, missing PHP extension, or unwritable session directory must not
-// turn the admin route into an opaque HTTP 500 response.
+// Identify which bootstrap stage failed so production logs are actionable.
+$adminBootStage = 'application bootstrap';
 try {
     require dirname(__DIR__) . '/app/bootstrap.php';
+    $adminBootStage = 'PHP session initialization';
     start_admin_session();
+    $adminBootStage = 'CSRF token initialization';
     $csrf = csrf_token();
 } catch (Throwable $e) {
-    error_log('Admin bootstrap/session failed: ' . $e->getMessage());
+    $diagnostic = sprintf(
+        'Admin startup failed during %s: %s in %s:%d',
+        $adminBootStage,
+        get_class($e) . ': ' . $e->getMessage(),
+        $e->getFile(),
+        $e->getLine()
+    );
+    error_log($diagnostic);
+
+    // Detailed diagnostics are opt-in and must remain disabled in production.
+    $debugEnabled = filter_var((string) (getenv('MILAD_APP_DEBUG') ?: '0'), FILTER_VALIDATE_BOOLEAN);
+    if (function_exists('cfg')) {
+        try {
+            $debugEnabled = $debugEnabled || (bool) cfg('app.debug', false);
+        } catch (Throwable $ignored) {
+            // Bootstrap itself may have failed before configuration became usable.
+        }
+    }
+
     http_response_code(503);
     header('Content-Type: text/html; charset=utf-8');
     header('Cache-Control: no-store');
-    echo '<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>پنل مدیریت موقتاً در دسترس نیست</title><body style="margin:0;background:#080b12;color:#e8edf7;font:16px system-ui;display:grid;min-height:100vh;place-items:center"><main style="max-width:620px;padding:36px;text-align:center"><h1>پنل مدیریت موقتاً در دسترس نیست</h1><p style="color:#aab5c8;line-height:2">راه‌اندازی PHP یا نشست مدیریتی با مشکل روبه‌رو شده است. گزارش خطای PHP هاست را بررسی کنید و مطمئن شوید نسخه PHP با نیازمندی‌های پروژه سازگار است.</p><a style="color:#89c0ff" href="../">بازگشت به سایت</a></main></body></html>';
+    $debugHtml = $debugEnabled
+        ? '<pre style="white-space:pre-wrap;direction:ltr;text-align:left;background:#111827;color:#fca5a5;padding:16px;border-radius:12px;overflow-wrap:anywhere">' . htmlspecialchars($diagnostic, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</pre>'
+        : '';
+    echo '<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>پنل مدیریت موقتاً در دسترس نیست</title><body style="margin:0;background:#080b12;color:#e8edf7;font:16px system-ui;display:grid;min-height:100vh;place-items:center"><main style="max-width:680px;padding:36px;text-align:center"><h1>پنل مدیریت موقتاً در دسترس نیست</h1><p style="color:#aab5c8;line-height:2">راه‌اندازی PHP یا نشست مدیریتی با مشکل روبه‌رو شده است. گزارش خطای PHP هاست را بررسی کنید و سازگاری نسخه PHP و دسترسی نوشتن پوشه Session را بررسی کنید.</p>' . $debugHtml . '<a style="color:#89c0ff" href="../">بازگشت به سایت</a></main></body></html>';
     exit;
 }
 
