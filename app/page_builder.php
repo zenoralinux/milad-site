@@ -169,7 +169,7 @@ function builder_widget_style(array $styles): string
         } elseif ($key === 'font_weight') {
             if (!preg_match('/^(100|200|300|400|500|600|700|800|900|normal|bold)$/', $value)) continue;
         } elseif ($key === 'display') {
-            if (!in_array($value, ['block','flex','grid','inline-flex','inline-block'], true)) continue;
+            if (!in_array($value, ['none','block','flex','grid','inline-flex','inline-block'], true)) continue;
         } elseif ($key === 'flex_direction') {
             if (!in_array($value, ['row','row-reverse','column','column-reverse'], true)) continue;
         } elseif ($key === 'align_items') {
@@ -204,6 +204,10 @@ function builder_render_nested_widget(array $widget, int $depth = 0): string
     if (!in_array($type, $allowedWidgetTypes, true)) return '';
     $content = is_array($widget['content'] ?? null) ? $widget['content'] : $widget;
     $styles = is_array($widget['styles'] ?? null) ? $widget['styles'] : [];
+    // Persist a hidden Navigator state in the actual public renderer as well as srcdoc.
+    if (array_key_exists('is_visible', $widget) && $widget['is_visible'] === false) {
+        $styles['display'] = 'none';
+    }
     $children = is_array($widget['children'] ?? null) ? $widget['children'] : [];
     $style = builder_widget_style($styles);
     $nodeId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($widget['id'] ?? ''));

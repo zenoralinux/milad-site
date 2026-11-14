@@ -56,4 +56,7 @@ assert(adminApi.includes("if ($key === 'locked')") && adminApi.includes("if ($ke
 
 assert(apiText.includes("'padding','margin','radius'"), 'API persists all four-sided spacing values');
 assert(pageBuilder.includes("in_array($key, ['font_size','width','height','min_width','max_width','min_height','max_height','gap','radius'], true) && is_numeric($value)"), 'numeric dimensions emit valid CSS pixel units');
+
+assert(pageBuilder.includes("array_key_exists('is_visible', $widget) && $widget['is_visible'] === false"), 'nested Navigator visibility persists in public rendering');
+assert(pageBuilder.includes("['none','block','flex','grid','inline-flex','inline-block']"), 'hidden nested widgets use an allowed safe display value');
 console.log('Milad Studio Pro static invariants passed');
