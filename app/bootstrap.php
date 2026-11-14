@@ -95,6 +95,11 @@ function app_base_path(): string
     static $basePath = null;
     if ($basePath !== null) return $basePath;
 
+    if (PHP_SAPI === 'cli' && empty($_SERVER['MILAD_FORCE_BASE_PATH'])) {
+        $basePath = '';
+        return $basePath;
+    }
+
     $configured = trim((string) cfg('app.base_path', ''));
     if ($configured !== '') {
         $path = '/' . trim(str_replace('\\', '/', $configured), '/');
