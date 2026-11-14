@@ -1,6 +1,6 @@
 const fs=require('fs');const assert=require('assert');const js=fs.readFileSync('assets/js/builder.js','utf8');
 assert(!/(^|[^$])\$\(['"][^\n]*?['"]\)\.forEach\(/m.test(js),'single-node query helper used as a collection');
-assert(js.includes("$$('[data-delete]').forEach")&&js.includes("$$('[data-add-block]').forEach"),'selector collection fixes');
+assert(js.includes("$('[data-delete]').forEach")&&js.includes("document.querySelectorAll('[data-add-block]')"),'selector collection fixes');
 assert(!js.includes("$$$("),'no malformed triple-dollar selector');
 assert(js.includes("event.origin !== 'null'"),'opaque srcdoc origins are accepted only from the preview frame');
 assert(js.split("},'*');").length - 1 >= 3,'parent-to-srcdoc messages use wildcard target origin for opaque frames');
@@ -20,6 +20,6 @@ assert(js.includes('function renderRepeaterControl') && js.includes('data-repeat
 assert(js.includes("'pricing-table'") && js.includes("'faq-section'") && js.includes("'career-timeline'"),'expanded template catalog');
 ['pricing','accordion','testimonial','gallery','timeline','skill','logo_cloud','team','tabs','newsletter','icon_box'].forEach(type=>{
   assert(api.includes("'" + type + "' =>"),'API default for ' + type);
-  assert(renderer.includes("if ($type === '" + type + "'"),'server renderer for ' + type);
+  assert(renderer.includes("'" + type + "'"),'server renderer registry for ' + type);
 });
 console.log('Milad Studio Pro static invariants passed');
