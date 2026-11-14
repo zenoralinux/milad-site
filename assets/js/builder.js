@@ -1571,6 +1571,8 @@
       if (message.legacyField) selectLegacyElement(Number(block.id),String(message.legacyField));
       else if (message.nodeId) selectNestedNode(Number(block.id),String(message.nodeId));
       else selectBlock(Number(block.id));
+    } else if (message.type === 'milad-builder-direct-resize') {
+      applyDirectResize(message);
     } else if (message.type === 'milad-builder-inline-edit') {
       const block = blocks.find(item => blockKey(item) === String(message.key));
       const field = String(message.field || '');
@@ -1588,6 +1590,46 @@
         is_visible:!!block.is_visible
       });
     }
+  });
+
+  function applyDirectResize(message) {
+    const block = blocks.find(item => blockKey(item) === String(message.key || ''));
+    if (!block) return;
+    const width = Math.max(24,Math.min(100,Number(message.widthPercent) || 100)).toFixed(2) + '%';
+    const height = Math.max(0,Math.min(2400,Number(message.height) || 0));
+    queueUndo(block);
+    if (message.nodeId) {
+      const record = findNestedNode(block,String(message.nodeId));
+      if (!record) return;
+      record.node.styles = Object.assign({},record.node.styles || {},{width:width});
+      if (height) record.node.styles.min_height = Math.round(height) + 'px';
+      selectedNodeId = String(message.nodeId);
+      selectedLegacyField = null;
+    } else {
+      block.settings = Object.assign({},block.settings || {},{width:width});
+      if (height) block.settings.min_height = Math.round(height) + 'px';
+      selectedNodeId = null;
+      selectedLegacyField = null;
+    }
+    renderCanvas();
+    renderInspector();
+    postPreviewState();
+    scheduleSave(block,{label:block.label,content:block.content,settings:block.settings || {},is_visible:!!block.is_visible});
+    status('اندازه عنصر مستقیماً روی بوم تغییر کرد؛ ذخیره خودکار انجام می‌شود.','');
+  }
+
+  $('#builderLayerSearch')?.addEventListener('input',event => {
+    const term = String(event.target.value || '').trim().toLowerCase();
+    $('.builder-block').forEach(item => {
+      const text = String(item.textContent || '').toLowerCase();
+      item.hidden = term !== '' && text.indexOf(term) === -1;
+    });
+  });
+  $('#builderLayerExpandAll')?.addEventListener('click',() => {
+    $('.builder-navigator details').forEach(node => node.open = true);
+  });
+  $('#builderLayerCollapseAll')?.addEventListener('click',() => {
+    $('.builder-navigator details').forEach(node => node.open = false);
   });
 
   document.querySelectorAll('[data-view="builder"]').forEach(button => button.addEventListener('click',() => {
