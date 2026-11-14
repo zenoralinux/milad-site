@@ -57,4 +57,10 @@ const paletteStudio=fs.readFileSync('admin/studio.php','utf8');
 assert(paletteApi.includes("'color_palette' => ['palette']") && paletteApi.includes("['violet','ocean','emerald','sunset','rose','graphite']"),'server validates global color palettes');
 assert(paletteStudio.includes('name="color_palette"'),'Studio exposes a global palette selector');
 
+
+assert(preview.includes("if(widgetId.indexOf('legacy-')===0)selection.legacyField") && preview.includes("else if(widgetId)selection.nodeId"),'context menu selects nested nodes instead of their containing block');
+assert(js.includes("record.collection.splice(record.index+1,0,clone)") && js.includes("freshenNodeIds(clone)"),'duplicate nested nodes as siblings with fresh IDs');
+assert(preview.includes("if(event.target.closest('a'))event.preventDefault();") && !preview.includes("event.preventDefault();event.stopPropagation();"),'inline editor preserves click caret placement');
+assert(preview.includes("data-widget-type='principle_item'") || preview.includes("data-widget-type","principle_item"),'About principle cards support inline editing');
+
 console.log('Milad Studio Pro static invariants passed');
