@@ -77,6 +77,79 @@
     stat_item:[['value','مقدار / نشان'],['label','عنوان'],['description','توضیحات']]
   };
 
+  const studioPalettes = {
+    violet:{accent:'#a58aff',accentStrong:'#8c6bfa',pageBg:'#080b12',surface:'#101722',surfaceRaised:'#172235',accentSurface:'#211b3b',text:'#f3f5fb',onAccent:'#ffffff',muted:'#9aa4b5',border:'#343049',cyan:'#59d5c9'},
+    ocean:{accent:'#38bdf8',accentStrong:'#0284c7',pageBg:'#06131d',surface:'#0c1d2b',surfaceRaised:'#122b3c',accentSurface:'#12344a',text:'#eaf7ff',onAccent:'#ffffff',muted:'#91b7ca',border:'#21465a',cyan:'#67e8f9'},
+    emerald:{accent:'#34d399',accentStrong:'#059669',pageBg:'#071713',surface:'#0d241d',surfaceRaised:'#153329',accentSurface:'#123c30',text:'#eafff5',onAccent:'#ffffff',muted:'#91b8a8',border:'#24483b',cyan:'#5eead4'},
+    sunset:{accent:'#fb923c',accentStrong:'#ea580c',pageBg:'#1a0d0b',surface:'#2b1713',surfaceRaised:'#3a211a',accentSurface:'#4b2518',text:'#fff4eb',onAccent:'#ffffff',muted:'#d4a997',border:'#573326',cyan:'#fda4af'},
+    rose:{accent:'#fb7185',accentStrong:'#e11d48',pageBg:'#1a0b13',surface:'#2a111d',surfaceRaised:'#391827',accentSurface:'#471a2b',text:'#fff0f4',onAccent:'#ffffff',muted:'#d3a2b1',border:'#553040',cyan:'#f0abfc'},
+    graphite:{accent:'#a3a3a3',accentStrong:'#737373',pageBg:'#101010',surface:'#1b1b1b',surfaceRaised:'#292929',accentSurface:'#333333',text:'#f5f5f5',onAccent:'#ffffff',muted:'#a3a3a3',border:'#454545',cyan:'#d4d4d4'}
+  };
+  function colorLuminance(hex){
+    const value=String(hex||'').replace('#','');
+    if(!/^[0-9a-f]{6}$/i.test(value))return 0.5;
+    const channels=[0,2,4].map(index=>parseInt(value.slice(index,index+2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));
+    return channels[0]*0.2126+channels[1]*0.7152+channels[2]*0.0722;
+  }
+  function paletteColorFor(value,key,palette){
+    const luminance=colorLuminance(value);
+    if(key==='background')return luminance>0.78?palette.surfaceRaised:(luminance<0.16?palette.surface:palette.accentSurface);
+    if(key==='text_color')return luminance>0.72?palette.onAccent:palette.text;
+    if(key==='color')return luminance>0.82?palette.onAccent:(luminance<0.16?palette.text:palette.accent);
+    return value;
+  }
+  function applyPaletteToBlock(block,paletteName){
+    const palette=studioPalettes[paletteName]||studioPalettes.violet;
+    block.content=cloneData(block.content||{});
+    block.settings=cloneData(block.settings||{});
+    const sources=block.content.__studio_palette_sources&&typeof block.content.__studio_palette_sources==='object'
+      ? block.content.__studio_palette_sources : {};
+    function walk(value,path){
+      if(!value||typeof value!=='object')return;
+      if(Array.isArray(value)){value.forEach((item,index)=>walk(item,path.concat(String(index))));return;}
+      Object.keys(value).forEach(key=>{
+        if(key==='__studio_palette_sources')return;
+        const current=value[key], location=path.concat(key).join('.');
+        if(typeof current==='string' && ['background','text_color','color'].includes(key) && /^#[0-9a-f]{6}$/i.test(current)){
+          if(!Object.prototype.hasOwnProperty.call(sources,location))sources[location]=current;
+          value[key]=paletteColorFor(sources[location],key,palette);
+        }else if(typeof current==='string' && key==='border' && /#[0-9a-f]{6}/i.test(current)){
+          if(!Object.prototype.hasOwnProperty.call(sources,location))sources[location]=current;
+          value[key]=sources[location].replace(/#[0-9a-f]{6}/i,palette.border);
+        }else if(current&&typeof current==='object')walk(current,path.concat(key));
+      });
+    }
+    walk(block.settings,['settings']);
+    walk(block.content,['content']);
+    if(Object.keys(sources).length)block.content.__studio_palette_sources=sources;
+    return block;
+  }
+  function setObjectPath(target,path,value){
+    const parts=String(path||'').split('.');
+    if(!parts.length||parts.length>6||parts.some(part=>!part||['__proto__','prototype','constructor'].includes(part)))return false;
+    let cursor=target;
+    for(let index=0;index<parts.length-1;index++){
+      const key=parts[index];
+      if(Array.isArray(cursor)){
+        if(!/^\d+$/.test(key)||Number(key)>=cursor.length)return false;
+        cursor=cursor[Number(key)];
+      }else{
+        if(!cursor||typeof cursor!=='object'||!Object.prototype.hasOwnProperty.call(cursor,key))return false;
+        cursor=cursor[key];
+      }
+      if(!cursor||typeof cursor!=='object')return false;
+    }
+    const last=parts[parts.length-1];
+    if(Array.isArray(cursor)){
+      if(!/^\d+$/.test(last)||Number(last)>=cursor.length)return false;
+      cursor[Number(last)]=String(value??'');
+    }else{
+      if(!cursor||typeof cursor!=='object'||!Object.prototype.hasOwnProperty.call(cursor,last))return false;
+      cursor[last]=String(value??'');
+    }
+    return true;
+  }
+
   let blocks = [];
   let design = {};
   let selectedId = null;
@@ -332,12 +405,13 @@
       const type = String(node.type || 'paragraph');
       const label = content.text || content.title || content.label || content.value || names[type] || type;
       const children = Array.isArray(node.children) ? node.children : (Array.isArray(content.children) ? content.children : []);
-      return '<div class="builder-layer-node-wrap"><button type="button" class="builder-layer-node' +
+      return '<details class="builder-layer-node-wrap" open data-layer-node-wrap><summary>' +
+        '<button type="button" class="builder-layer-node' +
         (String(node.id || '') === String(selectedNodeId || '') ? ' is-selected' : '') +
-        '" data-node-select="' + escapeHtml(node.id || '') + '" data-block-id="' + Number(block.id) + '">' +
-        '<span>' + escapeHtml(names[type] || type) + '</span><small>' + escapeHtml(String(label).slice(0,38)) +
-        '</small></button>' + (children.length ? '<div class="builder-layer-children">' +
-        renderNavigatorNodes(children,block,depth+1) + '</div>' : '') + '</div>';
+        '" draggable="true" data-node-select="' + escapeHtml(node.id || '') + '" data-block-id="' + Number(block.id) + '">' +
+        '<span class="builder-layer-type">' + escapeHtml(names[type] || type) + '</span><small>' + escapeHtml(String(label).slice(0,38)) +
+        '</small></button></summary>' + (children.length ? '<div class="builder-layer-children">' +
+        renderNavigatorNodes(children,block,depth+1) + '</div>' : '') + '</details>';
     }).join('');
   }
   function renderCanvas() {
@@ -365,10 +439,36 @@
         '<button type="button" data-delete="' + Number(block.id) + '" title="حذف">×</button></div></article>';
     }).join('');
 
-    $$('[data-node-select]').forEach(button => button.addEventListener('click',event => {
-      event.stopPropagation();
-      selectNestedNode(Number(button.dataset.blockId),String(button.dataset.nodeSelect));
-    }));
+    $$('[data-node-select]').forEach(button => {
+      button.addEventListener('click',event => {
+        event.stopPropagation();
+        selectNestedNode(Number(button.dataset.blockId),String(button.dataset.nodeSelect));
+      });
+      button.addEventListener('dragstart',event => {
+        event.stopPropagation();
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('application/x-milad-node',JSON.stringify({blockId:Number(button.dataset.blockId),nodeId:String(button.dataset.nodeSelect)}));
+      });
+      button.addEventListener('dragover',event => { event.preventDefault(); button.classList.add('is-drop-target'); });
+      button.addEventListener('dragleave',() => button.classList.remove('is-drop-target'));
+      button.addEventListener('drop',event => {
+        event.preventDefault();event.stopPropagation();button.classList.remove('is-drop-target');
+        let source; try { source=JSON.parse(event.dataTransfer.getData('application/x-milad-node') || '{}'); } catch(e) { return; }
+        if (Number(source.blockId)!==Number(button.dataset.blockId) || String(source.nodeId)===String(button.dataset.nodeSelect)) return;
+        moveNestedNode(Number(source.blockId),String(source.nodeId),String(button.dataset.nodeSelect));
+      });
+    });
+    $('#builderLayerSearch')?.addEventListener('input',event => {
+      const term=String(event.target.value || '').trim().toLowerCase();
+      $$('[data-layer-node-wrap]').forEach(item => {
+        const match=!term || item.textContent.toLowerCase().includes(term);
+        item.hidden=!match;
+        if (match && term) { let parent=item.parentElement.closest('[data-layer-node-wrap]'); while(parent){parent.hidden=false;parent.open=true;parent=parent.parentElement.closest('[data-layer-node-wrap]');} }
+      });
+      $$('.builder-block').forEach(item => { item.hidden=!!term && !item.textContent.toLowerCase().includes(term); });
+    });
+    $('#builderLayerExpandAll')?.addEventListener('click',() => $$('[data-layer-node-wrap]').forEach(item => item.open=true));
+    $('#builderLayerCollapseAll')?.addEventListener('click',() => $$('[data-layer-node-wrap]').forEach(item => item.open=false));
     $$('.builder-block').forEach(node => {
       node.addEventListener('click',event => {
         if (event.target.closest('button')) return;
@@ -435,33 +535,150 @@
     }
   }
 
-  function selectBlock(id) {
+  function moveNestedNode(blockId,sourceId,targetId) {
+    const block=blocks.find(item=>Number(item.id)===Number(blockId));
+    const source=block && findNestedNode(block,sourceId), target=block && findNestedNode(block,targetId);
+    if(!source||!target||source.collection!==target.collection)return;
+    queueUndo(block);
+    const moved=source.collection.splice(source.index,1)[0];
+    const targetIndex=source.collection.findIndex(item=>String(item.id)===String(targetId));
+    source.collection.splice(targetIndex<0?source.collection.length:targetIndex,0,moved);
+    const payload={label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
+  }
+
+  let builderContextMenu=null;
+  function showBuilderContextMenu(message){
+    if(builderContextMenu)builderContextMenu.remove();
+    builderContextMenu=document.createElement('div');
+    builderContextMenu.className='builder-canvas-context-menu';
+    builderContextMenu.innerHTML='<button data-context-cmd="copy">کپی عنصر</button><button data-context-cmd="paste">چسباندن عنصر</button><button data-context-cmd="duplicate">تکثیر عنصر</button><button data-context-cmd="delete">حذف عنصر</button>';
+    const frameRect=frame?frame.getBoundingClientRect():{left:0,top:0};
+    const menuX=frameRect.left+(Number(message.x)||40),menuY=frameRect.top+(Number(message.y)||40);
+    builderContextMenu.style.left=Math.max(8,Math.min(window.innerWidth-198,menuX))+'px';
+    builderContextMenu.style.top=Math.max(8,Math.min(window.innerHeight-190,menuY))+'px';
+    document.body.appendChild(builderContextMenu);
+    builderContextMenu.querySelectorAll('[data-context-cmd]').forEach(button=>button.addEventListener('click',()=>{
+      const action=button.dataset.contextCmd;
+      if(action==='copy')copySelectedNode();
+      if(action==='paste')pasteSelectedNode();
+      if(action==='duplicate')duplicateSelectedNode();
+      if(action==='delete')deleteSelectedNode();
+      builderContextMenu.remove();builderContextMenu=null;
+    }));
+    const closeMenu=function(event){if(builderContextMenu&&event.target.closest('.builder-canvas-context-menu'))return;if(builderContextMenu){builderContextMenu.remove();builderContextMenu=null;}document.removeEventListener('pointerdown',closeMenu,true);};
+    window.setTimeout(()=>document.addEventListener('pointerdown',closeMenu,true),0);
+  }
+
+  function directStyleUpdate(message) {
+    const block=blocks.find(item=>blockKey(item)===String(message.key||''));
+    if(!block)return;
+    const allowed=['width','min_height','padding','margin','max_width'];
+    const patch={};
+    allowed.forEach(key=>{if(message.styles&&message.styles[key]!==undefined)patch[key]=String(message.styles[key]);});
+    if(!Object.keys(patch).length)return;
+    queueUndo(block);
+    const activeDevice=previewShell && previewShell.dataset.device ? previewShell.dataset.device : 'desktop';
+    function applyResponsive(target){
+      if(activeDevice==='desktop')Object.assign(target,patch);
+      else{
+        target.responsive=Object.assign({},target.responsive||{});
+        target.responsive[activeDevice]=Object.assign({},target.responsive[activeDevice]||{},patch);
+      }
+    }
+    if(message.nodeId){
+      const record=findNestedNode(block,String(message.nodeId));
+      if(!record)return;
+      record.node.styles=Object.assign({},record.node.styles||{});
+      applyResponsive(record.node.styles);
+    }else if(message.legacyField){
+      block.content=Object.assign({},block.content||{});
+      block.content.element_styles=Object.assign({},block.content.element_styles||{});
+      const legacy=block.content.element_styles[message.legacyField]=Object.assign({},block.content.element_styles[message.legacyField]||{});
+      applyResponsive(legacy);
+    }else{
+      block.settings=Object.assign({},block.settings||{});
+      applyResponsive(block.settings);
+    }
+    const payload={label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
+    status('ابعاد و فاصله‌های عنصر به‌روزرسانی شد.','success');
+  }
+
+  let nodeClipboard=null,blockClipboardId=null;
+  function freshenNodeIds(node){
+    if(!node||typeof node!=='object')return;
+    node.id=makeNodeId();
+    if(Array.isArray(node.children))node.children.forEach(freshenNodeIds);
+    if(node.content&&Array.isArray(node.content.children))node.content.children.forEach(freshenNodeIds);
+  }
+  function copySelectedNode(){
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    const record=block&&selectedNodeId&&findNestedNode(block,selectedNodeId);
+    if(!record){if(block){blockClipboardId=Number(block.id);nodeClipboard=null;status('بلوک کپی شد.','success');}return;}
+    nodeClipboard=cloneData(record.node);blockClipboardId=null;
+    status('المان کپی شد.','success');
+  }
+  function pasteSelectedNode(){
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    if(!nodeClipboard){if(blockClipboardId)cloneBlock(blockClipboardId);return;}
+    if(!block)return;
+    const target=selectedNodeId&&findNestedNode(block,selectedNodeId);
+    const collection=target&&Array.isArray(target.node.children)?target.node.children:(target?target.collection:(block.content.children||(block.content.children=[])));
+    const clone=cloneData(nodeClipboard);freshenNodeIds(clone);queueUndo(block);collection.push(clone);
+    selectedNodeId=clone.id;
+    const payload={label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
+  }
+  function duplicateSelectedNode(){
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    const record=block&&selectedNodeId&&findNestedNode(block,selectedNodeId);
+    if(!record){if(selectedId!==null)cloneBlock(Number(selectedId));return;}
+    queueUndo(block);
+    const clone=cloneData(record.node);
+    freshenNodeIds(clone);
+    record.collection.splice(record.index+1,0,clone);
+    selectedNodeId=String(clone.id||'');
+    const payload={label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
+    status('المان تکثیر شد.','success');
+  }
+  function deleteSelectedNode(){
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    const record=block&&selectedNodeId&&findNestedNode(block,selectedNodeId);
+    if(!record){if(block)deleteBlock(Number(block.id));return;}
+    queueUndo(block);record.collection.splice(record.index,1);selectedNodeId=null;
+    const payload={label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible};
+    renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
+  }
+
+  function selectBlock(id,inlineEditing=false) {
     selectedId = id;
     selectedNodeId = null;
     selectedLegacyField = null;
     activeInspectorTab = 'content';
     renderCanvas();
     renderInspector();
-    postPreviewState();
+    if(!inlineEditing)postPreviewState();
   }
 
-  function selectNestedNode(blockId,nodeId) {
+  function selectNestedNode(blockId,nodeId,inlineEditing=false) {
     selectedId = Number(blockId);
     selectedNodeId = String(nodeId || '');
     selectedLegacyField = null;
     activeInspectorTab = 'content';
     renderCanvas();
     renderInspector();
-    postPreviewState();
+    if(!inlineEditing)postPreviewState();
   }
-  function selectLegacyElement(blockId,field) {
+  function selectLegacyElement(blockId,field,inlineEditing=false) {
     selectedId = Number(blockId);
     selectedNodeId = null;
     selectedLegacyField = String(field || '');
     activeInspectorTab = 'content';
     renderCanvas();
     renderInspector();
-    postPreviewState();
+    if(!inlineEditing)postPreviewState();
   }
 
   function renderNodeInspector(block,host) {
@@ -990,7 +1207,7 @@
   function renderDesign() {
     const form = $('#builderDesignForm');
     const values = Object.assign({
-      accent_color:'#a58aff',page_background:'#080b12',
+      color_palette:'violet',accent_color:'#a58aff',page_background:'#080b12',
       content_width:'1160',corner_radius:'22',font_scale:'1',section_spacing:'72'
     },design);
     Object.entries(values).forEach(([key,value]) => {
@@ -1000,7 +1217,7 @@
   function readDesignForm() {
     const form = $('#builderDesignForm');
     const payload = {};
-    ['accent_color','page_background','content_width','corner_radius','font_scale','section_spacing'].forEach(key => {
+    ['color_palette','accent_color','page_background','content_width','corner_radius','font_scale','section_spacing'].forEach(key => {
       payload[key] = form.elements[key].value;
     });
     return payload;
@@ -1037,6 +1254,25 @@
       persistDesign();
     },650);
     status('ظاهر سایت در پیش‌نمایش تغییر کرد؛ ذخیره خودکار در صف است.','');
+  }
+  async function applyPaletteSelection(name){
+    const palette=studioPalettes[name];
+    const form=$('#builderDesignForm');
+    if(!palette||!form)return;
+    form.elements.accent_color.value=palette.accent;
+    form.elements.page_background.value=palette.pageBg;
+    design=readDesignForm();
+    blocks.forEach(block=>{
+      queueUndo(block);
+      applyPaletteToBlock(block,name);
+      scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
+    });
+    renderCanvas();renderInspector();postPreviewState();
+    if(designSaveTimer){window.clearTimeout(designSaveTimer);designSaveTimer=null;}
+    const saved=await flushAllPending();
+    if(!saved){status('پالت انتخاب شد اما ذخیره همه بلوک‌ها موفق نبود؛ دوباره ذخیره را اجرا کن.','error');return;}
+    const designSaved=await persistDesign();
+    if(designSaved!==false)status('پالت رنگی به تمام بلوک‌ها و عناصر تو‌در‌تو اعمال شد.','success');
   }
 
   async function saveDesign(event) {
@@ -1377,20 +1613,33 @@
     if (templateButton) templateButton.disabled = true;
     status('در حال افزودن ' + sections.length + ' بخش قالب…');
     try {
+      if(await flushAllPending()===false)throw new Error('ابتدا تغییرات معلق را ذخیره کن و دوباره قالب را اعمال کن.');
+      const usedNodeIds=new Set();
+      const paletteName=String(($('#builderDesignForm')?.elements.color_palette?.value)||'violet');
       for (const section of sections) {
         const created = await request('builder-block-add','POST',{type:section.type});
-        createdIds.push(Number(created.id));
-        await request('builder-block-save','PUT',{
-          label:section.label,content:section.content || {},settings:section.settings || {},is_visible:true
-        },created.id);
+        const createdId=Number(created&&created.id||0);
+        if(!createdId)throw new Error('شناسه یکی از بخش‌های قالب از سرور دریافت نشد.');
+        createdIds.push(createdId);
+        const payloadBlock={content:cloneData(section.content||{}),settings:cloneData(section.settings||{})};
+        normalizeNestedIds({block_type:section.type,content:payloadBlock.content},usedNodeIds);
+        applyPaletteToBlock(payloadBlock,paletteName);
+        const saved=await request('builder-block-save','PUT',{
+          label:section.label,content:payloadBlock.content,settings:payloadBlock.settings,is_visible:true
+        },createdId);
+        if(!saved||Number(saved.id)!==createdId)throw new Error('ذخیره کامل یکی از بخش‌های قالب تأیید نشد.');
       }
       if (templateModal) templateModal.hidden = true;
       await load(createdIds[createdIds.length - 1] || null);
-      status(Array.isArray(template.blocks) ? 'قالب کامل به صفحه اضافه شد؛ همه بخش‌ها قابل ویرایش هستند.' : 'سکشن آماده به صفحه اضافه شد.','success');
+      const missing=createdIds.filter(id=>!blocks.some(block=>Number(block.id)===id));
+      if(missing.length)throw new Error('بعضی بخش‌های قالب پس از بارگذاری مجدد در پیش‌نمایش پیدا نشدند: '+missing.join(', '));
+      if(await flushAllPending()===false)throw new Error('ذخیره نهایی بخش‌های قالب کامل نشد.');
+      postPreviewState();
+      status(Array.isArray(template.blocks) ? 'تمام بخش‌های قالب کامل اضافه و ذخیره شدند.' : 'سکشن آماده اضافه و ذخیره شد.','success');
     } catch (error) {
       await Promise.all(createdIds.map(id => request('builder-block-delete','DELETE',{},id).catch(() => null)));
       await load();
-      status(error.message,'error');
+      status('اعمال قالب لغو شد: '+error.message,'error');
     } finally {
       if (templateButton) templateButton.disabled = false;
     }
@@ -1471,7 +1720,7 @@
   function deleteSelectedNode() {
     const block = blocks.find(item => Number(item.id) === Number(selectedId));
     const record = block && findNestedNode(block,selectedNodeId);
-    if (!record) return;
+    if (!record) { if (block) deleteBlock(Number(block.id)); return; }
     if (!window.confirm('این المان و تمام فرزندان آن حذف شوند؟')) return;
     queueUndo(block);
     record.collection.splice(record.index,1);
@@ -1525,14 +1774,22 @@
   $('#builderUndo')?.addEventListener('click',undoEdit);
   $('#builderRedo')?.addEventListener('click',redoEdit);
   document.addEventListener('keydown',event => {
-    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
     const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
-    if (['input','textarea','select'].includes(tag)) return;
-    event.preventDefault();
-    if (event.shiftKey) redoEdit(); else undoEdit();
+    if (['input','textarea','select'].includes(tag) || event.target?.isContentEditable) return;
+    if (event.ctrlKey || event.metaKey) {
+      const key=event.key.toLowerCase();
+      if(key==='c' && selectedNodeId){event.preventDefault();copySelectedNode();return;}
+      if(key==='v' && nodeClipboard){event.preventDefault();pasteSelectedNode();return;}
+      if(key==='d' && selectedNodeId){event.preventDefault();duplicateSelectedNode();return;}
+      if(key==='z'){event.preventDefault();if(event.shiftKey)redoEdit();else undoEdit();return;}
+    }
   });
+
   $('#builderDesignForm')?.addEventListener('submit',saveDesign);
   $('#builderDesignForm')?.addEventListener('input',onDesignInput);
+  $('#builderDesignForm')?.addEventListener('change',event=>{
+    if(event.target&&event.target.name==='color_palette')applyPaletteSelection(String(event.target.value||'violet'));
+  });
   $('#builderReload')?.addEventListener('click',() => {
     if (frame) {
       const internalDocument = frame.getAttribute('srcdoc');
@@ -1568,23 +1825,47 @@
     } else if (message.type === 'milad-builder-node-select') {
       const block = blocks.find(item => blockKey(item) === String(message.key));
       if (!block) return;
-      if (message.legacyField) selectLegacyElement(Number(block.id),String(message.legacyField));
-      else if (message.nodeId) selectNestedNode(Number(block.id),String(message.nodeId));
-      else selectBlock(Number(block.id));
+      const inlineEditing=message.inline===true;
+      if (message.legacyField) selectLegacyElement(Number(block.id),String(message.legacyField),inlineEditing);
+      else if (message.nodeId) selectNestedNode(Number(block.id),String(message.nodeId),inlineEditing);
+      else selectBlock(Number(block.id),inlineEditing);
+    } else if (message.type === 'milad-builder-direct-style') {
+      directStyleUpdate(message);
+    } else if (message.type === 'milad-builder-context-action') {
+      if(message.action==='open')showBuilderContextMenu(message);
+      else if(message.action==='copy')copySelectedNode();
+      else if(message.action==='paste')pasteSelectedNode();
+      else if(message.action==='duplicate')duplicateSelectedNode();
+      else if(message.action==='delete')deleteSelectedNode();
     } else if (message.type === 'milad-builder-inline-edit') {
-      const block = blocks.find(item => blockKey(item) === String(message.key));
-      const field = String(message.field || '');
-      const allowed = block && (fields[block.block_type] || []).some(([key]) => key === field);
-      if (!allowed) return;
-      block.content = Object.assign({},block.content || {});
-      block.content[field] = String(message.value ?? '');
-      const form = $('#builderLegacyForm') || $('#builderBlockForm');
-      if (form && form.elements[field]) form.elements[field].value = block.content[field];
+      const block=blocks.find(item=>blockKey(item)===String(message.key));
+      if(!block)return;
+      const path=String(message.field||'');
+      let target=block.content||(block.content={});
+      if(message.legacyField) {
+        const legacyField=String(message.legacyField);
+        if(!(fields[block.block_type]||[]).some(([key])=>key===legacyField))return;
+        if(!setObjectPath(target,legacyField,message.value))return;
+      } else if(message.nodeId) {
+        const record=findNestedNode(block,String(message.nodeId));
+        if(!record)return;
+        const type=String(record.node.type||'paragraph');
+        target=(type==='principle_item'||type==='stat_item')?record.node:nodeContent(record.node);
+        const rootField=path.split('.')[0];
+        const allowed=(fields[type]||[]).some(([key])=>key===rootField)||Object.prototype.hasOwnProperty.call(target,rootField);
+        if(!allowed||!setObjectPath(target,path,message.value))return;
+      } else {
+        const rootField=path.split('.')[0];
+        const allowed=(fields[block.block_type]||[]).some(([key])=>key===rootField)||Object.prototype.hasOwnProperty.call(target,rootField);
+        if(!allowed||!setObjectPath(target,path,message.value))return;
+      }
+      const form=$('#builderLegacyForm')||$('#builderBlockForm')||$('#builderNodeForm');
+      if(form&&form.elements[path]&&!path.includes('.'))form.elements[path].value=String(message.value??'');
       renderCanvas();
       scheduleSave(block,{
-        label:form && form.elements.label ? form.elements.label.value : block.label,
-        content:block.content,
-        settings:block.settings || {},
+        label:form&&form.elements.label?form.elements.label.value:block.label,
+        content:block.content||{},
+        settings:block.settings||{},
         is_visible:!!block.is_visible
       });
     }

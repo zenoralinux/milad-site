@@ -549,6 +549,7 @@ try {
             if ($method !== 'PUT') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
             $data = json_body();
             $rules = [
+                'color_palette' => ['palette'],
                 'accent_color' => ['color'],
                 'page_background' => ['color'],
                 'content_width' => ['int',760,1600],
@@ -562,7 +563,9 @@ try {
                 if (!array_key_exists($key, $data)) continue;
                 if (!is_scalar($data[$key])) api_fail('VALIDATION_ERROR', 'یکی از مقادیر ظاهری معتبر نیست.', 422);
                 $value = trim((string) $data[$key]);
-                if ($rule[0] === 'color') {
+                if ($rule[0] === 'palette') {
+                    if (!in_array($value, ['violet','ocean','emerald','sunset','rose','graphite'], true)) api_fail('VALIDATION_ERROR', 'پالت رنگ معتبر نیست.', 422);
+                } elseif ($rule[0] === 'color') {
                     if (!preg_match('/^#[0-9a-fA-F]{6}$/', $value)) api_fail('VALIDATION_ERROR', 'یکی از رنگ‌ها معتبر نیست.', 422);
                 } elseif ($rule[0] === 'float') {
                     if (!is_numeric($value) || (float) $value < $rule[1] || (float) $value > $rule[2]) api_fail('VALIDATION_ERROR', 'مقیاس فونت معتبر نیست.', 422);

@@ -33,8 +33,8 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
 <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#080b12">
 <title>Milad Studio Pro | ویرایشگر بصری</title>
 <link rel="stylesheet" href="<?= h(app_url('assets/css/admin.css')) ?>">
-<link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css?v=studio-pro-20261114-3')) ?>">
-<script src="<?= h(app_url('assets/js/builder.js?v=studio-pro-20261114-3')) ?>" defer></script>
+<link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css?v=studio-pro-20261114-4')) ?>">
+<script src="<?= h(app_url('assets/js/builder.js?v=studio-pro-20261114-5')) ?>" defer></script>
 </head>
 <body class="studio-page" data-mode="admin" data-csrf="<?= h($csrf) ?>" data-base-path="<?= h(app_base_path()) ?>">
 <header class="studio-topbar">
@@ -100,7 +100,12 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
                 </div>
               </div>
               <div class="builder-library-view" data-library-panel="structure" hidden>
-                <div class="builder-panel-heading"><div><strong>لایه‌های صفحه</strong><small>ترتیب، نمایش و مدیریت بخش‌ها</small></div></div>
+                <div class="builder-panel-heading"><div><strong>Navigator · ساختار صفحه</strong><small>درخت عناصر، انتخاب، جست‌وجو و جابه‌جایی</small></div></div>
+                <div class="builder-layers-tools">
+                  <input id="builderLayerSearch" type="search" placeholder="جست‌وجوی نام یا نوع عنصر…" autocomplete="off">
+                  <button type="button" id="builderLayerExpandAll" title="باز کردن همه">⌄</button>
+                  <button type="button" id="builderLayerCollapseAll" title="بستن همه">⌃</button>
+                </div>
                 <div class="builder-layers-list" id="builderCanvas"><div class="builder-empty">در حال دریافت ساختار صفحه…</div></div>
               </div>
             </aside>
@@ -123,7 +128,17 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
                 <section class="builder-site-settings" data-inspector-panel="global" hidden>
                   <div class="builder-panel-heading"><div><strong>تنظیمات کلی سایت</strong><small>رنگ‌ها، عرض و فاصله‌بندی عمومی</small></div></div>
                   <form id="builderDesignForm" class="builder-form">
-                    <label class="color-field">رنگ اصلی<input type="color" name="accent_color" value="#a58aff"></label>
+<label>پالت رنگ یکپارچه
+                      <select name="color_palette">
+                        <option value="violet">بنفش · کلاسیک</option>
+                        <option value="ocean">آبی اقیانوسی</option>
+                        <option value="emerald">سبز زمردی</option>
+                        <option value="sunset">نارنجی غروب</option>
+                        <option value="rose">رز و صورتی</option>
+                        <option value="graphite">خاکستری گرافیتی</option>
+                      </select>
+                    </label>
+                                        <label class="color-field">رنگ اصلی<input type="color" name="accent_color" value="#a58aff"></label>
                     <label class="color-field">پس‌زمینه صفحه<input type="color" name="page_background" value="#080b12"></label>
                     <label>عرض محتوا<input type="range" name="content_width" min="760" max="1600" step="20" value="1160"></label>
                     <label>گردی گوشه‌ها<input type="range" name="corner_radius" min="0" max="48" value="22"></label>
@@ -144,18 +159,6 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
     </section>
   </div>
   <div class="builder-template-modal" id="builderTemplateModal" hidden>
-    <section class="builder-template-dialog" role="dialog" aria-modal="true" aria-labelledby="builderTemplateTitle">
-      <header><div><span class="section-kicker">STARTER TEMPLATES</span><h3 id="builderTemplateTitle">قالب‌های آماده</h3><p>یک ساختار آماده اضافه کن و سپس تمام متن‌ها و استایل‌ها را تغییر بده.</p></div><button type="button" data-template-close aria-label="بستن">×</button></header>
-      <div class="builder-template-grid">
-        <button type="button" data-template="feature-grid"><strong>گرید ویژگی‌ها</strong><small>سه کارت در چیدمان شبکه‌ای</small></button>
-        <button type="button" data-template="callout"><strong>دعوت به اقدام</strong><small>متن، توضیح و دکمه</small></button>
-        <button type="button" data-template="profile-intro"><strong>معرفی شخصی</strong><small>عنوان و توضیح در کانتینر</small></button>
-      </div>
-    </section>
-  </div>
-
-
-<div class="builder-template-modal" id="builderTemplateModal" hidden>
 <section class="builder-template-dialog studio-template-dialog" role="dialog" aria-modal="true" aria-labelledby="builderTemplateTitle">
 <header><div><span class="section-kicker">MILAD STUDIO LIBRARY</span><h3 id="builderTemplateTitle">کتابخانه قالب‌ها</h3><p>قالب‌های آماده را بر اساس کاربرد و سبک بصری پیدا کن و به صفحه اضافه کن.</p></div><button type="button" data-template-close aria-label="بستن">×</button></header>
 <div class="studio-template-tools"><input id="builderTemplateSearch" type="search" placeholder="جست‌وجوی قالب‌ها…">
