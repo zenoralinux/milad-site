@@ -510,7 +510,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   'use strict';
   if (window.parent === window) return;
   document.documentElement.dataset.builderPreview = '1';
-  var selectedKey = null;
+  var selectedKey = null, selectedNodeId = '', selectedLegacyField = '';
   function safeHref(value){
     var raw = String(value || '');
     if (/^#[a-zA-Z0-9_-]+$/.test(raw)) return raw;
@@ -594,6 +594,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
         node.appendChild(iframe);
       } else node = card('div','builder-widget-image-placeholder','آدرس ویدیو معتبر نیست');
     }
+    if (item.id) node.setAttribute('data-widget-node',String(item.id));
     var styles = item.styles || {};
     var styleMap = {background:'backgroundColor',color:'color',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
     Object.keys(styleMap).forEach(function(key){
@@ -647,29 +648,54 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   }
   function markEditable(node,type){
     var maps = {
-      hero:{description:'.hero-description',footnote:'.hero-footnote span:last-child'},
-      projects:{description:'.section-heading > p'},
-      about:{description:'.about-heading > p',link_text:'.about-heading .text-link'},
-      now:{description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
-      contact:{description:'.contact-copy > p'},
-      footer:{tagline:'.footer-brand > span:last-child'},
-      text:{title:'h2',body:'p'},
-      cta:{title:'h2',body:'p',button_text:'a.button'},
-      stats:{title:'h2'},
-      heading:{text:'h1,h2,h3,h4,h5,h6'},
-      paragraph:{text:'p'},
-      button:{text:'a.button'},
-      card:{title:'h3',body:'p'},
-      counter:{value:'strong',label:'span'},
-      image:{alt:'img'},
-      icon:{symbol:'.builder-widget-icon'}
+      hero:{eyebrow:'.hero-copy .eyebrow',title_line1:'.hero-copy h1',description:'.hero-description',
+        primary_cta_text:'.hero-actions a:first-child',secondary_cta_text:'.hero-actions a:nth-child(2)',footnote:'.hero-footnote span:last-child'},
+      intro:{text_before:'.intro-strip-inner p',text_emphasis:'.intro-strip-inner p span'},
+      projects:{heading_before:'.section-heading h2',heading_emphasis:'.section-heading h2 span',description:'.section-heading > p'},
+      about:{section_index:'.about-heading .section-index',title_line1:'.about-heading h2',description:'.about-heading > p',link_text:'.about-heading .text-link'},
+      now:{section_index:'.now-panel-copy .section-index',title_line1:'.now-panel-copy h2',description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
+      contact:{section_index:'.contact-copy .section-index',title_line1:'.contact-copy h2',description:'.contact-copy > p'},
+      footer:{tagline:'.footer-brand > span:last-child',copyright:'.footer-copy'},
+      text:{title:'h2',body:'p'},cta:{title:'h2',body:'p',button_text:'a.button'},stats:{title:'h2'},
+      heading:{text:'h1,h2,h3,h4,h5,h6'},paragraph:{text:'p'},button:{text:'a.button'},
+      card:{title:'h3',body:'p'},counter:{value:'strong',label:'span'},image:{alt:'img'},icon:{symbol:'.builder-widget-icon'}
     };
     var fields = maps[type] || {};
     Object.keys(fields).forEach(function(field){
       var target = node.querySelector(fields[field]);
-      if (target) target.setAttribute('data-builder-edit-field',field);
+      if (target) {
+        target.setAttribute('data-builder-edit-field',field);
+        target.setAttribute('data-widget-node','legacy-' + field);
+      }
     });
   }
+  function applyLegacyElementStyles(node,block){
+    var maps = {
+      hero:{eyebrow:'.hero-copy .eyebrow',title_line1:'.hero-copy h1',description:'.hero-description',
+        primary_cta_text:'.hero-actions a:first-child',secondary_cta_text:'.hero-actions a:nth-child(2)',footnote:'.hero-footnote span:last-child'},
+      intro:{text_before:'.intro-strip-inner p',text_emphasis:'.intro-strip-inner p span'},
+      projects:{heading_before:'.section-heading h2',heading_emphasis:'.section-heading h2 span',description:'.section-heading > p'},
+      about:{section_index:'.about-heading .section-index',title_line1:'.about-heading h2',description:'.about-heading > p',link_text:'.about-heading .text-link'},
+      now:{section_index:'.now-panel-copy .section-index',title_line1:'.now-panel-copy h2',description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
+      contact:{section_index:'.contact-copy .section-index',title_line1:'.contact-copy h2',description:'.contact-copy > p'},
+      footer:{tagline:'.footer-brand > span:last-child',copyright:'.footer-copy'},
+      text:{title:'h2',body:'p'},cta:{title:'h2',body:'p',button_text:'a.button'},stats:{title:'h2'}
+    };
+    var elementStyles = block.content && block.content.element_styles || {};
+    var styleMap = {background:'backgroundColor',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',
+      line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',
+      gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
+    var fields = maps[block.block_type] || {};
+    Object.keys(fields).forEach(function(field){
+      var target = node.querySelector(fields[field]), styles = elementStyles[field] || {};
+      if (!target) return;
+      Object.keys(styleMap).forEach(function(key){
+        if (styles[key] !== undefined && styles[key] !== '') target.style[styleMap[key]] = String(styles[key]);
+        else target.style[styleMap[key]] = '';
+      });
+    });
+  }
+
   function updateContent(node, block){
     var c = block.content || {};
     var type = block.block_type;
@@ -830,6 +856,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       });
       updateContent(node,block);
       markEditable(node,block.block_type);
+      applyLegacyElementStyles(node,block);
       main.appendChild(node);
     });
     var footerBlock = data.blocks.find(function(block){ return block.block_type === 'footer'; });
@@ -839,6 +866,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       footerNode.hidden = !footerBlock.is_visible;
       updateContent(footerNode,footerBlock);
       markEditable(footerNode,'footer');
+      applyLegacyElementStyles(footerNode,footerBlock);
     } else if (footerNode) {
       footerNode.hidden = true;
     }
