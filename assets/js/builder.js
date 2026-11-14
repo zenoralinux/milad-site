@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const root = document.getElementById('view-builder');
+  const root = document.querySelector('.studio-editor') || document.getElementById('view-builder');
   if (!root) return;
 
   const body = document.body;
@@ -22,7 +22,7 @@
     text:'متن ساده',cta:'دعوت به اقدام',stats:'آمار و اعداد',spacer:'فاصله عمودی',
     container:'کانتینر تو در تو',grid:'گرید واکنش‌گرا',heading:'عنوان',paragraph:'متن',
     button:'دکمه',image:'تصویر',card:'کارت',divider:'خط جداکننده',icon:'آیکون',
-    counter:'شمارنده',list:'فهرست',video:'ویدیو',principle_item:'کارت اصل کاری',stat_item:'کارت آماری'
+    counter:'شمارنده',list:'فهرست',video:'ویدیو',principle_item:'کارت اصل کاری',stat_item:'کارت آماری',feature:'ویژگی',pricing:'جدول قیمت‌گذاری',accordion:'سؤالات متداول',testimonial:'نظر مشتری',gallery:'گالری تصاویر',timeline:'خط زمانی',skill:'مهارت',logo_cloud:'لوگوها',team:'اعضای تیم',tabs:'تب‌های محتوا',newsletter:'خبرنامه',icon_box:'کارت آیکون‌دار'
   };
   const fields = {
     hero:[
@@ -61,6 +61,18 @@
     counter:[['value','مقدار'],['label','عنوان']],
     list:[['items','موارد فهرست (JSON)']],
     video:[['url','لینک Embed ویدیو'],['title','عنوان ویدیو']],
+    feature:[['symbol','آیکون'],['title','عنوان'],['description','توضیحات']],
+    pricing:[['title','نام پلن'],['price','قیمت'],['period','دوره'],['description','توضیحات'],['items','امکانات پلن'],['button_text','متن دکمه'],['button_url','لینک دکمه']],
+    accordion:[['title','عنوان بخش'],['items','پرسش‌ها و پاسخ‌ها']],
+    testimonial:[['quote','متن نظر'],['author','نام مشتری'],['role','سمت یا توضیح']],
+    gallery:[['title','عنوان گالری'],['items','تصاویر گالری']],
+    timeline:[['title','عنوان خط زمانی'],['items','مراحل و رویدادها']],
+    skill:[['title','عنوان مهارت'],['value','درصد پیشرفت']],
+    logo_cloud:[['title','عنوان بخش'],['items','لوگوها']],
+    team:[['title','عنوان تیم'],['items','اعضای تیم']],
+    tabs:[['title','عنوان بخش'],['items','تب‌ها']],
+    newsletter:[['title','عنوان'],['description','توضیحات'],['placeholder','متن فیلد ایمیل'],['button_text','متن دکمه']],
+    icon_box:[['symbol','آیکون'],['title','عنوان'],['description','توضیحات']],
     principle_item:[['number','شماره / نشان'],['title','عنوان'],['description','توضیحات']],
     stat_item:[['value','مقدار / نشان'],['label','عنوان'],['description','توضیحات']]
   };
@@ -467,7 +479,7 @@
     const children = Array.isArray(node.children) ? node.children : (Array.isArray(content.children) ? content.children : []);
     const nestedTools = nested
       ? '<div class="builder-nested-editor"><div class="builder-panel-heading"><div><strong>فرزندان این المان</strong><small>برای ویرایش هر فرزند روی آن در پیش‌نمایش کلیک کن</small></div><span>' + children.length + '</span></div>' +
-        '<div class="builder-nested-add"><select id="builderNodeChildType"><option value="heading">عنوان</option><option value="paragraph">متن</option><option value="button">دکمه</option><option value="card">کارت</option><option value="image">تصویر</option><option value="icon">آیکون</option><option value="divider">جداکننده</option><option value="counter">شمارنده</option><option value="list">فهرست</option><option value="video">ویدیو</option><option value="container">کانتینر</option><option value="grid">گرید</option></select><button type="button" class="secondary-button compact" data-node-child-add>＋ افزودن فرزند</button></div>' +
+        '<div class="builder-nested-add"><select id="builderNodeChildType"><option value="heading">عنوان</option><option value="paragraph">متن</option><option value="button">دکمه</option><option value="card">کارت</option><option value="image">تصویر</option><option value="icon">آیکون</option><option value="divider">جداکننده</option><option value="counter">شمارنده</option><option value="list">فهرست</option><option value="video">ویدیو</option><option value="feature">ویژگی</option><option value="pricing">قیمت‌گذاری</option><option value="accordion">سؤالات متداول</option><option value="testimonial">نظر مشتری</option><option value="gallery">گالری تصاویر</option><option value="timeline">خط زمانی</option><option value="skill">مهارت</option><option value="logo_cloud">لوگوها</option><option value="team">اعضای تیم</option><option value="tabs">تب‌های محتوا</option><option value="newsletter">خبرنامه</option><option value="icon_box">کارت آیکون‌دار</option><option value="container">کانتینر</option><option value="grid">گرید</option></select><button type="button" class="secondary-button compact" data-node-child-add>＋ افزودن فرزند</button></div>' +
         '<div class="builder-nested-list">' + children.map((child,index) => {
           const c = child && (child.content || child) || {};
           const childType = String(child.type || 'paragraph');
@@ -491,7 +503,9 @@
       specs.forEach(([key]) => {
         const field = form.elements[key];
         if (!field) return;
-        if (['items','principles_items'].includes(key)) {
+        if (key === 'items' && form.querySelector('[data-repeater="items"]')) {
+          nextContent[key] = readRepeater(form,key) || [];
+        } else if (['items','principles_items'].includes(key)) {
           try {
             const parsed = JSON.parse(field.value || '[]');
             if (!Array.isArray(parsed)) throw new Error('array required');
@@ -559,6 +573,26 @@
     setInspectorTab(activeInspectorTab);
   }
 
+  function renderRepeaterControl(key,label,value) {
+    const items = Array.isArray(value) ? value : [];
+    const keys = items.length ? Array.from(new Set(items.flatMap(item => item && typeof item === 'object' ? Object.keys(item) : ['text']))) : ['title','description'];
+    const labels = {title:'عنوان',description:'توضیحات',text:'متن',question:'پرسش',answer:'پاسخ',name:'نام',role:'سمت',date:'تاریخ',value:'مقدار',label:'برچسب',src:'آدرس تصویر',alt:'متن جایگزین',url:'لینک',price:'قیمت'};
+    const controls = items.map((item,index) => {
+      const record = item && typeof item === 'object' ? item : {text:String(item ?? '')};
+      return '<div class="builder-repeater-item" data-repeater-item><div class="builder-repeater-item-head"><strong>آیتم ' + (index+1) + '</strong><div><button type="button" data-repeater-up title="بالا">↑</button><button type="button" data-repeater-down title="پایین">↓</button><button type="button" data-repeater-remove title="حذف">×</button></div></div>' +
+      keys.map(field => '<label>' + escapeHtml(labels[field] || field) + (['description','answer','quote','body'].includes(field) ? '<textarea data-repeater-field="' + escapeHtml(field) + '">' + escapeHtml(record[field] ?? '') + '</textarea>' : '<input data-repeater-field="' + escapeHtml(field) + '" value="' + escapeHtml(record[field] ?? '') + '"' + (['src','url'].includes(field) ? ' dir="ltr"' : '') + '>') + '</label>').join('') + '</div>';
+    }).join('');
+    return '<div class="builder-repeater" data-repeater="' + escapeHtml(key) + '" data-repeater-fields="' + escapeHtml(keys.join(',')) + '"><div class="builder-repeater-title"><strong>' + escapeHtml(label) + '</strong><button type="button" class="secondary-button compact" data-repeater-add>＋ افزودن آیتم</button></div>' + (controls || '<p class="builder-empty">هنوز آیتمی اضافه نشده است.</p>') + '</div>';
+  }
+  function readRepeater(form,key) {
+    const host = form.querySelector('[data-repeater="' + key + '"]');
+    if (!host) return null;
+    return Array.from(host.querySelectorAll('[data-repeater-item]')).map(item => {
+      const record = {};
+      item.querySelectorAll('[data-repeater-field]').forEach(field => record[field.dataset.repeaterField] = field.value);
+      return record;
+    });
+  }
   function fieldControl(key,label,value,mediaKind='') {
     if (key === 'show_principles') {
       return '<label class="builder-check"><input type="checkbox" name="' + key + '" ' +
@@ -575,9 +609,10 @@
       return '<label>' + escapeHtml(label) + '<input name="url" value="' + escapeHtml(value || '') + '" dir="ltr" placeholder="https://…">' +
         '<button type="button" class="secondary-button compact builder-open-media" data-open-media="video">انتخاب ویدیو از کتابخانه رسانه</button></label>';
     }
+    if (key === 'items' && Array.isArray(value)) return renderRepeaterControl(key,label,value);
     if (key === 'items' || key === 'principles_items' || key === 'children') {
       return '<label>' + escapeHtml(label) + '<textarea name="' + key + '" dir="ltr" spellcheck="false">' +
-        escapeHtml(JSON.stringify(value || [],null,2)) + '</textarea><small>آیتم‌ها را به صورت آرایه JSON ویرایش کن.</small></label>';
+        escapeHtml(JSON.stringify(value || [],null,2)) + '</textarea><small>ساختار پیچیده را به صورت JSON ویرایش کن.</small></label>';
     }
     const long = ['description','body'].includes(key) || String(value ?? '').length > 90;
     return '<label>' + escapeHtml(label) + (long
@@ -595,6 +630,8 @@
       if (!field) return;
       if (key === 'show_principles') {
         content[key] = field.checked;
+      } else if (key === 'items' && form.querySelector('[data-repeater="items"]')) {
+        content[key] = readRepeater(form,key) || [];
       } else if (key === 'items' || key === 'principles_items' || key === 'children') {
         try {
           const parsed = JSON.parse(field.value || '[]');
@@ -1134,6 +1171,27 @@
   });
   root.addEventListener('dragend',() => { nestedDragSource = null; });
   root.addEventListener('click',event => {
+    const repeaterAction = event.target.closest('[data-repeater-add],[data-repeater-remove],[data-repeater-up],[data-repeater-down]');
+    if (repeaterAction) {
+      const host = repeaterAction.closest('[data-repeater]');
+      if (host) {
+        const current = repeaterAction.closest('[data-repeater-item]');
+        if (repeaterAction.hasAttribute('data-repeater-add')) {
+          const keys = String(host.dataset.repeaterFields || 'title,description').split(',').filter(Boolean);
+          const labels = {title:'عنوان',description:'توضیحات',text:'متن',question:'پرسش',answer:'پاسخ',name:'نام',role:'سمت',date:'تاریخ',value:'مقدار',label:'برچسب',src:'آدرس تصویر',alt:'متن جایگزین',url:'لینک',price:'قیمت'};
+          const next = document.createElement('div'); next.className='builder-repeater-item'; next.dataset.repeaterItem='';
+          next.innerHTML = '<div class="builder-repeater-item-head"><strong>آیتم جدید</strong><div><button type="button" data-repeater-up>↑</button><button type="button" data-repeater-down>↓</button><button type="button" data-repeater-remove>×</button></div></div>' +
+            keys.map(key => '<label>' + escapeHtml(labels[key] || key) + (['description','answer','quote','body'].includes(key) ? '<textarea data-repeater-field="' + escapeHtml(key) + '"></textarea>' : '<input data-repeater-field="' + escapeHtml(key) + '">') + '</label>').join('');
+          host.appendChild(next);
+        } else if (current && repeaterAction.hasAttribute('data-repeater-remove')) current.remove();
+        else if (current && repeaterAction.hasAttribute('data-repeater-up') && current.previousElementSibling) host.insertBefore(current,current.previousElementSibling);
+        else if (current && repeaterAction.hasAttribute('data-repeater-down') && current.nextElementSibling) host.insertBefore(current.nextElementSibling,current);
+        const form = repeaterAction.closest('form'), first = host.querySelector('[data-repeater-field]');
+        if (form && first) first.dispatchEvent(new Event('input',{bubbles:true}));
+      }
+      return;
+    }
+
     const mediaTrigger = event.target.closest('[data-open-media]');
     if (mediaTrigger) openMediaPicker(mediaTrigger.dataset.openMedia || 'image');
     const addChild = event.target.closest('[data-child-add]');
@@ -1195,32 +1253,55 @@
     }
   });
   const templates = {
-    'feature-grid':{type:'grid',label:'گرید ویژگی‌ها',content:{columns:3,children:[
-      {id:'node-feature-1',type:'card',content:{title:'طراحی دقیق',body:'توضیح کوتاه درباره ویژگی اول'}},
-      {id:'node-feature-2',type:'card',content:{title:'توسعه سریع',body:'توضیح کوتاه درباره ویژگی دوم'}},
-      {id:'node-feature-3',type:'card',content:{title:'واکنش‌گرا',body:'توضیح کوتاه درباره ویژگی سوم'}}
-    ]}},
-    callout:{type:'cta',label:'دعوت به اقدام',content:{title:'آماده شروع هستی؟',body:'برای شروع یک گفت‌وگو با من در ارتباط باش.',button_text:'تماس با من',button_url:'#contact'}},
-    'profile-intro':{type:'container',label:'معرفی شخصی',content:{direction:'column',children:[
-      {id:'node-profile-heading',type:'heading',content:{text:'سلام، من میلاد هستم',level:2}},
-      {id:'node-profile-copy',type:'paragraph',content:{text:'اینجا می‌توانی معرفی کوتاهی درباره خودت بنویسی.'}},
-      {id:'node-profile-button',type:'button',content:{text:'مشاهده پروژه‌ها',url:'#work'}}
-    ]}}
+    'profile-intro':{title:'معرفی شخصی',category:'personal',description:'تیتر، توضیح و دکمه معرفی',type:'container',label:'معرفی شخصی',content:{direction:'column',children:[{id:'node-profile-heading',type:'heading',content:{text:'سلام، من میلاد هستم',level:1}},{id:'node-profile-copy',type:'paragraph',content:{text:'اینجا معرفی کوتاهی درباره خودت بنویس.'}},{id:'node-profile-button',type:'button',content:{text:'مشاهده پروژه‌ها',url:'#work'}}]}},
+    'feature-grid':{title:'گرید ویژگی‌ها',category:'business',description:'سه کارت ویژگی با رنگ آبی',type:'grid',label:'گرید ویژگی‌ها',content:{columns:3,children:[{id:'node-f-1',type:'feature',content:{symbol:'✦',title:'طراحی دقیق',description:'تجربه‌ای زیبا و یکپارچه'}},{id:'node-f-2',type:'feature',content:{symbol:'⚡',title:'توسعه سریع',description:'عملکرد روان و سریع'}},{id:'node-f-3',type:'feature',content:{symbol:'◈',title:'واکنش‌گرا',description:'سازگار با تمام دستگاه‌ها'}}]}},
+    callout:{title:'دعوت به اقدام',category:'hero',description:'بخش برجسته با دکمه اصلی',type:'cta',label:'دعوت به اقدام',content:{title:'آماده شروع هستی؟',body:'برای شروع یک گفت‌وگو با من در ارتباط باش.',button_text:'تماس با من',button_url:'#contact'},settings:{background:'#172554',text_color:'#ffffff',padding:42,radius:24,text_align:'center'}},
+    'developer-hero':{title:'Developer Hero',category:'hero',description:'معرفی توسعه‌دهنده با تم بنفش',type:'container',label:'Developer Hero',content:{direction:'column',children:[{id:'node-dev-1',type:'icon_box',content:{symbol:'⌘',title:'INDEPENDENT DEVELOPER',description:'طراحی و توسعه نرم‌افزار'}},{id:'node-dev-2',type:'heading',content:{text:'ایده‌ها را به محصول تبدیل می‌کنم.',level:1}},{id:'node-dev-3',type:'paragraph',content:{text:'توسعه‌دهنده علاقه‌مند به لینوکس، نرم‌افزارهای متن‌باز و تجربه‌های دیجیتال.'}},{id:'node-dev-4',type:'button',content:{text:'مشاهده پروژه‌ها',url:'#work'}}]},settings:{background:'#17152f',text_color:'#f6f2ff',padding:54,radius:28}},
+    'saas-features':{title:'SaaS Features',category:'business',description:'ویژگی‌های محصول در کارت‌های سبزآبی',type:'grid',label:'ویژگی‌های محصول',content:{columns:3,children:[{id:'node-saas-1',type:'feature',content:{symbol:'⚡',title:'سریع و سبک',description:'عملکرد بهینه و پاسخ‌گویی سریع'}},{id:'node-saas-2',type:'feature',content:{symbol:'🔒',title:'امنیت بالا',description:'حفاظت از اطلاعات'}},{id:'node-saas-3',type:'feature',content:{symbol:'☁',title:'همگام‌سازی',description:'دسترسی از هر دستگاه'}}]},settings:{background:'#eff6ff',text_color:'#172554',padding:32,radius:20}},
+    'pricing-table':{title:'Pricing Plans',category:'business',description:'سه پلن قیمت‌گذاری قابل ویرایش',type:'grid',label:'پلن‌های قیمت‌گذاری',content:{columns:3,children:[{id:'node-price-1',type:'pricing',content:{title:'شروع',price:'رایگان',period:'همیشگی',description:'برای شروع مسیر',items:[{text:'امکانات پایه'},{text:'پشتیبانی عمومی'}],button_text:'شروع کنید',button_url:'#contact'}},{id:'node-price-2',type:'pricing',content:{title:'حرفه‌ای',price:'۲۹۹٬۰۰۰',period:'ماهانه',description:'برای کاربران حرفه‌ای',items:[{text:'تمام امکانات'},{text:'پشتیبانی سریع'}],button_text:'انتخاب پلن',button_url:'#contact'},styles:{background:'#172554',color:'#ffffff'}},{id:'node-price-3',type:'pricing',content:{title:'سازمانی',price:'توافقی',period:'سفارشی',description:'برای تیم‌ها و شرکت‌ها',items:[{text:'امکانات اختصاصی'},{text:'پشتیبانی ویژه'}],button_text:'تماس بگیرید',button_url:'#contact'}}]}},
+    'faq-section':{title:'FAQ Accordion',category:'content',description:'سؤالات متداول بازشونده',type:'accordion',label:'سؤالات متداول',content:{title:'سؤالات متداول',items:[{question:'چطور می‌توانم شروع کنم؟',answer:'از طریق دکمه تماس با ما درخواستت را ارسال کن.'},{question:'آیا طراحی واکنش‌گراست؟',answer:'بله، تمام بخش‌ها برای موبایل و تبلت قابل تنظیم هستند.'},{question:'چطور پشتیبانی بگیرم؟',answer:'از راه‌های ارتباطی سایت با ما در تماس باش.'}]}},
+    'testimonial-wall':{title:'Testimonials',category:'business',description:'کارت‌های نقل‌قول مشتریان',type:'grid',label:'نظرات مشتریان',content:{columns:2,children:[{id:'node-q-1',type:'testimonial',content:{quote:'کیفیت اجرا و توجه به جزئیات واقعاً عالی بود.',author:'آرمان رضایی',role:'مدیر محصول'}},{id:'node-q-2',type:'testimonial',content:{quote:'تجربه کار بسیار روان و حرفه‌ای بود.',author:'سارا محمدی',role:'طراح محصول'}}]}},
+    'portfolio-gallery':{title:'Portfolio Gallery',category:'personal',description:'گالری پروژه‌ها و تصاویر',type:'gallery',label:'گالری پروژه‌ها',content:{title:'منتخب پروژه‌ها',items:[{src:'',alt:'پروژه اول',title:'پروژه اول'},{src:'',alt:'پروژه دوم',title:'پروژه دوم'},{src:'',alt:'پروژه سوم',title:'پروژه سوم'}]}},
+    'career-timeline':{title:'Career Timeline',category:'personal',description:'نمایش تجربه و مسیر توسعه',type:'timeline',label:'خط زمانی مسیر',content:{title:'مسیر من',items:[{date:'۱۴۰۳',title:'شروع توسعه',description:'آغاز فعالیت در حوزه نرم‌افزار'},{date:'۱۴۰۴',title:'پروژه‌های متن‌باز',description:'ساخت و انتشار ابزارهای آزاد'},{date:'۱۴۰۵',title:'توسعه محصولات',description:'تمرکز بر محصول و تجربه کاربری'}]}},
+    'skills-panel':{title:'Skills & Progress',category:'personal',description:'مهارت‌ها با نوار پیشرفت',type:'container',label:'مهارت‌ها',content:{direction:'column',children:[{id:'node-sk-1',type:'heading',content:{text:'مهارت‌های من',level:2}},{id:'node-sk-2',type:'skill',content:{title:'JavaScript',value:90}},{id:'node-sk-3',type:'skill',content:{title:'PHP',value:82}},{id:'node-sk-4',type:'skill',content:{title:'Linux',value:95}}]}},
+    'team-section':{title:'Team Showcase',category:'business',description:'معرفی اعضا و نقش‌ها',type:'team',label:'اعضای تیم',content:{title:'با تیم ما آشنا شوید',items:[{name:'علی احمدی',role:'توسعه‌دهنده'},{name:'سارا رضایی',role:'طراح رابط کاربری'},{name:'مهدی کریمی',role:'مدیر محصول'}]}},
+    'logo-cloud':{title:'Logo Cloud',category:'business',description:'لوگوی همکاران و مشتریان',type:'logo_cloud',label:'همکاران و مشتریان',content:{title:'همراهان ما',items:[{name:'Open Source'},{name:'Zenora'},{name:'Milad Studio'},{name:'Community'}]}},
+    'newsletter-box':{title:'Newsletter CTA',category:'content',description:'دعوت به عضویت خبرنامه',type:'newsletter',label:'عضویت در خبرنامه',content:{title:'از خبرهای تازه جا نمان',description:'مقالات و به‌روزرسانی‌های جدید را دریافت کن.',placeholder:'آدرس ایمیل شما',button_text:'عضویت'},settings:{background:'#064e3b',text_color:'#ffffff',padding:36,radius:22,text_align:'center'}},
+    'tabs-content':{title:'Content Tabs',category:'content',description:'بخش چندتب محتوایی',type:'tabs',label:'تب‌های محتوایی',content:{title:'بیشتر بدانید',items:[{title:'معرفی',description:'اطلاعات کلی درباره محصول و خدمات.'},{title:'ویژگی‌ها',description:'جزئیات قابلیت‌ها و امکانات.'},{title:'پشتیبانی',description:'راه‌های دریافت راهنمایی.'}]}},
+    'minimal-contact':{title:'Minimal Contact',category:'hero',description:'بخش تماس مینیمال',type:'container',label:'بخش ارتباط',content:{direction:'column',children:[{id:'node-c-1',type:'heading',content:{text:'بیایید با هم چیزی بسازیم.',level:2}},{id:'node-c-2',type:'paragraph',content:{text:'برای همکاری، پیشنهاد یا پرسش با من در ارتباط باش.'}},{id:'node-c-3',type:'button',content:{text:'ارسال پیام',url:'#contact'}}]},settings:{background:'#fff7ed',text_color:'#431407',padding:40,radius:24}}
   };
+  function renderTemplateCatalog() {
+    const host = document.getElementById('builderTemplateGrid');
+    if (!host) return;
+    const term = String(document.getElementById('builderTemplateSearch')?.value || '').trim().toLocaleLowerCase('fa');
+    const active = document.querySelector('[data-template-filter].is-active')?.dataset.templateFilter || 'all';
+    const palette = {hero:['#312e81','#818cf8'],business:['#0f766e','#5eead4'],content:['#9a3412','#fdba74'],personal:['#6d28d9','#c4b5fd']};
+    const entries = Object.entries(templates).filter(([key,item]) => (active === 'all' || item.category === active) && (!term || (key + ' ' + item.title + ' ' + item.description).toLocaleLowerCase('fa').includes(term)));
+    host.innerHTML = entries.map(([key,item]) => {
+      const colors = palette[item.category] || palette.personal;
+      const preview = '<div class="studio-template-preview" style="--template-primary:' + colors[0] + ';--template-accent:' + colors[1] + '"><span></span><b></b><i></i><div><em></em><em></em><em></em></div></div>';
+      return '<button type="button" class="studio-template-card" data-template="' + escapeHtml(key) + '">' + preview + '<span><strong>' + escapeHtml(item.title) + '</strong><small>' + escapeHtml(item.description) + '</small></span><i>＋</i></button>';
+    }).join('') || '<div class="builder-empty">قالبی با این مشخصات پیدا نشد.</div>';
+  }
   async function applyTemplate(key) {
     const template = templates[key];
     if (!template) return;
     try {
       const created = await request('builder-block-add','POST',{type:template.type});
       await request('builder-block-save','PUT',{
-        label:template.label,content:template.content,settings:{},is_visible:true
+        label:template.label,content:template.content,settings:template.settings || {},is_visible:true
       },created.id);
       if (templateModal) templateModal.hidden = true;
       await load(created.id);
       status('قالب آماده به صفحه اضافه شد.','success');
     } catch (error) { status(error.message,'error'); }
   }
-  $('#builderTemplates')?.addEventListener('click',() => { if (templateModal) templateModal.hidden = false; });
+  $('#builderTemplates')?.addEventListener('click',() => { if (templateModal) templateModal.hidden = false; renderTemplateCatalog(); });
+  $('#builderTemplateSearch')?.addEventListener('input',renderTemplateCatalog);
+  $('[data-template-filter]').forEach(button => button.addEventListener('click',() => {
+    $('[data-template-filter]').forEach(item => item.classList.toggle('is-active',item === button));
+    renderTemplateCatalog();
+  }));
   if (templateModal) templateModal.addEventListener('click',event => {
     if (event.target === templateModal || event.target.closest('[data-template-close]')) templateModal.hidden = true;
     const button = event.target.closest('[data-template]');
@@ -1251,6 +1332,18 @@
       counter:{content:{value:'۱۲+',label:'عنوان آمار'}},
       list:{content:{items:[{text:'مورد اول'},{text:'مورد دوم'}]}},
       video:{content:{url:'',title:'ویدیو'}},
+      feature:{content:{symbol:'✦',title:'ویژگی جدید',description:'توضیح ویژگی'}},
+      pricing:{content:{title:'پلن حرفه‌ای',price:'۲۹۹٬۰۰۰',period:'ماهانه',description:'برای شروع و رشد',items:[{text:'دسترسی کامل'},{text:'پشتیبانی'}],button_text:'انتخاب پلن',button_url:'#contact'}},
+      accordion:{content:{title:'سؤالات متداول',items:[{question:'چطور شروع کنم؟',answer:'از طریق فرم تماس با ما در ارتباط باش.'}]}},
+      testimonial:{content:{quote:'همکاری بسیار خوبی بود.',author:'نام مشتری',role:'مشتری'}},
+      gallery:{content:{title:'گالری تصاویر',items:[{src:'',alt:'تصویر اول',title:'تصویر اول'},{src:'',alt:'تصویر دوم',title:'تصویر دوم'}]}},
+      timeline:{content:{title:'مسیر ما',items:[{date:'۱۴۰۵',title:'شروع',description:'آغاز مسیر'}]}},
+      skill:{content:{title:'JavaScript',value:85}},
+      logo_cloud:{content:{title:'مورد اعتماد',items:[{name:'Brand One'},{name:'Brand Two'}]}},
+      team:{content:{title:'تیم ما',items:[{name:'نام عضو',role:'توسعه‌دهنده'}]}},
+      tabs:{content:{title:'جزئیات',items:[{title:'معرفی',description:'توضیحات تب اول'},{title:'ویژگی‌ها',description:'توضیحات تب دوم'}]}},
+      newsletter:{content:{title:'عضویت در خبرنامه',description:'آخرین مطالب را دریافت کن.',placeholder:'ایمیل شما',button_text:'عضویت'}},
+      icon_box:{content:{symbol:'✦',title:'عنوان کارت',description:'توضیحات کوتاه'}},
       container:{content:{direction:'column'},children:[]},
       grid:{content:{columns:2},children:[
         {id:id+'-a',type:'card',content:{title:'کارت اول',body:'توضیحات'}},

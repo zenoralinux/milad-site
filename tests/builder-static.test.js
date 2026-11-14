@@ -7,4 +7,17 @@ assert(js.split("},'*');").length - 1 >= 3,'parent-to-srcdoc messages use wildca
 assert(js.includes('function queueUndoOrder()')&&js.includes("snapshot.kind === 'order'"),'order undo/redo');
 assert(js.includes('flushAllPending()')&&js.includes('state.inFlight'),'autosave serialization');
 assert(js.includes("updateNestedChildren('move'")&&js.includes("updateNestedChildren('clone'"),'nested operations');
-console.log('Milad Studio interaction invariants passed');
+
+const studio=fs.readFileSync('admin/studio.php','utf8');
+const admin=fs.readFileSync('admin/index.php','utf8');
+const renderer=fs.readFileSync('app/page_builder.php','utf8');
+const api=fs.readFileSync('api/admin.php','utf8');
+assert(studio.includes('class="studio-editor"') && studio.includes('builderPreviewDocument'),'standalone Studio route and internal preview');
+assert(!admin.includes('id="view-builder"') && !admin.includes("assets/js/builder.js"),'dashboard does not mount Studio');
+assert(js.includes('function renderRepeaterControl') && js.includes('data-repeater-add'),'visual repeater controls');
+assert(js.includes("'pricing-table'") && js.includes("'faq-section'") && js.includes("'career-timeline'"),'expanded template catalog');
+['pricing','accordion','testimonial','gallery','timeline','skill','logo_cloud','team','tabs','newsletter','icon_box'].forEach(type=>{
+  assert(api.includes("'" + type + "' =>"),'API default for ' + type);
+  assert(renderer.includes("if ($type === '" + type + "'"),'server renderer for ' + type);
+});
+console.log('Milad Studio Pro static invariants passed');

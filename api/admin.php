@@ -260,7 +260,19 @@ try {
                 'icon' => ['label' => 'آیکون', 'content' => ['symbol' => '✦']],
                 'counter' => ['label' => 'شمارنده', 'content' => ['value' => '۱۲+', 'label' => 'عنوان آمار']],
                 'list' => ['label' => 'فهرست', 'content' => ['items' => [['text' => 'مورد اول'], ['text' => 'مورد دوم']]]],
-                'video' => ['label' => 'ویدیو', 'content' => ['url' => '', 'title' => 'ویدیو']]
+                'video' => ['label' => 'ویدیو', 'content' => ['url' => '', 'title' => 'ویدیو']],
+                'feature' => ['label' => 'ویژگی', 'content' => ['symbol' => '✦', 'title' => 'ویژگی جدید', 'description' => 'توضیحات ویژگی']],
+                'pricing' => ['label' => 'قیمت‌گذاری', 'content' => ['title' => 'پلن حرفه‌ای', 'price' => '۲۹۹٬۰۰۰', 'period' => 'ماهانه', 'description' => 'توضیحات پلن', 'items' => [['text' => 'امکانات کامل'], ['text' => 'پشتیبانی']], 'button_text' => 'انتخاب پلن', 'button_url' => '#contact']],
+                'accordion' => ['label' => 'سؤالات متداول', 'content' => ['title' => 'سؤالات متداول', 'items' => [['question' => 'چطور شروع کنم؟', 'answer' => 'از طریق فرم تماس با ما در ارتباط باش.']]]],
+                'testimonial' => ['label' => 'نظر مشتری', 'content' => ['quote' => 'همکاری بسیار خوبی بود.', 'author' => 'نام مشتری', 'role' => 'مشتری']],
+                'gallery' => ['label' => 'گالری تصاویر', 'content' => ['title' => 'گالری تصاویر', 'items' => [['src' => '', 'alt' => 'تصویر اول', 'title' => 'تصویر اول'], ['src' => '', 'alt' => 'تصویر دوم', 'title' => 'تصویر دوم']]]],
+                'timeline' => ['label' => 'خط زمانی', 'content' => ['title' => 'مسیر ما', 'items' => [['date' => '۱۴۰۵', 'title' => 'شروع', 'description' => 'آغاز مسیر']]]],
+                'skill' => ['label' => 'مهارت', 'content' => ['title' => 'مهارت جدید', 'value' => 80]],
+                'logo_cloud' => ['label' => 'لوگوها', 'content' => ['title' => 'همراهان ما', 'items' => [['name' => 'Brand One'], ['name' => 'Brand Two']]]],
+                'team' => ['label' => 'اعضای تیم', 'content' => ['title' => 'تیم ما', 'items' => [['name' => 'عضو تیم', 'role' => 'توسعه‌دهنده']]]],
+                'tabs' => ['label' => 'تب‌های محتوا', 'content' => ['title' => 'جزئیات', 'items' => [['title' => 'معرفی', 'description' => 'توضیحات تب اول']]]],
+                'newsletter' => ['label' => 'خبرنامه', 'content' => ['title' => 'عضویت در خبرنامه', 'description' => 'آخرین مطالب را دریافت کن.', 'placeholder' => 'ایمیل شما', 'button_text' => 'عضویت']],
+                'icon_box' => ['label' => 'کارت آیکون‌دار', 'content' => ['symbol' => '✦', 'title' => 'عنوان کارت', 'description' => 'توضیحات کوتاه']]
             ];
             if (!isset($defaults[$type])) api_fail('INVALID_BLOCK_TYPE', 'نوع بلوک قابل افزودن نیست.', 422);
             $pageId = builder_home_page_id();

@@ -181,6 +181,8 @@ function builder_render_nested_widget(array $widget, int $depth = 0): string
 {
     if ($depth > 8) return '';
     $type = (string) ($widget['type'] ?? 'paragraph');
+    $allowedWidgetTypes = ['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video','feature','pricing','accordion','testimonial','gallery','timeline','skill','logo_cloud','team','tabs','newsletter','icon_box'];
+    if (!in_array($type, $allowedWidgetTypes, true)) return '';
     $content = is_array($widget['content'] ?? null) ? $widget['content'] : $widget;
     $styles = is_array($widget['styles'] ?? null) ? $widget['styles'] : [];
     $children = is_array($widget['children'] ?? null) ? $widget['children'] : [];
@@ -233,6 +235,66 @@ function builder_render_nested_widget(array $widget, int $depth = 0): string
         $list = '';
         foreach (array_slice($items, 0, 30) as $item) $list .= '<li>' . h(is_array($item) ? ($item['text'] ?? '') : $item) . '</li>';
         return '<ul class="builder-widget-list"' . $nodeAttr . $style . '>' . $list . '</ul>';
+    }
+    if ($type === 'feature' || $type === 'icon_box') {
+        return '<article class="builder-widget-feature"' . $nodeAttr . $style . '><span class="builder-feature-icon">' . h($content['symbol'] ?? '✦') . '</span><h3>' . h($content['title'] ?? 'ویژگی جدید') . '</h3><p>' . nl2br(h($content['description'] ?? 'توضیحات ویژگی')) . '</p>' . $inner . '</article>';
+    }
+    if ($type === 'pricing') {
+        $features = is_array($content['items'] ?? null) ? $content['items'] : [];
+        $list = '';
+        foreach (array_slice($features, 0, 20) as $feature) $list .= '<li>' . h(is_array($feature) ? ($feature['text'] ?? $feature['title'] ?? '') : $feature) . '</li>';
+        $url = builder_widget_safe_url($content['button_url'] ?? '#contact');
+        return '<article class="builder-widget-pricing"' . $nodeAttr . $style . '><h3>' . h($content['title'] ?? 'پلن') . '</h3><strong class="builder-pricing-price">' . h($content['price'] ?? '') . '</strong><small>' . h($content['period'] ?? '') . '</small><p>' . h($content['description'] ?? '') . '</p><ul>' . $list . '</ul><a class="button button-primary" href="' . h($url ?: '#contact') . '">' . h($content['button_text'] ?? 'انتخاب پلن') . '</a></article>';
+    }
+    if ($type === 'accordion') {
+        $items = is_array($content['items'] ?? null) ? $content['items'] : [];
+        $list = '';
+        foreach (array_slice($items, 0, 30) as $item) if (is_array($item)) $list .= '<details class="builder-widget-faq"><summary>' . h($item['question'] ?? $item['title'] ?? '') . '</summary><p>' . nl2br(h($item['answer'] ?? $item['description'] ?? '')) . '</p></details>';
+        return '<div class="builder-widget-accordion"' . $nodeAttr . $style . '>' . $list . '</div>';
+    }
+    if ($type === 'testimonial') {
+        return '<figure class="builder-widget-testimonial"' . $nodeAttr . $style . '><blockquote>' . nl2br(h($content['quote'] ?? 'نظر مشتری')) . '</blockquote><figcaption><strong>' . h($content['author'] ?? 'نام مشتری') . '</strong><span>' . h($content['role'] ?? '') . '</span></figcaption></figure>';
+    }
+    if ($type === 'gallery') {
+        $items = is_array($content['items'] ?? null) ? $content['items'] : [];
+        $tiles = '';
+        foreach (array_slice($items, 0, 24) as $item) {
+            if (!is_array($item)) continue;
+            $src = builder_widget_safe_url($item['src'] ?? '', true);
+            $tiles .= $src !== '' ? '<figure><img src="' . h($src) . '" alt="' . h($item['alt'] ?? '') . '" loading="lazy"><figcaption>' . h($item['title'] ?? '') . '</figcaption></figure>' : '<div class="builder-gallery-placeholder">' . h($item['title'] ?? 'تصویر را انتخاب کن') . '</div>';
+        }
+        return '<section class="builder-widget-gallery"' . $nodeAttr . $style . '>' . (!empty($content['title']) ? '<h3>' . h($content['title']) . '</h3>' : '') . $tiles . '</section>';
+    }
+    if ($type === 'timeline') {
+        $items = is_array($content['items'] ?? null) ? $content['items'] : [];
+        $list = '';
+        foreach (array_slice($items, 0, 30) as $item) if (is_array($item)) $list .= '<article><time>' . h($item['date'] ?? '') . '</time><div><h3>' . h($item['title'] ?? '') . '</h3><p>' . h($item['description'] ?? '') . '</p></div></article>';
+        return '<div class="builder-widget-timeline"' . $nodeAttr . $style . '>' . (!empty($content['title']) ? '<h3>' . h($content['title']) . '</h3>' : '') . $list . '</div>';
+    }
+    if ($type === 'skill') {
+        $value = max(0, min(100, (int) ($content['value'] ?? 75)));
+        return '<div class="builder-widget-skill"' . $nodeAttr . $style . '><div><strong>' . h($content['title'] ?? 'مهارت') . '</strong><span>' . $value . '%</span></div><i><b style="width:' . $value . '%"></b></i></div>';
+    }
+    if ($type === 'logo_cloud' || $type === 'team' || $type === 'tabs') {
+        $items = is_array($content['items'] ?? null) ? $content['items'] : [];
+        $cards = '';
+        foreach (array_slice($items, 0, 24) as $item) {
+            if (!is_array($item)) continue;
+            if ($type === 'logo_cloud') {
+                $src = builder_widget_safe_url($item['src'] ?? '', true);
+                $cards .= '<div class="builder-logo-item">' . ($src !== '' ? '<img src="' . h($src) . '" alt="' . h($item['alt'] ?? ($item['name'] ?? 'logo')) . '">' : '<strong>' . h($item['name'] ?? 'Brand') . '</strong>') . '</div>';
+            } elseif ($type === 'team') {
+                $src = builder_widget_safe_url($item['src'] ?? '', true);
+                $cards .= '<article class="builder-team-card">' . ($src !== '' ? '<img src="' . h($src) . '" alt="' . h($item['name'] ?? '') . '">' : '<span class="builder-team-avatar">✦</span>') . '<h3>' . h($item['name'] ?? '') . '</h3><p>' . h($item['role'] ?? '') . '</p></article>';
+            } else {
+                $cards .= '<article class="builder-tab-card"><h3>' . h($item['title'] ?? '') . '</h3><p>' . h($item['description'] ?? '') . '</p></article>';
+            }
+        }
+        $class = $type === 'logo_cloud' ? 'builder-widget-logos' : ($type === 'team' ? 'builder-widget-team' : 'builder-widget-tabs');
+        return '<section class="' . $class . '"' . $nodeAttr . $style . '>' . (!empty($content['title']) ? '<h3>' . h($content['title']) . '</h3>' : '') . $cards . '</section>';
+    }
+    if ($type === 'newsletter') {
+        return '<section class="builder-widget-newsletter"' . $nodeAttr . $style . '><h3>' . h($content['title'] ?? 'عضویت در خبرنامه') . '</h3><p>' . h($content['description'] ?? '') . '</p><form><input type="email" placeholder="' . h($content['placeholder'] ?? 'ایمیل شما') . '" disabled><button type="button" disabled>' . h($content['button_text'] ?? 'عضویت') . '</button></form></section>';
     }
     if ($type === 'video') {
         $url = (string) ($content['url'] ?? '');
@@ -452,7 +514,7 @@ function builder_render_custom_block(array $block): string
         $height = max(8, min(240, (int) ($content['height'] ?? 48)));
         return '<div class="builder-spacer" data-builder-key="' . $key . '" data-builder-id="' . (int) $block['id'] . '" aria-hidden="true" style="height:' . $height . 'px"></div>';
     }
-    $widgetTypes = ['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video'];
+    $widgetTypes = ['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video','feature','pricing','accordion','testimonial','gallery','timeline','skill','logo_cloud','team','tabs','newsletter','icon_box'];
     if (in_array($type, $widgetTypes, true)) {
         $widget = ['type' => $type, 'content' => $content, 'styles' => $settings,
             'children' => is_array($content['children'] ?? null) ? $content['children'] : []];
@@ -605,7 +667,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   function makeNestedWidget(item,depth){
     if (!item || typeof item !== 'object' || depth > 8) return document.createTextNode('');
     var type = String(item.type || 'paragraph'), c = item.content || item, node;
-    var allowed = ['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video'];
+    var allowed = ['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video','feature','pricing','accordion','testimonial','gallery','timeline','skill','logo_cloud','team','tabs','newsletter','icon_box'];
     if (allowed.indexOf(type) === -1) return document.createTextNode('');
     if (type === 'container') {
       node = card('div','builder-layout-container is-' + (c.direction === 'row' ? 'row' : 'column'));
@@ -647,6 +709,29 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       (Array.isArray(c.items) ? c.items : []).slice(0,30).forEach(function(entry){
         node.appendChild(card('li','',typeof entry === 'object' ? entry.text || '' : entry));
       });
+    } else if (type === 'feature' || type === 'icon_box') {
+      node = card('article','builder-widget-feature');
+      node.append(card('span','builder-feature-icon',c.symbol || '✦'),card('h3','',c.title || 'ویژگی جدید'),card('p','',c.description || 'توضیحات ویژگی'));
+    } else if (type === 'pricing') {
+      node = card('article','builder-widget-pricing');
+      node.append(card('h3','',c.title || 'پلن'),card('strong','builder-pricing-price',c.price || ''),card('small','',c.period || ''),card('p','',c.description || ''));
+      var priceList=card('ul','');(Array.isArray(c.items)?c.items:[]).forEach(function(entry){priceList.appendChild(card('li','',typeof entry==='object'?entry.text||entry.title||'':entry));});
+      node.appendChild(priceList);var priceButton=card('a','button button-primary',c.button_text||'انتخاب پلن');priceButton.href=safeHref(c.button_url||'#contact');node.appendChild(priceButton);
+    } else if (type === 'accordion') {
+      node=card('div','builder-widget-accordion');(Array.isArray(c.items)?c.items:[]).forEach(function(entry){var d=card('details','builder-widget-faq');d.append(card('summary','',entry.question||entry.title||''),card('p','',entry.answer||entry.description||''));node.appendChild(d);});
+    } else if (type === 'testimonial') {
+      node=card('figure','builder-widget-testimonial');node.append(card('blockquote','',c.quote||'نظر مشتری'),card('strong','',c.author||'نام مشتری'),card('span','',c.role||''));
+    } else if (type === 'gallery') {
+      node=card('section','builder-widget-gallery');if(c.title)node.appendChild(card('h3','',c.title));(Array.isArray(c.items)?c.items:[]).forEach(function(entry){var f=card('figure','');if(entry.src){var im=card('img','');im.src=safeHref(entry.src);im.alt=entry.alt||'';f.appendChild(im);}f.appendChild(card('figcaption','',entry.title||entry.alt||'تصویر'));node.appendChild(f);});
+    } else if (type === 'timeline') {
+      node=card('div','builder-widget-timeline');if(c.title)node.appendChild(card('h3','',c.title));(Array.isArray(c.items)?c.items:[]).forEach(function(entry){var ev=card('article','');ev.append(card('time','',entry.date||''),card('h4','',entry.title||''),card('p','',entry.description||''));node.appendChild(ev);});
+    } else if (type === 'skill') {
+      node=card('div','builder-widget-skill');var sh=card('div','');sh.append(card('strong','',c.title||'مهارت'),card('span','',String(Math.max(0,Math.min(100,Number(c.value)||0)))+'%'));var tr=card('i',''),bar=card('b','');bar.style.width=Math.max(0,Math.min(100,Number(c.value)||0))+'%';tr.appendChild(bar);node.append(sh,tr);
+    } else if (type === 'logo_cloud' || type === 'team' || type === 'tabs') {
+      node=card('section',type==='logo_cloud'?'builder-widget-logos':(type==='team'?'builder-widget-team':'builder-widget-tabs'));if(c.title)node.appendChild(card('h3','',c.title));
+      (Array.isArray(c.items)?c.items:[]).forEach(function(entry){var tile=card('article',type==='team'?'builder-team-card':(type==='tabs'?'builder-tab-card':'builder-logo-item'));if(type==='logo_cloud')tile.appendChild(card('strong','',entry.name||'Brand'));else if(type==='team')tile.append(card('h4','',entry.name||''),card('p','',entry.role||''));else tile.append(card('h4','',entry.title||''),card('p','',entry.description||''));node.appendChild(tile);});
+    } else if (type === 'newsletter') {
+      node=card('section','builder-widget-newsletter');node.append(card('h3','',c.title||'عضویت در خبرنامه'),card('p','',c.description||''));var nf=card('div','builder-newsletter-form');nf.append(card('span','',c.placeholder||'ایمیل شما'),card('b','',c.button_text||'عضویت'));node.appendChild(nf);
     } else if (type === 'video') {
       node = card('div','builder-widget-video');
       var videoUrl = String(c.url || '');
