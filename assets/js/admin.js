@@ -3,7 +3,7 @@
   const body = document.body;
   if (body.dataset.mode === 'setup') return;
   const basePath = document.body.dataset.basePath || '';
-  const appUrl = path => basePath + '/' + String(path).replace(/^\\/+/, '');
+  const appUrl = path => basePath + '/' + String(path).replace(new RegExp('^/+'), '');
   const API = appUrl('api/admin.php');
   let csrf = body.dataset.csrf || '';
   let projects = [];
