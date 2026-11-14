@@ -22,7 +22,7 @@
     text:'متن ساده',cta:'دعوت به اقدام',stats:'آمار و اعداد',spacer:'فاصله عمودی',
     container:'کانتینر تو در تو',grid:'گرید واکنش‌گرا',heading:'عنوان',paragraph:'متن',
     button:'دکمه',image:'تصویر',card:'کارت',divider:'خط جداکننده',icon:'آیکون',
-    counter:'شمارنده',list:'فهرست',video:'ویدیو'
+    counter:'شمارنده',list:'فهرست',video:'ویدیو',principle_item:'کارت اصل کاری',stat_item:'کارت آماری'
   };
   const fields = {
     hero:[
@@ -60,7 +60,9 @@
     icon:[['symbol','نماد یا کاراکتر']],
     counter:[['value','مقدار'],['label','عنوان']],
     list:[['items','موارد فهرست (JSON)']],
-    video:[['url','لینک Embed ویدیو'],['title','عنوان ویدیو']]
+    video:[['url','لینک Embed ویدیو'],['title','عنوان ویدیو']],
+    principle_item:[['number','شماره / نشان'],['title','عنوان'],['description','توضیحات']],
+    stat_item:[['value','مقدار / نشان'],['label','عنوان'],['description','توضیحات']]
   };
 
   let blocks = [];
@@ -126,6 +128,14 @@
     }
     const content = block && block.content || {};
     if (Array.isArray(content.children)) walk(content.children,0);
+    if (block && block.block_type === 'about' && Array.isArray(content.principles_items)) {
+      content.principles_items.forEach(item => { if (item && typeof item === 'object' && !item.type) item.type = 'principle_item'; });
+      walk(content.principles_items,0);
+    }
+    if (block && block.block_type === 'stats' && Array.isArray(content.items)) {
+      content.items.forEach(item => { if (item && typeof item === 'object' && !item.type) item.type = 'stat_item'; });
+      walk(content.items,0);
+    }
     return changed;
   }
   function nodeContent(node) {
@@ -158,7 +168,15 @@
       return null;
     }
     const content = block.content || {};
-    return walk(Array.isArray(content.children) ? content.children : [],block,0);
+    const collections = [];
+    if (Array.isArray(content.children)) collections.push(content.children);
+    if (block.block_type === 'about' && Array.isArray(content.principles_items)) collections.push(content.principles_items);
+    if (block.block_type === 'stats' && Array.isArray(content.items)) collections.push(content.items);
+    for (const collection of collections) {
+      const found = walk(collection,block,0);
+      if (found) return found;
+    }
+    return null;
   }
   function renderElementStyleControls(settings) {
     settings = settings || {};
@@ -382,7 +400,8 @@
       return;
     }
     const node = record.node, type = String(node.type || 'paragraph');
-    const content = nodeContent(node);
+    const isArrayItem = type === 'principle_item' || type === 'stat_item';
+    const content = isArrayItem ? node : nodeContent(node);
     const specs = (fields[type] || []).filter(([key]) => key !== 'children');
     const controls = specs.map(([key,label]) => fieldControl(key,label,content[key])).join('');
     const nested = ['container','grid','card'].includes(type);
@@ -426,7 +445,11 @@
       if (!nextStyles) invalid = true;
       if (invalid) { status('مقدار JSON یا تنظیمات واکنش‌گرا معتبر نیست.','error'); return; }
       queueUndo(block);
-      node.content = nextContent;
+      if (isArrayItem) {
+        specs.forEach(([key]) => { if (Object.prototype.hasOwnProperty.call(nextContent,key)) node[key] = nextContent[key]; });
+      } else {
+        node.content = nextContent;
+      }
       node.styles = nextStyles;
       renderCanvas();
       postPreviewState();
