@@ -256,3 +256,12 @@
 #view-builder .builder-form input:not([type="checkbox"]):not([type="color"]),#view-builder .builder-form textarea,#view-builder .builder-form select{font-size:13px;min-height:38px}
 .builder-nested-item{grid-template-columns:18px minmax(0,1fr) 25px 25px 25px 25px!important;cursor:grab}
 .builder-nested-item.is-dragging{opacity:.45}.builder-nested-item.is-drop-target{border-color:var(--accent)}
+
+.builder-responsive-controls{grid-column:1/-1;padding:10px;border:1px solid var(--builder-line);border-radius:12px;background:rgba(255,255,255,.018)}
+.builder-responsive-controls summary{cursor:pointer;color:var(--text);font-size:12px;font-weight:600}
+.builder-responsive-device{display:grid;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--builder-line)}
+.builder-responsive-device>strong{font-size:11px;color:var(--accent)}
+.builder-responsive-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.builder-responsive-fields label{min-width:0;display:grid;gap:5px;font-size:11px}
+.builder-responsive-fields input,.builder-responsive-fields select{width:100%;min-width:0}
+@media(max-width:900px){.builder-responsive-fields{grid-template-columns:1fr}}

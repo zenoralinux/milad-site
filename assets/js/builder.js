@@ -178,6 +178,43 @@
     }
     return null;
   }
+  function renderResponsiveControls(settings,prefix) {
+    settings = settings || {};
+    const fields = [
+      ['font_size','اندازه فونت','24px'],['width','عرض','100%'],['max_width','حداکثر عرض','640px'],
+      ['min_height','حداقل ارتفاع','120px'],['padding','فاصله داخلی','16px'],
+      ['margin','حاشیه بیرونی','0 0 16px'],['gap','فاصله عناصر','12px']
+    ];
+    return '<details class="builder-responsive-controls"><summary>تنظیمات واکنش‌گرا</summary>' +
+      ['mobile','tablet'].map(device => '<div class="builder-responsive-device"><strong>' +
+        (device === 'mobile' ? 'موبایل' : 'تبلت') + '</strong><div class="builder-responsive-fields">' +
+        fields.map(([key,label,placeholder]) => '<label>' + label + '<input name="' + prefix + device + '_' + key +
+          '" value="' + escapeHtml(settings[device] && settings[device][key] !== undefined ? settings[device][key] : '') +
+          '" placeholder="' + placeholder + '"></label>').join('') +
+        '<label>تراز متن<select name="' + prefix + device + '_text_align"><option value="">پیش‌فرض</option>' +
+        ['right','center','left','justify'].map(v => '<option value="' + v + '"' +
+          (settings[device] && settings[device].text_align === v ? ' selected' : '') + '>' + v + '</option>').join('') +
+        '</select></label><label>نوع نمایش<select name="' + prefix + device + '_display"><option value="">پیش‌فرض</option>' +
+        ['block','flex','grid','inline-flex','none'].map(v => '<option value="' + v + '"' +
+          (settings[device] && settings[device].display === v ? ' selected' : '') + '>' + v + '</option>').join('') +
+        '</select></label></div></div>').join('') + '</details>';
+  }
+  function readResponsiveControls(form,initial,prefix) {
+    const result = {
+      mobile:Object.assign({},initial && initial.mobile || {}),
+      tablet:Object.assign({},initial && initial.tablet || {})
+    };
+    const keys = ['font_size','width','max_width','min_height','padding','margin','gap','text_align','display'];
+    ['mobile','tablet'].forEach(device => keys.forEach(key => {
+      const field = form.elements[prefix + device + '_' + key];
+      if (!field) return;
+      const value = String(field.value || '').trim();
+      if (value) result[device][key] = value;
+      else delete result[device][key];
+    }));
+    Object.keys(result).forEach(device => { if (!Object.keys(result[device]).length) delete result[device]; });
+    return result;
+  }
   function renderElementStyleControls(settings) {
     settings = settings || {};
     return '<div class="builder-element-style-grid">' +
@@ -199,7 +236,7 @@
       '<label>حاشیه<input name="style_border" value="' + escapeHtml(settings.border ?? '') + '" placeholder="1px solid #333333"></label>' +
       '<label>سایه<input name="style_shadow" value="' + escapeHtml(settings.shadow ?? '') + '" placeholder="0 8px 24px #000000"></label>' +
       '<label>نوع نمایش<select name="style_display"><option value="">پیش‌فرض</option>' + ['block','flex','grid','inline-flex','inline-block'].map(v => '<option value="' + v + '"' + (String(settings.display || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
-      '<label class="builder-responsive-label">تنظیمات موبایل و تبلت (JSON)<textarea name="style_responsive" dir="ltr" spellcheck="false">' + escapeHtml(JSON.stringify(settings.responsive || {},null,2)) + '</textarea></label>' +
+      renderResponsiveControls(settings.responsive || {},'style_responsive_') +
       '</div>';
   }
   function readElementStyleControls(form,initial) {
@@ -216,10 +253,7 @@
       if (field && field.value !== '') next[key] = field.value.trim();
       else if (field) delete next[key];
     });
-    if (form.elements.style_responsive) {
-      try { next.responsive = JSON.parse(form.elements.style_responsive.value || '{}'); }
-      catch (error) { return null; }
-    }
+    next.responsive = readResponsiveControls(form,initial && initial.responsive,'style_responsive_');
     return next;
   }
   function bindElementStyleDefaults(form,sync) {
@@ -564,10 +598,7 @@
       if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = form.elements[key].value.trim();
       else if (form.elements[key]) delete nextSettings[key];
     });
-    if (form.elements.responsive) {
-      try { nextSettings.responsive = JSON.parse(form.elements.responsive.value || '{}'); }
-      catch (error) { validationFailed = true; }
-    }
+    nextSettings.responsive = readResponsiveControls(form,nextSettings.responsive,'responsive_');
     if (validationFailed) return null;
     return {
       label:form.elements.label.value,
@@ -666,7 +697,7 @@
       '<label>حاشیه<input name="border" placeholder="1px solid #333333" value="' + escapeHtml(settings.border ?? '') + '"></label>' +
       '<label>سایه<input name="shadow" placeholder="0 12px 30px #000000" value="' + escapeHtml(settings.shadow ?? '') + '"></label>' +
       '<label>نمایش<select name="display"><option value="">پیش‌فرض</option>' + ['block','flex','grid','inline-flex'].map(v => '<option value="' + v + '"' + (String(settings.display || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
-      '<label>تنظیمات موبایل و تبلت (JSON)<textarea name="responsive" dir="ltr" spellcheck="false">' + escapeHtml(JSON.stringify(settings.responsive || {},null,2)) + '</textarea><small>نمونه: {"mobile":{"font_size":"28px","padding":"16px"},"tablet":{"font_size":"36px"}}</small></label></section>' +
+      renderResponsiveControls(settings.responsive || {},'responsive_') + '</section>' +
       '<section data-inspector-panel="advanced" hidden><div class="builder-panel-heading"><div><strong>تنظیمات پیشرفته</strong><small>شناسه و وضعیت نمایش بلوک</small></div></div>' +
       '<label>نام در Navigator<input name="label" maxlength="140" value="' + escapeHtml(block.label || names[block.block_type]) + '"></label>' +
       '<label class="builder-check"><input type="checkbox" name="visible" ' + (block.is_visible ? 'checked' : '') + '> نمایش این بخش در سایت</label>' +
