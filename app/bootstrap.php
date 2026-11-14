@@ -108,7 +108,8 @@ function app_base_path(): string
     }
 
     $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
-    $script = preg_replace('#/(?:admin/index|api/admin)\.php$#i', '', $script) ?? $script;
+    // SCRIPT_NAME may expose either the physical index.php path or the clean /admin URL.
+    $script = preg_replace('#/(?:admin(?:/index)?|api/admin)(?:\.php)?/?$#i', '', $script) ?? $script;
     $script = preg_replace('#/index\.php$#i', '', $script) ?? $script;
     $script = '/' . trim($script, '/');
     $basePath = $script === '/' ? '' : $script;
