@@ -18,7 +18,8 @@ try {
     $sections = get_site_sections();
     $projects = get_projects(true);
 } catch (Throwable $e) {
-    // Keep the current static homepage available until PHP and the database are configured.
+    // Preserve the static homepage and leave a useful server-side diagnostic.
+    error_log('Homepage data load failed: ' . $e->getMessage());
     include __DIR__ . '/index.html';
     exit;
 }
