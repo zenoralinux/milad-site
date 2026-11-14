@@ -62,7 +62,7 @@ function public_href(string $url): string
 {
     $url = trim($url);
     if (preg_match('/^#[a-zA-Z0-9_-]+$/', $url)) return $url;
-    if (str_starts_with($url, '/') && !str_starts_with($url, '//')) return $url;
+    if (str_starts_with($url, '/') && !str_starts_with($url, '//')) return app_url($url);
     if (str_starts_with($url, './') && !str_contains($url, '..')) return $url;
     $parts = parse_url($url);
     if (is_array($parts) && strtolower((string) ($parts['scheme'] ?? '')) === 'https' && !empty($parts['host'])) return $url;
@@ -98,8 +98,8 @@ function render_project_card(array $project, int $number): string
 
 $siteTitle = public_setting('site_title', 'میلاد | توسعه‌دهنده مستقل و سازنده محصولات دیجیتال');
 $siteDescription = public_setting('site_description', 'فضای دیجیتال میلاد؛ توسعه‌دهنده مستقل، علاقه‌مند به نرم‌افزار متن‌باز و سازنده پروژه‌هایی مانند Zenora Linux و ZenoraChat.');
-$canonical = public_href(public_setting('canonical_url', (string) cfg('app.base_url', 'https://miladalizadw.ir') . '/'));
-$ogImage = public_href(public_setting('og_image_url', rtrim((string) cfg('app.base_url', 'https://miladalizadw.ir'), '/') . '/og-image.svg'));
+$canonical = public_href(public_setting('canonical_url', app_absolute_url('/')));
+$ogImage = public_href(public_setting('og_image_url', app_absolute_url('og-image.svg')));
 $avatar = public_href(public_setting('avatar_path', './milad_avatar.jpg'));
 $github = public_href(public_setting('github_url', 'https://github.com/miladalizadw'));
 $telegram = public_href(public_setting('telegram_url', 'https://t.me/miladalizadw'));
@@ -188,4 +188,19 @@ if (isset($sections['footer']) && !$sections['footer']['is_visible']) {
 }
 $projectCount = count($projects);
 $html = str_replace('۰۵ پروژه', h(fa_digits($projectCount)) . ' پروژه', $html);
+// Prefix root-relative links from the static source with the detected installation path.
+// This keeps links working when the project lives in /portfolio, /site/v2, or the domain root.
+$mountPath = app_base_path();
+$html = preg_replace_callback(
+    '~\b(href|src|action)=(["\'])/(?!/)([^"\']*)\2~i',
+    static function (array $match) use ($mountPath): string {
+        $path = '/' . $match[3];
+        if ($mountPath !== '' && ($path === $mountPath || str_starts_with($path, $mountPath . '/'))) {
+            return $match[0];
+        }
+        return $match[1] . '=' . $match[2] . h(app_url($path)) . $match[2];
+    },
+    $html
+) ?? $html;
+
 echo $html;
