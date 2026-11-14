@@ -198,9 +198,12 @@
   function renderResponsiveControls(settings,prefix) {
     settings = settings || {};
     const fields = [
-      ['font_size','اندازه فونت','24px'],['width','عرض','100%'],['max_width','حداکثر عرض','640px'],
-      ['min_height','حداقل ارتفاع','120px'],['padding','فاصله داخلی','16px'],
-      ['margin','حاشیه بیرونی','0 0 16px'],['gap','فاصله عناصر','12px']
+      ['font_size','اندازه فونت','24px'],['line_height','ارتفاع خط','1.5'],['width','عرض','100%'],
+      ['height','ارتفاع','280px'],['min_width','حداقل عرض','160px'],['max_width','حداکثر عرض','640px'],
+      ['min_height','حداقل ارتفاع','120px'],['max_height','حداکثر ارتفاع','720px'],
+      ['padding','فاصله داخلی','16px'],['margin','حاشیه بیرونی','0 0 16px'],['gap','فاصله عناصر','12px'],
+      ['flex_direction','جهت Flex','row'],['grid_columns','ستون‌های Grid','3'],
+      ['align_items','تراز عمودی','stretch'],['justify_content','توزیع محتوا','space-between'],['visibility','نمایش','visible']
     ];
     return '<details class="builder-responsive-controls"><summary>تنظیمات واکنش‌گرا</summary>' +
       ['mobile','tablet'].map(device => '<div class="builder-responsive-device"><strong>' +
@@ -221,7 +224,7 @@
       mobile:Object.assign({},initial && initial.mobile || {}),
       tablet:Object.assign({},initial && initial.tablet || {})
     };
-    const keys = ['font_size','width','max_width','min_height','padding','margin','gap','text_align','display'];
+    const keys = ['font_size','line_height','width','height','min_width','max_width','min_height','max_height','padding','margin','gap','flex_direction','grid_columns','align_items','justify_content','visibility','text_align','display'];
     ['mobile','tablet'].forEach(device => keys.forEach(key => {
       const field = form.elements[prefix + device + '_' + key];
       if (!field) return;
@@ -233,6 +236,25 @@
     return result;
   }
   function renderElementStyleControls(settings) {
+  function spacingParts(value) {
+    const values=String(value||'0').trim().split(/\s+/).filter(Boolean).slice(0,4);
+    if(!values.length)return ['0','0','0','0'];
+    if(values.length===1)return [values[0],values[0],values[0],values[0]];
+    if(values.length===2)return [values[0],values[1],values[0],values[1]];
+    if(values.length===3)return [values[0],values[1],values[2],values[1]];
+    return values;
+  }
+  function renderBoxModelControl(key,label,value) {
+    const sides=spacingParts(value);
+    const names=['top','right','bottom','left'];
+    return '<fieldset class="builder-box-model" data-spacing-group="' + key + '"><legend>' + label + '</legend>' +
+      '<div class="builder-box-model-grid">' + names.map((side,index) =>
+        '<label>' + ({top:'بالا',right:'راست',bottom:'پایین',left:'چپ'}[side]) +
+        '<input type="text" inputmode="decimal" name="style_' + key + '_' + side + '" data-spacing-side="' + side + '" value="' + escapeHtml(sides[index]) + '" placeholder="0"></label>'
+      ).join('') + '</div><label class="builder-check builder-spacing-link"><input type="checkbox" data-spacing-link="' + key + '"> پیوند چهار ضلع</label></fieldset>';
+  }
+
+
     settings = settings || {};
     return '<div class="builder-element-style-grid">' +
       '<label class="color-field">رنگ پس‌زمینه<input type="color" name="style_background" value="' + escapeHtml(settings.background || '#080b12') + '"></label>' +
@@ -245,10 +267,17 @@
       '<label>تراز متن<select name="style_text_align"><option value="">پیش‌فرض</option>' + ['right','center','left','justify'].map(v => '<option value="' + v + '"' + (String(settings.text_align || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
       '<label>عرض<input name="style_width" value="' + escapeHtml(settings.width ?? '') + '" placeholder="100%"></label>' +
       '<label>حداکثر عرض<input name="style_max_width" value="' + escapeHtml(settings.max_width ?? '') + '" placeholder="640px"></label>' +
+      '<label>ارتفاع<input name="style_height" value="' + escapeHtml(settings.height ?? '') + '" placeholder="auto / 280px"></label>' +
+      '<label>حداقل عرض<input name="style_min_width" value="' + escapeHtml(settings.min_width ?? '') + '" placeholder="160px"></label>' +
       '<label>حداقل ارتفاع<input name="style_min_height" value="' + escapeHtml(settings.min_height ?? '') + '" placeholder="120px"></label>' +
+      '<label>حداکثر ارتفاع<input name="style_max_height" value="' + escapeHtml(settings.max_height ?? '') + '" placeholder="720px"></label>' +
       '<label>فاصله بین عناصر<input name="style_gap" value="' + escapeHtml(settings.gap ?? '') + '" placeholder="16px"></label>' +
-      '<label>فاصله داخلی<input name="style_padding" value="' + escapeHtml(settings.padding ?? '') + '" placeholder="16px"></label>' +
-      '<label>حاشیه بیرونی<input name="style_margin" value="' + escapeHtml(settings.margin ?? '') + '" placeholder="0 0 16px"></label>' +
+      renderBoxModelControl('padding','فاصله داخلی',settings.padding) +
+      renderBoxModelControl('margin','حاشیه بیرونی',settings.margin) +
+      '<label>جهت Flexbox<select name="style_flex_direction"><option value="">پیش‌فرض</option>' + ['row','row-reverse','column','column-reverse'].map(v => '<option value="' + v + '"' + (String(settings.flex_direction || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label>تعداد ستون‌های Grid<input name="style_grid_columns" type="number" min="1" max="6" value="' + escapeHtml(settings.grid_columns ?? '') + '"></label>' +
+      '<label>تراز عمودی<select name="style_align_items"><option value="">پیش‌فرض</option>' + ['stretch','center','flex-start','flex-end','baseline'].map(v => '<option value="' + v + '"' + (String(settings.align_items || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label>توزیع محتوا<select name="style_justify_content"><option value="">پیش‌فرض</option>' + ['flex-start','center','flex-end','space-between','space-around','space-evenly'].map(v => '<option value="' + v + '"' + (String(settings.justify_content || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
       '<label>گردی گوشه‌ها<input name="style_radius" value="' + escapeHtml(settings.radius ?? '') + '" placeholder="12px"></label>' +
       '<label>حاشیه<input name="style_border" value="' + escapeHtml(settings.border ?? '') + '" placeholder="1px solid #333333"></label>' +
       '<label>سایه<input name="style_shadow" value="' + escapeHtml(settings.shadow ?? '') + '" placeholder="0 8px 24px #000000"></label>' +
@@ -265,7 +294,13 @@
       else if (field && field.value !== '') next[key] = field.value;
       else if (field) delete next[key];
     });
-    ['font_size','line_height','width','max_width','min_height','gap','padding','margin','radius'].forEach(key => {
+    ['font_size','line_height','width','height','min_width','max_width','min_height','max_height','gap','radius','flex_direction','grid_columns','align_items','justify_content','visibility'].forEach(key => {
+    ['padding','margin'].forEach(key => {
+      const values=['top','right','bottom','left'].map(side => String(form.elements['style_'+key+'_'+side]?.value || '').trim());
+      if (values.some(Boolean)) next[key]=values.map(value=>value||'0').join(' ');
+      else delete next[key];
+    });
+
       const field = form.elements['style_' + key];
       if (field && field.value !== '') next[key] = field.value.trim();
       else if (field) delete next[key];
@@ -280,6 +315,13 @@
       const update = () => { input.disabled = flag.checked; };
       flag.addEventListener('change',update);
       update();
+    });
+    form.addEventListener('input',event => {
+      const field=event.target.closest('[data-spacing-side]');
+      if(!field)return;
+      const group=field.closest('[data-spacing-group]');
+      const linked=group&&group.querySelector('[data-spacing-link]');
+      if(linked&&linked.checked)group.querySelectorAll('[data-spacing-side]').forEach(other=>{if(other!==field)other.value=field.value;});
     });
   }
   function legacyFieldGroup(field) {
@@ -882,11 +924,11 @@
       if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = form.elements[key].value;
       else if (form.elements[key]) delete nextSettings[key];
     });
-    ['padding','radius','font_size'].forEach(key => {
+    ['padding','radius','font_size','grid_columns'].forEach(key => {
       if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = Number(form.elements[key].value);
       else if (form.elements[key]) delete nextSettings[key];
     });
-    ['line_height','width','max_width','min_height','gap'].forEach(key => {
+    ['line_height','width','height','min_width','max_width','min_height','max_height','gap','flex_direction','align_items','justify_content','visibility'].forEach(key => {
       if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = form.elements[key].value.trim();
       else if (form.elements[key]) delete nextSettings[key];
     });
