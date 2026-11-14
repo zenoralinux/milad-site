@@ -526,3 +526,56 @@ html[data-builder-preview="1"] body{padding-top:0!important}
 </script>
 HTML;
 }
+
+/**
+ * Turn the authenticated homepage preview into a self-contained srcdoc document.
+ * No iframe navigation, host name, absolute URL, or external asset request is needed.
+ */
+function builder_make_internal_preview(string $html): string
+{
+    $cssPath = MILAD_ROOT . '/assets/css/site.css';
+    $jsPath = MILAD_ROOT . '/assets/js/site.js';
+    $avatarPath = MILAD_ROOT . '/milad_avatar.jpg';
+    $css = is_file($cssPath) ? file_get_contents($cssPath) : false;
+    $js = is_file($jsPath) ? file_get_contents($jsPath) : false;
+    $avatar = is_file($avatarPath) ? file_get_contents($avatarPath) : false;
+
+    if ($css === false || $js === false || $avatar === false) {
+        throw new RuntimeException('یکی از فایل‌های محلی پیش‌نمایش برای ساخت srcdoc در دسترس نیست.');
+    }
+
+    $styleTag = '<style id="builder-embedded-site-css">' . $css . '</style>';
+    $html = preg_replace(
+        '#<link\\b(?=[^>]*href=["\\'](?:\\./)?assets/css/site\\.css["\\'])[^>]*>#i',
+        static function () use ($styleTag): string { return $styleTag; },
+        $html,
+        1
+    ) ?? $html;
+
+    $inlineJs = str_ireplace('</script', '<\\/script', $js);
+    $scriptTag = '<script id="builder-embedded-site-js">' . $inlineJs . '</script>';
+    $html = preg_replace(
+        '#<script\\b(?=[^>]*src=["\\'](?:\\./)?assets/js/site\\.js["'])[^>]*>\\s*</script>#i',
+        static function () use ($scriptTag): string { return $scriptTag; },
+        $html,
+        1
+    ) ?? $html;
+
+    $imageUri = 'data:image/jpeg;base64,' . base64_encode($avatar);
+    $html = str_replace(['./milad_avatar.jpg', 'milad_avatar.jpg'], $imageUri, $html);
+
+    // Metadata and schema links are irrelevant inside an editor preview.
+    $html = preg_replace('#<script\\b[^>]*type=["\\']application/ld\\+json["\\'][^>]*>.*?</script>#is', '', $html) ?? $html;
+    $html = preg_replace('#<link\\b(?=[^>]*\\brel=["\\'](?:canonical|icon|preload)["\\'])[^>]*>#i', '', $html) ?? $html;
+    $html = preg_replace('#<meta\\b(?=[^>]*(?:property=["\\']og:|name=["\\']twitter:))[^>]*>#i', '', $html) ?? $html;
+
+    // Fail closed if a future template change reintroduces remote assets.
+    if (preg_match('#<(?:script|link|img|source)\\b[^>]*(?:src|href|srcset)=["\\']https?://#i', $html)) {
+        throw new RuntimeException('قالب پیش‌نمایش هنوز وابستگی مستقیم به منبع خارجی دارد.');
+    }
+    if (strpos($html, './assets/') !== false || strpos($html, '../assets/') !== false) {
+        throw new RuntimeException('قالب پیش‌نمایش هنوز به مسیر فایل خارجی وابسته است.');
+    }
+    return $html;
+}
+
