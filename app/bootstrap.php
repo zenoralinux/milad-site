@@ -7,30 +7,71 @@ function app_config(): array
 {
     static $config = null;
     if ($config !== null) return $config;
-    $path = getenv('MILAD_SITE_CONFIG') ?: MILAD_ROOT . '/config.php';
-    if (is_file($path)) {
-        $loaded = require $path;
-        $config = is_array($loaded) ? $loaded : [];
-        return $config;
-    }
-    $config = [
+
+    $defaults = [
         'app' => [
             'name' => 'Milad Site',
-            'base_url' => getenv('MILAD_APP_BASE_URL') ?: 'https://miladalizadw.ir',
-            'timezone' => getenv('MILAD_APP_TIMEZONE') ?: 'Europe/Berlin',
-            'debug' => filter_var(getenv('MILAD_APP_DEBUG') ?: '0', FILTER_VALIDATE_BOOLEAN),
+            'base_url' => '',
+            'base_path' => '',
+            'timezone' => 'Europe/Berlin',
+            'debug' => false,
             'session_name' => 'milad_admin',
-            'ip_hash_key' => getenv('MILAD_APP_IP_HASH_KEY') ?: 'SET_A_LONG_RANDOM_SECRET_BEFORE_PRODUCTION',
+            'ip_hash_key' => '',
         ],
         'database' => [
-            'host' => getenv('MILAD_DB_HOST') ?: '',
-            'port' => (int) (getenv('MILAD_DB_PORT') ?: 3306),
-            'name' => getenv('MILAD_DB_NAME') ?: '',
-            'username' => getenv('MILAD_DB_USER') ?: '',
-            'password' => getenv('MILAD_DB_PASSWORD') ?: '',
+            'host' => 'localhost',
+            'port' => 3306,
+            'name' => 'zenorali_milad',
+            'username' => 'zenorali_milad',
+            'password' => '',
             'charset' => 'utf8mb4',
         ],
     ];
+
+    $configuredPath = getenv('MILAD_SITE_CONFIG');
+    $configPath = $configuredPath !== false && $configuredPath !== ''
+        ? $configuredPath
+        : (is_file(MILAD_ROOT . '/config.php')
+            ? MILAD_ROOT . '/config.php'
+            : MILAD_ROOT . '/config.local.php');
+
+    $loaded = [];
+    if (is_file($configPath)) {
+        $value = require $configPath;
+        if (!is_array($value)) {
+            throw new RuntimeException('The PHP configuration file must return an array.');
+        }
+        $loaded = $value;
+    }
+
+    $config = array_replace_recursive($defaults, $loaded);
+
+    $environmentMap = [
+        'app.base_url' => 'MILAD_APP_BASE_URL',
+        'app.base_path' => 'MILAD_APP_BASE_PATH',
+        'app.timezone' => 'MILAD_APP_TIMEZONE',
+        'app.ip_hash_key' => 'MILAD_APP_IP_HASH_KEY',
+        'database.host' => 'MILAD_DB_HOST',
+        'database.port' => 'MILAD_DB_PORT',
+        'database.name' => 'MILAD_DB_NAME',
+        'database.username' => 'MILAD_DB_USER',
+        'database.password' => 'MILAD_DB_PASSWORD',
+    ];
+    foreach ($environmentMap as $key => $variable) {
+        $value = getenv($variable);
+        if ($value === false) continue;
+        $parts = explode('.', $key);
+        $target = &$config;
+        foreach ($parts as $part) $target = &$target[$part];
+        $target = $key === 'database.port' ? (int) $value : $value;
+        unset($target);
+    }
+
+    $debug = getenv('MILAD_APP_DEBUG');
+    if ($debug !== false) {
+        $config['app']['debug'] = filter_var($debug, FILTER_VALIDATE_BOOLEAN);
+    }
+
     return $config;
 }
 
@@ -42,6 +83,60 @@ function cfg(string $key, mixed $default = null): mixed
         $value = $value[$part];
     }
     return $value;
+}
+
+/**
+ * Return the URL mount point of this installation.
+ * It is detected from the executing PHP script, so /, /portfolio and
+ * deeper subdirectory installations use the same application code.
+ */
+function app_base_path(): string
+{
+    static $basePath = null;
+    if ($basePath !== null) return $basePath;
+
+    $configured = trim((string) cfg('app.base_path', ''));
+    if ($configured !== '') {
+        $path = '/' . trim(str_replace('\\', '/', $configured), '/');
+        $basePath = $path === '/' ? '' : $path;
+        return $basePath;
+    }
+
+    $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    $script = preg_replace('#/(?:admin/index|api/admin)\.php$#i', '', $script) ?? $script;
+    $script = preg_replace('#/index\.php$#i', '', $script) ?? $script;
+    $script = '/' . trim($script, '/');
+    $basePath = $script === '/' ? '' : $script;
+    return $basePath;
+}
+
+/** Build an installation-relative URL without assuming that the app lives at /. */
+function app_url(string $path = ''): string
+{
+    $path = trim($path);
+    if ($path === '' || $path === '/') return app_base_path() . '/';
+    if ($path[0] === '#' || $path[0] === '?') return $path;
+    if (preg_match('#^[a-z][a-z0-9+.-]*:#i', $path)) return $path;
+    if (str_starts_with($path, '//')) return $path;
+    return app_base_path() . '/' . ltrim($path, '/');
+}
+
+function app_absolute_url(string $path = ''): string
+{
+    $origin = trim((string) cfg('app.base_url', ''));
+    if ($origin === '') {
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'miladalizadw.ir');
+        if (!preg_match('/^[a-z0-9.-]+(?::[0-9]{1,5})?$/i', $host)) {
+            $host = 'miladalizadw.ir';
+        }
+        $origin = ($https ? 'https://' : 'http://') . $host;
+    }
+    $base = rtrim($origin, '/') . app_base_path();
+    return $path === '' || $path === '/'
+        ? $base . '/'
+        : $base . '/' . ltrim($path, '/');
 }
 
 if (!function_exists('mb_strlen')) {
@@ -63,17 +158,24 @@ function db(): PDO
 {
     static $pdo = null;
     if ($pdo instanceof PDO) return $pdo;
-    $db = cfg('database', []);
+
+    $database = cfg('database', []);
     foreach (['host', 'name', 'username', 'password'] as $key) {
-        if (!isset($db[$key]) || ($key !== 'password' && $db[$key] === '')) {
-            throw new RuntimeException('Database configuration is incomplete. Copy config.example.php to config.php.');
+        if (!isset($database[$key]) || ($key !== 'password' && trim((string) $database[$key]) === '')) {
+            throw new RuntimeException('Database configuration is incomplete. Set the database values in config.php/config.local.php or environment variables.');
         }
     }
-    $charset = preg_replace('/[^a-z0-9_]/i', '', (string) ($db['charset'] ?? 'utf8mb4'));
-    $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s',
-        $db['host'], (int) ($db['port'] ?? 3306), $db['name'], $charset
+
+    $charset = preg_replace('/[^a-z0-9_]/i', '', (string) ($database['charset'] ?? 'utf8mb4'));
+    $dsn = sprintf(
+        'mysql:host=%s;port=%d;dbname=%s;charset=%s',
+        $database['host'],
+        (int) ($database['port'] ?? 3306),
+        $database['name'],
+        $charset
     );
-    $pdo = new PDO($dsn, (string) $db['username'], (string) $db['password'], [
+
+    $pdo = new PDO($dsn, (string) $database['username'], (string) $database['password'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
@@ -90,11 +192,12 @@ function start_admin_session(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) return;
     $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+
     session_name((string) cfg('app.session_name', 'milad_admin'));
     session_set_cookie_params([
         'lifetime' => 0,
-        'path' => '/',
+        'path' => app_base_path() !== '' ? app_base_path() . '/' : '/',
         'secure' => $secure,
         'httponly' => true,
         'samesite' => 'Lax',
@@ -219,16 +322,23 @@ function get_projects(bool $publishedOnly = true): array
     $sql = 'SELECT * FROM projects ' . ($publishedOnly ? 'WHERE is_published = 1 ' : '') . 'ORDER BY sort_order ASC, id ASC';
     $projects = db()->query($sql)->fetchAll();
     if (!$projects) return [];
-    $ids = array_map(static fn($p) => (int) $p['id'], $projects);
-    $marks = implode(',', array_fill(0, count($ids), '?'));
-    $linkStmt = db()->prepare("SELECT project_id, label, url FROM project_links WHERE project_id IN ($marks) ORDER BY sort_order, id");
-    $linkStmt->execute($ids);
-    $techStmt = db()->prepare("SELECT project_id, name FROM project_technologies WHERE project_id IN ($marks) ORDER BY sort_order, id");
-    $techStmt->execute($ids);
+    $ids = array_map(static fn($project) => (int) $project['id'], $projects);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+    $linkStatement = db()->prepare("SELECT project_id, label, url FROM project_links WHERE project_id IN ($placeholders) ORDER BY sort_order, id");
+    $linkStatement->execute($ids);
+    $technologyStatement = db()->prepare("SELECT project_id, name FROM project_technologies WHERE project_id IN ($placeholders) ORDER BY sort_order, id");
+    $technologyStatement->execute($ids);
+
     $links = [];
-    foreach ($linkStmt->fetchAll() as $row) $links[(int) $row['project_id']][] = ['label' => $row['label'], 'url' => $row['url']];
+    foreach ($linkStatement->fetchAll() as $row) {
+        $links[(int) $row['project_id']][] = ['label' => $row['label'], 'url' => $row['url']];
+    }
     $technologies = [];
-    foreach ($techStmt->fetchAll() as $row) $technologies[(int) $row['project_id']][] = $row['name'];
+    foreach ($technologyStatement->fetchAll() as $row) {
+        $technologies[(int) $row['project_id']][] = $row['name'];
+    }
+
     foreach ($projects as &$project) {
         $id = (int) $project['id'];
         $project['links'] = $links[$id] ?? [];
