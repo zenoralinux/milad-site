@@ -321,9 +321,23 @@
     const specs = fields[block.block_type] || [];
     const controls = specs.map(([key,label]) => fieldControl(key,label,(block.content || {})[key])).join('');
     const settings = block.settings || {};
+    const nestedChildren = Array.isArray(block.content?.children) ? block.content.children : [];
+    const supportsChildren = ['container','grid','card'].includes(block.block_type);
+    const nestedTools = supportsChildren
+      ? '<div class="builder-nested-editor"><div class="builder-panel-heading"><div><strong>عناصر داخلی</strong><small>ساختار تو در تو را همین‌جا مدیریت کن</small></div><span>' + nestedChildren.length + '</span></div>' +
+        '<div class="builder-nested-add"><select id="builderChildType"><option value="heading">عنوان</option><option value="paragraph">متن</option><option value="button">دکمه</option><option value="card">کارت</option><option value="image">تصویر</option><option value="icon">آیکون</option><option value="divider">جداکننده</option><option value="counter">شمارنده</option><option value="list">فهرست</option><option value="container">کانتینر</option><option value="grid">گرید</option></select><button type="button" class="secondary-button compact" data-child-add>＋ افزودن</button></div>' +
+        '<div class="builder-nested-list">' + nestedChildren.map((child,index) => {
+          const childType = String(child.type || 'paragraph');
+          const childContent = child.content || child;
+          const childTitle = childContent.text || childContent.title || childContent.label || names[childType] || childType;
+          return '<div class="builder-nested-item"><span class="builder-nested-grip">⠿</span><span><strong>' + escapeHtml(names[childType] || childType) + '</strong><small>' + escapeHtml(String(childTitle).slice(0,70)) + '</small></span>' +
+            '<button type="button" data-child-up="' + index + '" title="بالا">↑</button><button type="button" data-child-down="' + index + '" title="پایین">↓</button><button type="button" data-child-delete="' + index + '" title="حذف">×</button></div>';
+        }).join('') + '</div><small class="builder-nested-hint">برای ویرایش دقیق متن و داده‌های هر فرزند، ساختار JSON در بخش محتوا نیز قابل ویرایش است.</small></div>'
+      : '';
+
     host.innerHTML = '<form id="builderBlockForm" class="builder-form">' +
       '<section data-inspector-panel="content"><div class="builder-panel-heading"><div><strong>محتوای بلوک</strong><small>متن‌ها و داده‌های این بخش</small></div></div>' +
-      controls + '</section>' +
+      controls + nestedTools + '</section>' +
       '<section data-inspector-panel="style" hidden><div class="builder-panel-heading"><div><strong>استایل بلوک</strong><small>ظاهر مستقل این بخش</small></div></div>' +
       '<label class="color-field">رنگ پس‌زمینه<input type="color" name="background" value="' + escapeHtml(settings.background || '#080b12') + '"></label>' +
       '<label class="color-field">رنگ متن<input type="color" name="text_color" value="' + escapeHtml(settings.text_color || '#f3f5fb') + '"></label>' +
@@ -682,6 +696,14 @@
   }
   root.addEventListener('click',event => {
     if (event.target.closest('[data-open-media]')) openMediaPicker();
+    const addChild = event.target.closest('[data-child-add]');
+    if (addChild) updateNestedChildren('add',-1);
+    const removeChild = event.target.closest('[data-child-delete]');
+    if (removeChild) updateNestedChildren('delete',Number(removeChild.dataset.childDelete));
+    const upChild = event.target.closest('[data-child-up]');
+    if (upChild) updateNestedChildren('up',Number(upChild.dataset.childUp));
+    const downChild = event.target.closest('[data-child-down]');
+    if (downChild) updateNestedChildren('down',Number(downChild.dataset.childDown));
   });
   document.getElementById('builderMediaUpload')?.addEventListener('submit',async event => {
     event.preventDefault();
@@ -734,6 +756,57 @@
   $$('[data-library-tab]').forEach(button => button.addEventListener('click',() => setLibraryTab(button.dataset.libraryTab)));
   $$('[data-inspector-tab]').forEach(button => button.addEventListener('click',() => setInspectorTab(button.dataset.inspectorTab)));
   $('#builderSaveAll')?.addEventListener('click',saveAll);
+  function newChildNode(type) {
+    const id = 'node-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7);
+    const defaults = {
+      heading:{content:{text:'عنوان جدید',level:2}},
+      paragraph:{content:{text:'متن جدید را وارد کن.'}},
+      button:{content:{text:'دکمه جدید',url:'#contact'}},
+      card:{content:{title:'عنوان کارت',body:'توضیحات کارت'}},
+      image:{content:{src:'',alt:''}},
+      icon:{content:{symbol:'✦'}},
+      divider:{content:{}},
+      counter:{content:{value:'۱۲+',label:'عنوان آمار'}},
+      list:{content:{items:[{text:'مورد اول'},{text:'مورد دوم'}]}},
+      container:{content:{direction:'column'},children:[]},
+      grid:{content:{columns:2},children:[
+        {id:id+'-a',type:'card',content:{title:'کارت اول',body:'توضیحات'}},
+        {id:id+'-b',type:'card',content:{title:'کارت دوم',body:'توضیحات'}}
+      ]}
+    };
+    const item = defaults[type] || defaults.paragraph;
+    return Object.assign({id,type},cloneData(item));
+  }
+  function updateNestedChildren(action,index) {
+    const block = blocks.find(item => Number(item.id) === Number(selectedId));
+    if (!block || !['container','grid','card'].includes(block.block_type)) return;
+    block.content = Object.assign({},block.content || {});
+    const children = Array.isArray(block.content.children) ? block.content.children.slice() : [];
+    if (action === 'add') {
+      const select = $('#builderChildType');
+      children.push(newChildNode(select ? select.value : 'paragraph'));
+    } else if (action === 'delete') {
+      if (index < 0 || index >= children.length) return;
+      children.splice(index,1);
+    } else if (action === 'up' || action === 'down') {
+      const target = index + (action === 'up' ? -1 : 1);
+      if (index < 0 || index >= children.length || target < 0 || target >= children.length) return;
+      const moved = children.splice(index,1)[0];
+      children.splice(target,0,moved);
+    }
+    block.content.children = children;
+    const payload = {
+      label:block.label,
+      content:block.content,
+      settings:block.settings || {},
+      is_visible:!!block.is_visible
+    };
+    renderCanvas();
+    renderInspector();
+    postPreviewState();
+    scheduleSave(block,payload);
+  }
+
   $('#builderUndo')?.addEventListener('click',undoEdit);
   $('#builderRedo')?.addEventListener('click',redoEdit);
   document.addEventListener('keydown',event => {
