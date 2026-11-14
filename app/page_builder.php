@@ -1085,6 +1085,53 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     if (footerNode && footerBlock) main.after(footerNode);
     if (selectedKey) selectOutline(selectedKey,selectedNodeId,selectedLegacyField);
   }
+  var directOverlay=null,directTarget=null,directOwner=null,directNodeId='',directLegacyField='';
+  function ensureDirectOverlay(){
+    if(directOverlay)return directOverlay;
+    var style=document.createElement('style');style.id='milad-direct-editor-style';
+    style.textContent='.milad-direct-overlay{position:fixed;z-index:2147483000;border:2px solid #8b6cff;box-shadow:0 0 0 9999px rgba(15,10,28,.035);pointer-events:none;box-sizing:border-box}.milad-direct-overlay .md-handle{position:absolute;width:12px;height:12px;border:2px solid #8b6cff;background:#fff;border-radius:50%;pointer-events:auto;box-sizing:border-box}.milad-direct-overlay .md-e{right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}.milad-direct-overlay .md-s{bottom:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}.milad-direct-overlay .md-se{right:-7px;bottom:-7px;cursor:nwse-resize}.milad-direct-overlay .md-label{position:absolute;top:-28px;left:0;padding:4px 8px;background:#211936;color:#fff;border-radius:6px;font:11px/1.2 sans-serif;white-space:nowrap}.milad-direct-overlay .md-tools{position:absolute;top:-29px;right:0;display:flex;gap:3px;pointer-events:auto}.milad-direct-overlay .md-tools button{border:0;border-radius:5px;background:#211936;color:#fff;padding:3px 6px;font:11px sans-serif;cursor:pointer}';
+    document.head.appendChild(style);
+    directOverlay=document.createElement('div');directOverlay.className='milad-direct-overlay';
+    directOverlay.innerHTML='<span class="md-label"></span><span class="md-tools"><button type="button" data-md-space="padding">Padding</button><button type="button" data-md-space="margin">Margin</button></span><i class="md-handle md-e" data-md-axis="x"></i><i class="md-handle md-s" data-md-axis="y"></i><i class="md-handle md-se" data-md-axis="both"></i>';
+    document.body.appendChild(directOverlay);
+    directOverlay.querySelectorAll('[data-md-axis]').forEach(function(handle){
+      handle.addEventListener('pointerdown',function(event){
+        event.preventDefault();event.stopPropagation();if(!directTarget)return;
+        var axis=handle.dataset.mdAxis,rect=directTarget.getBoundingClientRect(),startX=event.clientX,startY=event.clientY,startW=rect.width,startH=rect.height;
+        function move(e){if(axis==='x'||axis==='both')directTarget.style.width=Math.max(24,startW+e.clientX-startX)+'px';if(axis==='y'||axis==='both')directTarget.style.minHeight=Math.max(0,startH+e.clientY-startY)+'px';positionDirectOverlay();}
+        function up(){document.removeEventListener('pointermove',move,true);document.removeEventListener('pointerup',up,true);var r=directTarget.getBoundingClientRect();var styles={};if(axis==='x'||axis==='both')styles.width=Math.round(r.width)+'px';if(axis==='y'||axis==='both')styles.min_height=Math.round(r.height)+'px';sendToParent({type:'milad-builder-direct-style',key:directOwner&&directOwner.dataset.builderKey,nodeId:directNodeId,legacyField:directLegacyField,styles:styles});}
+        document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',up,true);
+      },true);
+    });
+    directOverlay.querySelectorAll('[data-md-space]').forEach(function(button){
+      button.addEventListener('click',function(event){
+        event.preventDefault();event.stopPropagation();if(!directTarget)return;
+        var key=button.dataset.mdSpace,computed=window.getComputedStyle(directTarget),current=parseFloat(computed[key])||0;
+        var value=Math.max(0,Math.min(240,Math.round(current+8)));
+        directTarget.style[key]=value+'px';
+        var styles={};styles[key]=value+'px';
+        sendToParent({type:'milad-builder-direct-style',key:directOwner&&directOwner.dataset.builderKey,nodeId:directNodeId,legacyField:directLegacyField,styles:styles});
+        positionDirectOverlay();
+      });
+    });
+    return directOverlay;
+  }
+  function positionDirectOverlay(){
+    if(!directTarget||!directOverlay)return;
+    var r=directTarget.getBoundingClientRect();directOverlay.style.display='block';
+    directOverlay.style.left=r.left+'px';directOverlay.style.top=r.top+'px';directOverlay.style.width=r.width+'px';directOverlay.style.height=r.height+'px';
+    var label=directOverlay.querySelector('.md-label');if(label)label.textContent=Math.round(r.width)+' × '+Math.round(r.height)+' px';
+  }
+  function hideDirectOverlay(){if(directOverlay)directOverlay.style.display='none';directTarget=null;directOwner=null;directNodeId='';directLegacyField='';}
+  window.addEventListener('scroll',positionDirectOverlay,true);window.addEventListener('resize',positionDirectOverlay);
+  document.addEventListener('contextmenu',function(event){
+    var owner=event.target.closest('[data-builder-key]');if(!owner)return;
+    event.preventDefault();
+    var field=event.target.closest('[data-builder-edit-field]'),widget=event.target.closest('[data-widget-node]');
+    sendToParent({type:'milad-builder-node-select',key:owner.dataset.builderKey,nodeId:widget?widget.dataset.widgetNode:'',legacyField:field?field.dataset.builderEditField:''});
+    sendToParent({type:'milad-builder-context-action',action:'open'});
+  },true);
+
   function selectOutline(key,nodeId,legacyField){
     selectedKey = key;
     selectedNodeId = String(nodeId || '');
@@ -1109,6 +1156,10 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       selected = Array.prototype.find.call(document.querySelectorAll('[data-builder-key]'),function(el){ return el.dataset.builderKey === key; });
       if (selected) selected.classList.add('builder-live-selected');
     }
+    directTarget=selected;directOwner=selected&&selected.closest('[data-builder-key]');
+    directNodeId=selectedNodeId && selectedNodeId.indexOf('legacy-')!==0 ? selectedNodeId : '';
+    directLegacyField=selectedLegacyField || (selectedNodeId && selectedNodeId.indexOf('legacy-')===0 ? selectedNodeId.replace(/^legacy-/,'') : '');
+    if(directTarget){ensureDirectOverlay();positionDirectOverlay();}else hideDirectOverlay();
   }
   document.addEventListener('dblclick',function(event){
     var target = event.target.closest('[data-builder-edit-field]');
