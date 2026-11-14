@@ -100,12 +100,17 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
                 </div>
               </div>
               <div class="builder-library-view" data-library-panel="structure" hidden>
-                <div class="builder-panel-heading"><div><strong>لایه‌های صفحه</strong><small>ترتیب، نمایش و مدیریت بخش‌ها</small></div></div>
+                <div class="builder-panel-heading"><div><strong>لایه‌های صفحه</strong><small>جست‌وجو، انتخاب و مدیریت ساختار صفحه</small></div></div>
+                <div class="builder-layers-tools">
+                  <input id="builderLayerSearch" type="search" placeholder="جست‌وجوی لایه…">
+                  <button type="button" id="builderLayerExpandAll" title="باز کردن همه">⌄</button>
+                  <button type="button" id="builderLayerCollapseAll" title="بستن همه">⌃</button>
+                </div>
                 <div class="builder-layers-list" id="builderCanvas"><div class="builder-empty">در حال دریافت ساختار صفحه…</div></div>
               </div>
             </aside>
             <section class="builder-canvas-wrap panel-card">
-              <div class="builder-canvas-header"><strong>پیش‌نمایش زنده سایت</strong><div class="builder-context-toolbar" id="builderContextToolbar" hidden><span id="builderContextLabel">عنصر انتخاب‌شده</span><button type="button" data-context-action="up" title="انتقال به بالا">↑</button><button type="button" data-context-action="down" title="انتقال به پایین">↓</button><button type="button" data-context-action="clone" title="تکثیر">＋</button><button type="button" data-context-action="toggle" title="نمایش یا مخفی‌کردن">◉</button><button type="button" data-context-action="delete" title="حذف">×</button></div><small>روی هر بخش کلیک کن تا انتخاب و ویرایش شود؛ تغییرات در همین نما دیده می‌شوند</small></div>
+              <div class="builder-canvas-header"><strong>پیش‌نمایش زنده سایت</strong><div class="builder-context-toolbar" id="builderContextToolbar" hidden><span id="builderContextLabel">عنصر انتخاب‌شده</span><button type="button" data-context-action="up" title="انتقال به بالا">↑</button><button type="button" data-context-action="down" title="انتقال به پایین">↓</button><button type="button" data-context-action="clone" title="تکثیر">＋</button><button type="button" data-context-action="toggle" title="نمایش یا مخفی‌کردن">◉</button><button type="button" data-context-action="delete" title="حذف">×</button></div><small>روی هر عنصر کلیک کن؛ با دستگیره‌های روی صفحه اندازه را تغییر بده و تغییرات همان لحظه ذخیره می‌شوند</small></div>
               <div class="builder-preview-frame-shell" id="builderPreviewShell" data-device="desktop">
                 <iframe id="builderPreviewFrame" title="پیش‌نمایش زنده وب‌سایت" srcdoc="<?= h($builderPreviewDocument) ?>" loading="eager"></iframe>
                 <?php if ($builderPreviewError !== ''): ?><p class="builder-preview-hint"><?= h($builderPreviewError) ?></p><?php endif; ?>
@@ -143,7 +148,7 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
       <div class="builder-media-grid" id="builderMediaGrid"><p class="builder-empty">در حال دریافت فایل‌ها…</p></div>
     </section>
   </div>
-  <div class="builder-template-modal" id="builderTemplateModal" hidden>
+<div class="builder-template-modal" id="builderTemplateModal" hidden>
     <section class="builder-template-dialog" role="dialog" aria-modal="true" aria-labelledby="builderTemplateTitle">
       <header><div><span class="section-kicker">STARTER TEMPLATES</span><h3 id="builderTemplateTitle">قالب‌های آماده</h3><p>یک ساختار آماده اضافه کن و سپس تمام متن‌ها و استایل‌ها را تغییر بده.</p></div><button type="button" data-template-close aria-label="بستن">×</button></header>
       <div class="builder-template-grid">
