@@ -8,6 +8,18 @@ function ensure_app_installed(PDO $pdo): void
     static $ready = false;
     if ($ready) return;
 
+    // Normal requests only need this cheap marker lookup; acquire the advisory lock
+    // exclusively while the one-time schema/seed installation is still pending.
+    try {
+        $installed = $pdo->query('SELECT schema_version FROM app_installation WHERE id = 1')->fetchColumn();
+        if ($installed !== false) {
+            $ready = true;
+            return;
+        }
+    } catch (PDOException $ignored) {
+        // First run: app_installation does not exist yet.
+    }
+
     $lockName = 'milad_site_setup_' . substr(hash('sha256', (string) cfg('database.name', 'site')), 0, 24);
     $lock = $pdo->prepare('SELECT GET_LOCK(?, 10)');
     $lock->execute([$lockName]);
