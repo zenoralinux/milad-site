@@ -237,8 +237,10 @@
   }
   function renderElementStyleControls(settings) {
   function spacingParts(value) {
-    const values=String(value||'0').trim().split(/\s+/).filter(Boolean).slice(0,4);
-    if(!values.length)return ['0','0','0','0'];
+    const raw=String(value||'').trim();
+    if(!raw)return ['','','',''];
+    const values=raw.split(/\s+/).filter(Boolean).slice(0,4);
+    if(!values.length)return ['','','',''];
     if(values.length===1)return [values[0],values[0],values[0],values[0]];
     if(values.length===2)return [values[0],values[1],values[0],values[1]];
     if(values.length===3)return [values[0],values[1],values[2],values[1]];
@@ -321,7 +323,10 @@
       if(!field)return;
       const group=field.closest('[data-spacing-group]');
       const linked=group&&group.querySelector('[data-spacing-link]');
-      if(linked&&linked.checked)group.querySelectorAll('[data-spacing-side]').forEach(other=>{if(other!==field)other.value=field.value;});
+      if(linked&&linked.checked){
+        group.querySelectorAll('[data-spacing-side]').forEach(other=>{if(other!==field)other.value=field.value;});
+        Promise.resolve().then(sync);
+      }
     });
   }
   function legacyFieldGroup(field) {
@@ -924,13 +929,18 @@
       if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = form.elements[key].value;
       else if (form.elements[key]) delete nextSettings[key];
     });
-    ['padding','radius','font_size','grid_columns'].forEach(key => {
+    ['radius','font_size','grid_columns'].forEach(key => {
       if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = Number(form.elements[key].value);
       else if (form.elements[key]) delete nextSettings[key];
     });
     ['line_height','width','height','min_width','max_width','min_height','max_height','gap','flex_direction','align_items','justify_content','visibility'].forEach(key => {
       if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = form.elements[key].value.trim();
       else if (form.elements[key]) delete nextSettings[key];
+    });
+    ['padding','margin'].forEach(key => {
+      const values=['top','right','bottom','left'].map(side => String(form.elements['style_'+key+'_'+side]?.value || '').trim());
+      if (values.some(Boolean)) nextSettings[key]=values.map(value=>value||'0').join(' ');
+      else delete nextSettings[key];
     });
     nextSettings.responsive = readResponsiveControls(form,nextSettings.responsive,'responsive_');
     if (validationFailed) return null;
@@ -1029,7 +1039,8 @@
       '<section data-inspector-panel="style" hidden><div class="builder-panel-heading"><div><strong>استایل بلوک</strong><small>ظاهر مستقل این بخش</small></div></div>' +
       '<label class="color-field">رنگ پس‌زمینه<input type="color" name="background" value="' + escapeHtml(settings.background || '#080b12') + '"></label>' +
       '<label class="color-field">رنگ متن<input type="color" name="text_color" value="' + escapeHtml(settings.text_color || '#f3f5fb') + '"></label>' +
-      '<label>فاصله داخلی<input type="range" name="padding" min="0" max="180" value="' + escapeHtml(settings.padding ?? 0) + '"></label>' +
+      renderBoxModelControl('padding','فاصله داخلی',settings.padding) +
+      renderBoxModelControl('margin','حاشیه بیرونی',settings.margin) +
       '<label>گردی گوشه‌ها<input type="range" name="radius" min="0" max="48" value="' + escapeHtml(settings.radius ?? 0) + '"></label>' +
       '<label>اندازه فونت (px)<input type="number" name="font_size" min="8" max="180" value="' + escapeHtml(settings.font_size ?? '') + '"></label>' +
       '<label>وزن فونت<select name="font_weight"><option value="">پیش‌فرض</option>' + ['400','500','600','700','800','900'].map(v => '<option value="' + v + '"' + (String(settings.font_weight || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
