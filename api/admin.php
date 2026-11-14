@@ -13,6 +13,7 @@ function validate_url_value(string $url): bool
 {
     if ($url === '') return false;
     if (str_starts_with($url, '/')) return !str_starts_with($url, '//');
+    if (str_starts_with($url, './') && !str_contains($url, '..')) return true;
     $parts = parse_url($url);
     return is_array($parts) && strtolower((string) ($parts['scheme'] ?? '')) === 'https' && !empty($parts['host']);
 }
@@ -230,6 +231,16 @@ try {
                     if (array_key_exists($key, $data)) {
                         $value = trim((string) $data[$key]);
                         if (mb_strlen($value) > 2000) api_fail('VALIDATION_ERROR', 'یکی از تنظیمات بیش از حد طولانی است.', 422);
+                        if (in_array($key, ['canonical_url','og_image_url','github_url','telegram_url'], true)) {
+                            $parts = parse_url($value);
+                            if (!is_array($parts) || strtolower((string) ($parts['scheme'] ?? '')) !== 'https' || empty($parts['host'])) {
+                                api_fail('VALIDATION_ERROR', 'آدرس‌های سایت و شبکه‌های اجتماعی باید HTTPS معتبر باشند.', 422, [$key => 'آدرس HTTPS معتبر وارد کن.']);
+                            }
+                        }
+                        if ($key === 'avatar_path' && !(str_starts_with($value, '/') && !str_starts_with($value, '//')) && !(str_starts_with($value, './') && !str_contains($value, '..')) && !validate_url_value($value)) {
+                            api_fail('VALIDATION_ERROR', 'مسیر تصویر پروفایل معتبر نیست.', 422);
+                        }
+                        if ($key === 'theme_color' && !preg_match('/^#[0-9a-fA-F]{6}$/', $value)) api_fail('VALIDATION_ERROR', 'رنگ باید به فرمت #RRGGBB باشد.', 422);
                         $stmt->execute([$key,$value,$admin['id']]);
                     }
                 }
