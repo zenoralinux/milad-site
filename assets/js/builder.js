@@ -465,6 +465,13 @@
   });
   $$('.builder-device-tabs button').forEach(button => button.addEventListener('click',() => setDevice(button.dataset.device)));
 
+  let previewHandshakeAttempts = 0;
+  function pingPreview() {
+    if (previewReady || !frame || !frame.contentWindow) return;
+    frame.contentWindow.postMessage({type:'milad-builder-ping'},window.location.origin);
+    previewHandshakeAttempts += 1;
+    if (previewHandshakeAttempts < 12) window.setTimeout(pingPreview,250);
+  }
   if (frame) {
     frame.addEventListener('load',() => {
       previewReady = true;
@@ -488,4 +495,5 @@
   }));
   setDevice('desktop');
   load();
+  pingPreview();
 })();
