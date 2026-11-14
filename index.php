@@ -213,4 +213,9 @@ $html = preg_replace_callback(
     $html
 ) ?? $html;
 
+require_once __DIR__ . '/app/page_builder.php';
+$builderBlocks = builder_home_blocks();
+$builderDesign = builder_design_settings();
+$html = builder_apply_to_html($html, $builderBlocks, $builderDesign);
+
 echo $html;
