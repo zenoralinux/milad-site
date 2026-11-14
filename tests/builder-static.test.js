@@ -1,6 +1,7 @@
 const fs=require('fs');const assert=require('assert');const js=fs.readFileSync('assets/js/builder.js','utf8');
 assert(!/(^|[^$])\$\(['"][^\n]*?['"]\)\.forEach\(/m.test(js),'single-node query helper used as a collection');
 assert(js.includes("$('[data-delete]').forEach")&&js.includes("document.querySelectorAll('[data-add-block]')"),'selector collection fixes');
+assert(!/(^|[^$])\\$\\(['\"][^\\n]*?['\"]\\)\\.forEach\\(/m.test(js),'no single-element selector is iterated');
 assert(!js.includes("$$$("),'no malformed triple-dollar selector');
 assert(js.includes("event.origin !== 'null'"),'opaque srcdoc origins are accepted only from the preview frame');
 assert(js.split("},'*');").length - 1 >= 3,'parent-to-srcdoc messages use wildcard target origin for opaque frames');
