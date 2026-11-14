@@ -166,6 +166,9 @@ function builder_widget_style(array $styles): string
             if (!preg_match('/^(0|[0-9]{1,2}px solid #[0-9a-fA-F]{6})$/', $value)) continue;
         } elseif ($key === 'shadow') {
             if (!preg_match('/^(?:none|(?:0|[0-9]{1,3}px)\\s+(?:0|[0-9]{1,3}px)\\s+(?:0|[0-9]{1,3}px)\\s*(?:#[0-9a-fA-F]{6}|rgba\\([0-9, .]+\\)))$/', $value)) continue;
+        } elseif (in_array($key, ['padding','margin'], true)) {
+            $length = '(?:-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw)?|auto)';
+            if (!preg_match('/^' . $length . '(?:\\s+' . $length . '){0,3}$/', $value)) continue;
         } else {
             if (!preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) continue;
         }
