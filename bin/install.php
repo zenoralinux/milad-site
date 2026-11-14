@@ -12,6 +12,11 @@ if (!cfg('database.host') || !cfg('database.name') || !cfg('database.username'))
     fwrite(STDERR, "Database configuration missing. Copy config.example.php to config.php or set MILAD_DB_HOST, MILAD_DB_NAME, MILAD_DB_USER and MILAD_DB_PASSWORD.\n");
     exit(1);
 }
+$ipHashKey = (string) cfg('app.ip_hash_key', '');
+if (strlen($ipHashKey) < 32 || str_contains($ipHashKey, 'REPLACE-WITH') || str_contains($ipHashKey, 'SET_A_LONG_RANDOM')) {
+    fwrite(STDERR, "Security configuration error: set app.ip_hash_key (or MILAD_APP_IP_HASH_KEY) to a unique random secret of at least 32 characters before installation.\n");
+    exit(1);
+}
 
 try {
     $pdo = db();
@@ -24,7 +29,7 @@ try {
     $settings = [
         'site_title' => 'میلاد | توسعه‌دهنده مستقل و سازنده محصولات دیجیتال',
         'site_description' => 'فضای دیجیتال میلاد؛ توسعه‌دهنده مستقل، علاقه‌مند به نرم‌افزار متن‌باز و سازنده پروژه‌هایی مانند Zenora Linux و ZenoraChat.',
-        'canonical_url' => (string) cfg('app.base_url', 'https://miladalizadw.ir'),
+        'canonical_url' => rtrim((string) cfg('app.base_url', 'https://miladalizadw.ir'), '/') . '/',
         'og_image_url' => rtrim((string) cfg('app.base_url', 'https://miladalizadw.ir'), '/') . '/og-image.svg',
         'github_url' => 'https://github.com/miladalizadw',
         'telegram_url' => 'https://t.me/miladalizadw',
