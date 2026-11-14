@@ -306,7 +306,7 @@ try {
                 }
                 if (is_string($value) && mb_strlen($value) > 5000) api_fail('VALIDATION_ERROR', 'یکی از فیلدهای بلوک بیش از حد طولانی است.', 422);
             }
-            $allowedStyles = ['background','text_color','padding','radius','font_size','font_weight','line_height','text_align','width','max_width','min_height','gap','border','shadow','display','responsive'];
+            $allowedStyles = ['background','text_color','padding','radius','font_size','font_weight','line_height','text_align','width','height','min_width','max_width','min_height','max_height','gap','border','shadow','display','flex_direction','grid_columns','align_items','justify_content','visibility','locked','responsive'];
             $cleanSettings = [];
             foreach ($allowedStyles as $key) {
                 if (!array_key_exists($key, $settings)) continue;
@@ -317,7 +317,7 @@ try {
                 } elseif ($key === 'responsive') {
                     if (!is_array($value)) api_fail('VALIDATION_ERROR', 'تنظیمات واکنش‌گرا معتبر نیست.', 422);
                     $responsive = [];
-                    $responsiveFields = ['font_size','line_height','width','max_width','min_height','gap','padding','margin','text_align','display'];
+                    $responsiveFields = ['font_size','line_height','width','height','min_width','max_width','min_height','max_height','gap','padding','margin','text_align','display','flex_direction','grid_columns','align_items','justify_content','visibility'];
                     foreach (['tablet','mobile'] as $device) {
                         if (!isset($value[$device])) continue;
                         if (!is_array($value[$device])) api_fail('VALIDATION_ERROR', 'تنظیمات دستگاه معتبر نیست.', 422);
@@ -325,17 +325,34 @@ try {
                             if (!in_array($field, $responsiveFields, true) || !is_scalar($setting)) continue;
                             $setting = trim((string) $setting);
                             if ($field === 'text_align' && !in_array($setting, ['right','left','center','justify','start','end'], true)) continue;
-                            if ($field === 'display' && !in_array($setting, ['none','block','flex','grid','inline-flex'], true)) continue;
-                            if (!in_array($field, ['text_align','display'], true) && !preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $setting)) continue;
+                            if ($field === 'display' && !in_array($setting, ['none','block','flex','grid','inline-flex','inline-block'], true)) continue;
+                            if ($field === 'flex_direction' && !in_array($setting, ['row','row-reverse','column','column-reverse'], true)) continue;
+                            if ($field === 'align_items' && !in_array($setting, ['stretch','center','flex-start','flex-end','baseline'], true)) continue;
+                            if ($field === 'justify_content' && !in_array($setting, ['flex-start','center','flex-end','space-between','space-around','space-evenly'], true)) continue;
+                            if ($field === 'visibility' && !in_array($setting, ['visible','hidden'], true)) continue;
+                            if ($field === 'grid_columns') {
+                                if (!preg_match('/^[1-6]$/', $setting)) continue;
+                            } elseif (!in_array($field, ['text_align','display','flex_direction','align_items','justify_content','visibility'], true) &&
+                                !preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $setting)) continue;
                             $responsive[$device][$field] = $setting;
                         }
                     }
                     $cleanSettings['responsive'] = $responsive;
-                } elseif (in_array($key, ['text_align','display','font_weight'], true)) {
+                } elseif ($key === 'locked') {
+                    if (!is_bool($value) && !in_array($value, [0,1,'0','1'], true)) api_fail('VALIDATION_ERROR', 'وضعیت قفل بلوک معتبر نیست.', 422);
+                    $cleanSettings[$key] = (bool) $value;
+                } elseif ($key === 'grid_columns') {
+                    if (!is_scalar($value) || !preg_match('/^[1-6]$/', (string) $value)) api_fail('VALIDATION_ERROR', 'تعداد ستون‌های گرید معتبر نیست.', 422);
+                    $cleanSettings[$key] = (int) $value;
+                } elseif (in_array($key, ['text_align','display','font_weight','flex_direction','align_items','justify_content','visibility'], true)) {
                     $allowedValues = [
                         'text_align' => ['right','left','center','justify','start','end'],
                         'display' => ['block','flex','grid','inline-flex','inline-block'],
-                        'font_weight' => ['100','200','300','400','500','600','700','800','900','normal','bold']
+                        'font_weight' => ['100','200','300','400','500','600','700','800','900','normal','bold'],
+                        'flex_direction' => ['row','row-reverse','column','column-reverse'],
+                        'align_items' => ['stretch','center','flex-start','flex-end','baseline'],
+                        'justify_content' => ['flex-start','center','flex-end','space-between','space-around','space-evenly'],
+                        'visibility' => ['visible','hidden']
                     ];
                     $value = (string) $value;
                     if (!in_array($value, $allowedValues[$key], true)) api_fail('VALIDATION_ERROR', 'مقدار ظاهری بلوک معتبر نیست.', 422);

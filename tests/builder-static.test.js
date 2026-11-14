@@ -46,4 +46,9 @@ assert(js.indexOf('function setNestedNodeVisibility') < js.indexOf('function mov
 assert(js.indexOf('function bindNestedNavigatorDrag') < js.indexOf('function move(id,delta)'), 'nested drag binding is in builder scope');
 assert(js.indexOf('function toggleLockSelectedElement') < js.indexOf('function moveSelectedElement(delta)'), 'context lock handler is in builder scope');
 assert(js.includes(".split(/[\\n,]/)"), 'project technologies split on line breaks and commas');
+
+const adminApi = fs.readFileSync('api/admin.php','utf8');
+assert(adminApi.includes("'locked','responsive'"), 'block lock state persists through the authenticated block API');
+assert(adminApi.includes("'flex_direction','grid_columns','align_items','justify_content','visibility'"), 'server accepts only the new safe responsive and layout fields');
+assert(adminApi.includes("if ($key === 'locked')") && adminApi.includes("if ($key === 'grid_columns')"), 'server validates boolean lock and grid column ranges');
 console.log('Milad Studio Pro static invariants passed');
