@@ -100,6 +100,7 @@ function start_admin_session(): void
         'samesite' => 'Lax',
     ]);
     ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
     ini_set('session.cookie_httponly', '1');
     session_start();
 }
@@ -123,6 +124,20 @@ function verify_csrf(): void
 function current_admin(): ?array
 {
     start_admin_session();
+    $now = time();
+    if (isset($_SESSION['admin_id'])) {
+        if (isset($_SESSION['admin_last_activity']) && ($now - (int) $_SESSION['admin_last_activity']) > 1800) {
+            $_SESSION = [];
+            session_regenerate_id(true);
+            $_SESSION['_csrf'] = bin2hex(random_bytes(32));
+            return null;
+        }
+        if (!isset($_SESSION['admin_last_regeneration']) || ($now - (int) $_SESSION['admin_last_regeneration']) > 900) {
+            session_regenerate_id(true);
+            $_SESSION['admin_last_regeneration'] = $now;
+        }
+        $_SESSION['admin_last_activity'] = $now;
+    }
     $id = (int) ($_SESSION['admin_id'] ?? 0);
     if ($id < 1) return null;
     $stmt = db()->prepare('SELECT id, username, display_name, role FROM admin_users WHERE id = ? AND is_active = 1 LIMIT 1');
