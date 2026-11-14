@@ -55,6 +55,9 @@
   let loaded = false;
   let previewReady = false;
   const saveStates = new Map();
+  let designSaveTimer = null;
+  let designSaving = false;
+  let designSaveAgain = false;
 
   async function request(action, method = 'GET', payload = null, id = null) {
     const query = new URLSearchParams({action});
@@ -379,18 +382,51 @@
       if (form.elements[key]) form.elements[key].value = value;
     });
   }
-  async function saveDesign(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
+  function readDesignForm() {
+    const form = $('#builderDesignForm');
     const payload = {};
     ['accent_color','page_background','content_width','corner_radius','font_scale','section_spacing'].forEach(key => {
       payload[key] = form.elements[key].value;
     });
+    return payload;
+  }
+
+  async function persistDesign() {
+    if (designSaving) {
+      designSaveAgain = true;
+      return;
+    }
+    designSaving = true;
+    designSaveAgain = false;
+    const payload = readDesignForm();
     try {
       design = await request('builder-design','PUT',payload);
       postPreviewState();
-      status('تنظیمات ظاهری ذخیره شد.','success');
-    } catch (error) { status(error.message,'error'); }
+      status('ظاهر سایت ذخیره شد.','success');
+    } catch (error) {
+      status(error.message,'error');
+    } finally {
+      designSaving = false;
+      if (designSaveAgain) persistDesign();
+    }
+  }
+
+  function onDesignInput() {
+    design = readDesignForm();
+    postPreviewState();
+    if (designSaveTimer) window.clearTimeout(designSaveTimer);
+    designSaveTimer = window.setTimeout(() => {
+      designSaveTimer = null;
+      persistDesign();
+    },650);
+    status('ظاهر سایت در پیش‌نمایش تغییر کرد؛ ذخیره خودکار در صف است.','');
+  }
+
+  async function saveDesign(event) {
+    event.preventDefault();
+    if (designSaveTimer) window.clearTimeout(designSaveTimer);
+    designSaveTimer = null;
+    await persistDesign();
   }
 
   function setDevice(device) {
@@ -422,6 +458,7 @@
 
   $$('[data-add-block]').forEach(button => button.addEventListener('click',() => addBlock(button.dataset.addBlock)));
   $('#builderDesignForm')?.addEventListener('submit',saveDesign);
+  $('#builderDesignForm')?.addEventListener('input',onDesignInput);
   $('#builderReload')?.addEventListener('click',() => {
     if (frame) frame.contentWindow.location.reload();
     load();
