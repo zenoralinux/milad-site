@@ -248,8 +248,9 @@ function builder_legacy_element_css(array $blocks): string
 {
     $selectors = [
         'hero' => [
-            'eyebrow' => '.hero-copy .eyebrow', 'title_line1' => '.hero-copy h1', 'title_line2' => '.hero-copy h1 .type-gradient',
-            'description' => '.hero-description', 'primary_cta_text' => '.hero-actions a:first-child',
+            'eyebrow' => '.hero-copy .eyebrow', 'title_line1' => '.hero-copy h1',
+            'title_line2' => '.hero-copy h1 .type-gradient', 'description' => '.hero-description',
+            'primary_cta_text' => '.hero-actions a:first-child',
             'secondary_cta_text' => '.hero-actions a:nth-child(2)', 'footnote' => '.hero-footnote span:last-child'
         ],
         'intro' => ['text_before' => '.intro-strip-inner p', 'text_emphasis' => '.intro-strip-inner p span'],
@@ -258,24 +259,33 @@ function builder_legacy_element_css(array $blocks): string
             'description' => '.section-heading > p'
         ],
         'about' => [
-            'section_index' => '.about-heading .section-index', 'title_line1' => '.about-heading h2', 'title_line2' => '.about-heading h2 .type-gradient',
-            'description' => '.about-heading > p', 'link_text' => '.about-heading .text-link'
+            'section_index' => '.about-heading .section-index', 'title_line1' => '.about-heading h2',
+            'title_line2' => '.about-heading h2 .type-gradient', 'description' => '.about-heading > p',
+            'link_text' => '.about-heading .text-link'
         ],
         'now' => [
-            'section_index' => '.now-panel-copy .section-index', 'title_line1' => '.now-panel-copy h2', 'title_line2' => '.now-panel-copy h2 .type-gradient',
-            'description' => '.now-panel-copy > p', 'status_title' => '.now-note strong',
-            'status_subtitle' => '.now-note small'
+            'section_index' => '.now-panel-copy .section-index', 'title_line1' => '.now-panel-copy h2',
+            'title_line2' => '.now-panel-copy h2 .type-gradient', 'description' => '.now-panel-copy > p',
+            'status_title' => '.now-note strong', 'status_subtitle' => '.now-note small'
         ],
         'contact' => [
-            'section_index' => '.contact-copy .section-index', 'title_line1' => '.contact-copy h2', 'title_line2' => '.contact-copy h2 .type-gradient',
-            'description' => '.contact-copy > p'
+            'section_index' => '.contact-copy .section-index', 'title_line1' => '.contact-copy h2',
+            'title_line2' => '.contact-copy h2 .type-gradient', 'description' => '.contact-copy > p'
         ],
         'footer' => ['tagline' => '.footer-brand > span:last-child', 'copyright' => '.footer-copy'],
         'text' => ['title' => '.section-heading h2', 'body' => '.section-heading > p'],
         'cta' => ['title' => '.panel-card h2', 'body' => '.panel-card > p', 'button_text' => '.panel-card a.button'],
         'stats' => ['title' => '.container > h2']
     ];
+    $propertyMap = [
+        'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width',
+        'max_width' => 'max-width', 'min_height' => 'min-height', 'gap' => 'gap',
+        'padding' => 'padding', 'margin' => 'margin', 'text_align' => 'text-align',
+        'display' => 'display'
+    ];
+    $queries = ['tablet' => '(max-width: 1024px)', 'mobile' => '(max-width: 767px)'];
     $output = '';
+    $responsiveOutput = ['tablet' => '', 'mobile' => ''];
     foreach ($blocks as $block) {
         $type = (string) ($block['block_type'] ?? '');
         $key = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($block['block_key'] ?? ''));
@@ -284,12 +294,35 @@ function builder_legacy_element_css(array $blocks): string
         foreach ($selectors[$type] as $field => $selector) {
             if (!isset($styles[$field]) || !is_array($styles[$field])) continue;
             $style = builder_widget_style($styles[$field]);
-            if ($style === '') continue;
-            $declarations = substr($style, 8, -1);
-            if ($declarations !== '') {
-                $output .= '[data-builder-key="' . $key . '"] ' . $selector . '{' . $declarations . '}';
+            if ($style !== '') {
+                $declarations = substr($style, 8, -1);
+                if ($declarations !== '') $output .= '[data-builder-key="' . $key . '"] ' . $selector . '{' . $declarations . '}';
+            }
+            foreach ($queries as $device => $query) {
+                $responsive = $styles[$field]['responsive'][$device] ?? [];
+                if (!is_array($responsive)) continue;
+                $declarations = [];
+                foreach ($propertyMap as $propertyKey => $property) {
+                    if (!isset($responsive[$propertyKey]) || !is_scalar($responsive[$propertyKey])) continue;
+                    $value = trim((string) $responsive[$propertyKey]);
+                    if ($propertyKey === 'text_align') {
+                        if (!in_array($value, ['right','left','center','justify','start','end'], true)) continue;
+                    } elseif ($propertyKey === 'display') {
+                        if (!in_array($value, ['none','block','flex','grid','inline-flex'], true)) continue;
+                    } elseif (!preg_match('/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) {
+                        continue;
+                    }
+                    $declarations[] = $property . ':' . $value;
+                }
+                if ($declarations) {
+                    $responsiveOutput[$device] .= '[data-builder-key="' . $key . '"] ' . $selector .
+                        '{' . implode(';', $declarations) . '}';
+                }
             }
         }
+    }
+    foreach ($responsiveOutput as $device => $rules) {
+        if ($rules !== '') $output .= '@media ' . $queries[$device] . '{' . $rules . '}';
     }
     return $output !== '' ? '<style id="builder-element-styles">' . $output . '</style>' : '';
 }
