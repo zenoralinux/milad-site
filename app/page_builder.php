@@ -145,9 +145,12 @@ function builder_widget_style(array $styles): string
     $map = [
         'background' => 'background-color', 'color' => 'color', 'text_color' => 'color',
         'font_size' => 'font-size', 'font_weight' => 'font-weight', 'line_height' => 'line-height',
-        'text_align' => 'text-align', 'width' => 'width', 'max_width' => 'max-width',
-        'min_height' => 'min-height', 'gap' => 'gap', 'padding' => 'padding', 'margin' => 'margin',
-        'radius' => 'border-radius', 'border' => 'border', 'shadow' => 'box-shadow', 'display' => 'display'
+        'text_align' => 'text-align', 'width' => 'width', 'height' => 'height', 'min_width' => 'min-width',
+        'max_width' => 'max-width', 'min_height' => 'min-height', 'max_height' => 'max-height',
+        'gap' => 'gap', 'padding' => 'padding', 'margin' => 'margin',
+        'radius' => 'border-radius', 'border' => 'border', 'shadow' => 'box-shadow', 'display' => 'display',
+        'flex_direction' => 'flex-direction', 'align_items' => 'align-items', 'justify_content' => 'justify-content',
+        'visibility' => 'visibility', 'grid_columns' => 'grid-template-columns'
     ];
     $out = [];
     foreach ($map as $key => $property) {
@@ -162,6 +165,17 @@ function builder_widget_style(array $styles): string
             if (!preg_match('/^(100|200|300|400|500|600|700|800|900|normal|bold)$/', $value)) continue;
         } elseif ($key === 'display') {
             if (!in_array($value, ['block','flex','grid','inline-flex','inline-block'], true)) continue;
+        } elseif ($key === 'flex_direction') {
+            if (!in_array($value, ['row','row-reverse','column','column-reverse'], true)) continue;
+        } elseif ($key === 'align_items') {
+            if (!in_array($value, ['stretch','center','flex-start','flex-end','baseline'], true)) continue;
+        } elseif ($key === 'justify_content') {
+            if (!in_array($value, ['flex-start','center','flex-end','space-between','space-around','space-evenly'], true)) continue;
+        } elseif ($key === 'visibility') {
+            if (!in_array($value, ['visible','hidden'], true)) continue;
+        } elseif ($key === 'grid_columns') {
+            if (!preg_match('/^[1-6]$/', $value)) continue;
+            $value = 'repeat(' . (int) $value . ',minmax(0,1fr))';
         } elseif ($key === 'border') {
             if (!preg_match('/^(0|[0-9]{1,2}px solid #[0-9a-fA-F]{6})$/', $value)) continue;
         } elseif ($key === 'shadow') {
@@ -396,9 +410,11 @@ function builder_responsive_widget_css(array $widgets, string $device, int $dept
 {
     if ($depth > 8) return '';
     $propertyMap = [
-        'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width',
-        'max_width' => 'max-width', 'min_height' => 'min-height', 'gap' => 'gap',
-        'padding' => 'padding', 'margin' => 'margin', 'text_align' => 'text-align', 'display' => 'display'
+        'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width', 'height' => 'height',
+        'min_width' => 'min-width', 'max_width' => 'max-width', 'min_height' => 'min-height', 'max_height' => 'max-height',
+        'gap' => 'gap', 'padding' => 'padding', 'margin' => 'margin', 'text_align' => 'text-align',
+        'display' => 'display', 'flex_direction' => 'flex-direction', 'grid_columns' => 'grid-template-columns',
+        'align_items' => 'align-items', 'justify_content' => 'justify-content', 'visibility' => 'visibility'
     ];
     $rules = '';
     foreach (array_slice($widgets, 0, 40) as $widget) {
@@ -413,7 +429,18 @@ function builder_responsive_widget_css(array $widgets, string $device, int $dept
                 if ($field === 'text_align') {
                     if (!in_array($value, ['right','left','center','justify','start','end'], true)) continue;
                 } elseif ($field === 'display') {
-                    if (!in_array($value, ['none','block','flex','grid','inline-flex'], true)) continue;
+                    if (!in_array($value, ['none','block','flex','grid','inline-flex','inline-block'], true)) continue;
+                } elseif ($field === 'flex_direction') {
+                    if (!in_array($value, ['row','row-reverse','column','column-reverse'], true)) continue;
+                } elseif ($field === 'align_items') {
+                    if (!in_array($value, ['stretch','center','flex-start','flex-end','baseline'], true)) continue;
+                } elseif ($field === 'justify_content') {
+                    if (!in_array($value, ['flex-start','center','flex-end','space-between','space-around','space-evenly'], true)) continue;
+                } elseif ($field === 'visibility') {
+                    if (!in_array($value, ['visible','hidden'], true)) continue;
+                } elseif ($field === 'grid_columns') {
+                    if (!preg_match('/^[1-6]$/', $value)) continue;
+                    $value = 'repeat(' . (int) $value . ',minmax(0,1fr))';
                 } elseif (!preg_match('/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) {
                     continue;
                 }
@@ -431,9 +458,11 @@ function builder_responsive_widget_css(array $widgets, string $device, int $dept
 function builder_responsive_css(array $blocks): string
 {
     $propertyMap = [
-        'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width',
-        'max_width' => 'max-width', 'min_height' => 'min-height', 'gap' => 'gap',
-        'padding' => 'padding', 'margin' => 'margin', 'text_align' => 'text-align', 'display' => 'display'
+        'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width', 'height' => 'height',
+        'min_width' => 'min-width', 'max_width' => 'max-width', 'min_height' => 'min-height', 'max_height' => 'max-height',
+        'gap' => 'gap', 'padding' => 'padding', 'margin' => 'margin', 'text_align' => 'text-align',
+        'display' => 'display', 'flex_direction' => 'flex-direction', 'grid_columns' => 'grid-template-columns',
+        'align_items' => 'align-items', 'justify_content' => 'justify-content', 'visibility' => 'visibility'
     ];
     $queries = ['tablet' => '(max-width: 1024px)', 'mobile' => '(max-width: 767px)'];
     $css = '';
@@ -450,8 +479,19 @@ function builder_responsive_css(array $blocks): string
                 if ($field === 'text_align') {
                     if (!in_array($value, ['right','left','center','justify','start','end'], true)) continue;
                 } elseif ($field === 'display') {
-                    if (!in_array($value, ['none','block','flex','grid','inline-flex'], true)) continue;
-                } elseif (!preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) {
+                    if (!in_array($value, ['none','block','flex','grid','inline-flex','inline-block'], true)) continue;
+                } elseif ($field === 'flex_direction') {
+                    if (!in_array($value, ['row','row-reverse','column','column-reverse'], true)) continue;
+                } elseif ($field === 'align_items') {
+                    if (!in_array($value, ['stretch','center','flex-start','flex-end','baseline'], true)) continue;
+                } elseif ($field === 'justify_content') {
+                    if (!in_array($value, ['flex-start','center','flex-end','space-between','space-around','space-evenly'], true)) continue;
+                } elseif ($field === 'visibility') {
+                    if (!in_array($value, ['visible','hidden'], true)) continue;
+                } elseif ($field === 'grid_columns') {
+                    if (!preg_match('/^[1-6]$/', $value)) continue;
+                    $value = 'repeat(' . (int) $value . ',minmax(0,1fr))';
+                } elseif (!preg_match('/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) {
                     continue;
                 }
                 $declarations[] = $property . ':' . $value;
@@ -746,9 +786,12 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     }
     if (item.id) node.setAttribute('data-widget-node',String(item.id));
     var styles = item.styles || {};
-    var styleMap = {background:'backgroundColor',color:'color',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
+    var styleMap = {background:'backgroundColor',color:'color',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',height:'height',min_width:'minWidth',max_width:'maxWidth',min_height:'minHeight',max_height:'maxHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display',flex_direction:'flexDirection',grid_columns:'gridTemplateColumns',align_items:'alignItems',justify_content:'justifyContent',visibility:'visibility'};
     Object.keys(styleMap).forEach(function(key){
-      if (styles[key] !== undefined && styles[key] !== '') node.style[styleMap[key]] = String(styles[key]);
+      if (styles[key] === undefined || styles[key] === '') return;
+      var value=String(styles[key]);
+      if(key==='grid_columns'){if(!/^[1-6]$/.test(value))return;value='repeat('+value+',minmax(0,1fr))';}
+      node.style[styleMap[key]] = value;
     });
     (Array.isArray(item.children) ? item.children : []).slice(0,40).forEach(function(child){
       node.appendChild(makeNestedWidget(child,depth+1));
@@ -955,7 +998,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       style.id = 'builder-responsive-styles';
       document.head.appendChild(style);
     }
-    var properties = {font_size:'font-size',line_height:'line-height',width:'width',max_width:'max-width',min_height:'min-height',gap:'gap',padding:'padding',margin:'margin',text_align:'text-align',display:'display'};
+    var properties = {font_size:'font-size',line_height:'line-height',width:'width',height:'height',min_width:'min-width',max_width:'max-width',min_height:'min-height',max_height:'max-height',gap:'gap',padding:'padding',margin:'margin',text_align:'text-align',display:'display',flex_direction:'flex-direction',grid_columns:'grid-template-columns',align_items:'align-items',justify_content:'justify-content',visibility:'visibility'};
     var media = {tablet:'(max-width: 1024px)',mobile:'(max-width: 767px)'};
     function widgetRules(items,device,depth) {
       if (depth > 8) return '';
@@ -972,9 +1015,21 @@ html[data-builder-preview="1"] body{padding-top:0!important}
             if (field === 'text_align') {
               if (['right','left','center','justify','start','end'].indexOf(value) === -1) return;
             } else if (field === 'display') {
-              if (['none','block','flex','grid','inline-flex'].indexOf(value) === -1) return;
+              if (['none','block','flex','grid','inline-flex','inline-block'].indexOf(value) === -1) return;
+            } else if (field === 'flex_direction') {
+              if (['row','row-reverse','column','column-reverse'].indexOf(value) === -1) return;
+            } else if (field === 'align_items') {
+              if (['stretch','center','flex-start','flex-end','baseline'].indexOf(value) === -1) return;
+            } else if (field === 'justify_content') {
+              if (['flex-start','center','flex-end','space-between','space-around','space-evenly'].indexOf(value) === -1) return;
+            } else if (field === 'visibility') {
+              if (['visible','hidden'].indexOf(value) === -1) return;
+            } else if (field === 'grid_columns') {
+              if (!/^[1-6]$/.test(value)) return;
+              value = 'repeat(' + Number(value) + ',minmax(0,1fr))';
             } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
             declarations.push(properties[field] + ':' + value);
+          });
           });
           if (declarations.length) rules += '[data-widget-node="' + id + '"]{' + declarations.join(';') + '}';
         }
@@ -1157,7 +1212,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       node.style.color = block.settings && block.settings.text_color || '';
       node.style.paddingBlock = block.settings && block.settings.padding !== undefined ? Number(block.settings.padding) + 'px' : '';
       node.style.borderRadius = block.settings && block.settings.radius !== undefined ? Number(block.settings.radius) + 'px' : '';
-      var rootStyleMap = {font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',border:'border',shadow:'boxShadow',display:'display'};
+      var rootStyleMap = {font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',height:'height',min_width:'minWidth',max_width:'maxWidth',min_height:'minHeight',max_height:'maxHeight',gap:'gap',border:'border',shadow:'boxShadow',display:'display',flex_direction:'flexDirection',align_items:'alignItems',justify_content:'justifyContent',visibility:'visibility'};
       Object.keys(rootStyleMap).forEach(function(key){
         if (block.settings && block.settings[key] !== undefined) node.style[rootStyleMap[key]] = String(block.settings[key]);
         else node.style[rootStyleMap[key]] = '';
