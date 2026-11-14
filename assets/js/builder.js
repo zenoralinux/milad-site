@@ -352,7 +352,11 @@
         '<button type="button" data-delete="' + Number(block.id) + '" title="حذف">×</button></div></article>';
     }).join('');
 
-    $$('.builder-block').forEach(node => {
+    $('[data-node-select]').forEach(button => button.addEventListener('click',event => {
+      event.stopPropagation();
+      selectNestedNode(Number(button.dataset.blockId),String(button.dataset.nodeSelect));
+    }));
+    $('.builder-block').forEach(node => {
       node.addEventListener('click',event => {
         if (event.target.closest('button')) return;
         selectBlock(Number(node.dataset.blockId));
