@@ -2,6 +2,12 @@
 declare(strict_types=1);
 
 define('MILAD_ROOT', dirname(__DIR__));
+if (!function_exists('h')) {
+    function h($value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+}
 require MILAD_ROOT . '/app/page_builder.php';
 
 $fixture = <<<'HTML'
@@ -39,4 +45,72 @@ if (in_array(false, $checks, true)) {
     exit(1);
 }
 
-echo "Internal preview is self-contained." . PHP_EOL;
+
+
+$nestedHtml = builder_render_nested_widget([
+    'id' => 'widget-root-test',
+    'type' => 'container',
+    'content' => ['direction' => 'column'],
+    'children' => [
+        [
+            'id' => 'node-heading-test',
+            'type' => 'heading',
+            'content' => ['text' => 'Selectable heading', 'level' => 2],
+            'styles' => ['text_color' => '#abcdef']
+        ],
+        [
+            'id' => 'node-card-test',
+            'type' => 'card',
+            'content' => ['title' => 'Selectable card', 'body' => 'Card body'],
+            'children' => [
+                ['id' => 'node-child-copy-test', 'type' => 'paragraph', 'content' => ['text' => 'Nested copy']]
+            ]
+        ]
+    ]
+]);
+$nestedResponsive = builder_responsive_css([[
+    'block_key' => 'custom-test',
+    'content' => [
+        'children' => [[
+            'id' => 'node-heading-test',
+            'type' => 'heading',
+            'styles' => ['responsive' => ['mobile' => ['font_size' => '20px']]]
+        ]]
+    ]
+]]);
+$legacyStyles = builder_legacy_element_css([[
+    'block_key' => 'hero',
+    'block_type' => 'hero',
+    'content' => [
+        'element_styles' => [
+            'description' => [
+                'font_size' => '21px',
+                'text_color' => '#abcdef',
+                'responsive' => ['mobile' => ['font_size' => '14px']]
+            ]
+        ]
+    ]
+]]);
+$previewScript = builder_preview_script();
+$unsafeStyle = builder_widget_style(['font_size' => '12px;position:fixed', 'background' => 'url(javascript:alert(1))']);
+
+$checks = array_merge($checks, [
+    'nested widgets expose stable selectable IDs' =>
+        strpos($nestedHtml, 'data-widget-node="widget-root-test"') !== false &&
+        strpos($nestedHtml, 'data-widget-node="node-heading-test"') !== false &&
+        strpos($nestedHtml, 'data-widget-node="node-child-copy-test"') !== false,
+    'nested widget responsive rules target exact node IDs' =>
+        strpos($nestedResponsive, '[data-widget-node="node-heading-test"]{font-size:20px}') !== false &&
+        strpos($nestedResponsive, '@media (max-width: 767px)') !== false,
+    'legacy element styles persist with responsive overrides' =>
+        strpos($legacyStyles, '[data-builder-key="hero"] .hero-description{font-size:21px;color:#abcdef}') !== false &&
+        strpos($legacyStyles, '@media (max-width: 767px)') !== false &&
+        strpos($legacyStyles, 'font-size:14px') !== false,
+    'preview script sends exact node selection messages' =>
+        strpos($previewScript, 'milad-builder-node-select') !== false &&
+        strpos($previewScript, 'data-widget-node') !== false &&
+        strpos($previewScript, 'selectOutline(key,nodeId,legacyField)') !== false,
+    'unsafe element styles are rejected' => $unsafeStyle === '',
+]);
+
+echo "Internal preview and element editing checks passed." . PHP_EOL;
