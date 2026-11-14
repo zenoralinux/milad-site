@@ -92,7 +92,7 @@
         escapeHtml(titleOf(block)) + '</b><br>' + escapeHtml(summarize(block)).slice(0,180) + '</div></div>' +
         '<div class="builder-block-actions"><button type="button" data-up="' + Number(block.id) + '" title="بالا">↑</button>' +
         '<button type="button" data-down="' + Number(block.id) + '" title="پایین">↓</button>' +
-        '<button type="button" data-clone="' + Number(block.id) + '" title="تکثیر">＋</button>' +
+        (['hero','intro','projects','about','now','contact'].includes(block.block_type) ? '' : '<button type="button" data-clone="' + Number(block.id) + '" title="تکثیر">＋</button>') +
         '<button type="button" data-delete="' + Number(block.id) + '" title="حذف">×</button></div></article>';
     }).join('');
     $$('.builder-block').forEach(node => {
@@ -198,15 +198,16 @@
       event.preventDefault();
       const form = event.currentTarget;
       const content = Object.assign({},block.content || {});
+      let validationFailed = false;
       contentFields.forEach(([key]) => {
         const field = form.elements[key];
         if (!field) return;
         if (key === 'items') {
           try { content[key] = JSON.parse(field.value || '[]'); }
-          catch { status('ساختار JSON آیتم‌ها معتبر نیست.','error'); return; }
+          catch { validationFailed = true; }
         } else content[key] = field.value;
       });
-      if (statusText().includes('ساختار JSON')) return;
+      if (validationFailed) { status('ساختار JSON آیتم‌ها معتبر نیست.','error'); return; }
       const payload = {
         label:form.elements.label.value,
         content,
