@@ -2,7 +2,9 @@
   'use strict';
   const body = document.body;
   if (body.dataset.mode === 'setup') return;
-  const API = '/api/admin.php';
+  const basePath = document.body.dataset.basePath || '';
+  const appUrl = path => basePath + '/' + String(path).replace(/^\\/+/, '');
+  const API = appUrl('api/admin.php');
   let csrf = body.dataset.csrf || '';
   let projects = [];
   let sections = [];
@@ -295,7 +297,7 @@
 
   $('#logoutButton')?.addEventListener('click',async () => {
     if (!window.confirm('از پنل مدیریت خارج می‌شوی؟')) return;
-    try { await request('logout','POST',{}); window.location.href='/admin'; }
+    try { await request('logout','POST',{}); window.location.href=appUrl('admin'); }
     catch(e) { toast(e.message,true); }
   });
 
