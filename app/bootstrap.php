@@ -277,7 +277,7 @@ function json_body(): array
 
 function request_ip_hash(): string
 {
-    $secret = hash('sha256', (string) cfg('database.password', '') . '|milad-site-ip-hash');
+    $secret = hash('sha256', (string) cfg('database.name', '') . '|' . (string) cfg('database.username', '') . '|' . (string) cfg('database.password', '') . '|milad-site-ip-hash');
     return hash_hmac('sha256', (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), $secret);
 }
 
