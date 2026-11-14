@@ -228,6 +228,10 @@
     if (key === 'height') {
       return '<label>' + escapeHtml(label) + '<input type="number" name="' + key + '" min="8" max="240" value="' + escapeHtml(value ?? 48) + '"></label>';
     }
+    if (key === 'src') {
+      return '<label>' + escapeHtml(label) + '<input name="src" value="' + escapeHtml(value || '') + '" dir="ltr" placeholder="https://…">' +
+        '<button type="button" class="secondary-button compact builder-open-media" data-open-media>انتخاب از کتابخانه رسانه</button></label>';
+    }
     if (key === 'items' || key === 'principles_items' || key === 'children') {
       return '<label>' + escapeHtml(label) + '<textarea name="' + key + '" dir="ltr" spellcheck="false">' +
         escapeHtml(JSON.stringify(value || [],null,2)) + '</textarea><small>آیتم‌ها را به صورت آرایه JSON ویرایش کن.</small></label>';
@@ -260,24 +264,24 @@
         content[key] = field.value;
       }
     });
+    const nextSettings = Object.assign({},block.settings || {});
+    ['background','text_color','font_weight','text_align','border','shadow','display'].forEach(key => {
+      if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = form.elements[key].value;
+      else if (form.elements[key]) delete nextSettings[key];
+    });
+    ['padding','radius','font_size','line_height','width','max_width','min_height','gap'].forEach(key => {
+      if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = Number(form.elements[key].value);
+      else if (form.elements[key]) delete nextSettings[key];
+    });
+    if (form.elements.responsive) {
+      try { nextSettings.responsive = JSON.parse(form.elements.responsive.value || '{}'); }
+      catch (error) { validationFailed = true; }
+    }
     if (validationFailed) return null;
     return {
       label:form.elements.label.value,
       content,
-      settings:(() => {
-        const next = Object.assign({},block.settings || {});
-        ['background','text_color','font_weight','text_align','border','shadow','display'].forEach(key => {
-          if (form.elements[key] && form.elements[key].value !== '') next[key] = form.elements[key].value;
-        });
-        ['padding','radius','font_size','line_height','width','max_width','min_height','gap'].forEach(key => {
-          if (form.elements[key] && form.elements[key].value !== '') next[key] = Number(form.elements[key].value);
-        });
-        if (form.elements.responsive) {
-          try { next.responsive = JSON.parse(form.elements.responsive.value || '{}'); }
-          catch (error) { validationFailed = true; }
-        }
-        return next;
-      })(),
+      settings:nextSettings,
       is_visible:form.elements.visible.checked
     };
   }
@@ -619,7 +623,110 @@
     } catch (error) { status(error.message,'error'); }
   }
 
-  $$('[data-add-block]').forEach(button => button.addEventListener('click',() => addBlock(button.dataset.addBlock)));
+  const mediaModal = document.getElementById('builderMediaModal');
+  const mediaGrid = document.getElementById('builderMediaGrid');
+  const mediaStatus = document.getElementById('builderMediaStatus');
+  const templateModal = document.getElementById('builderTemplateModal');
+
+  async function mediaRequest(method='GET',formData=null) {
+    const options = {method,credentials:'same-origin',headers:{'Accept':'application/json'}};
+    if (method !== 'GET') options.headers['X-CSRF-Token'] = csrf;
+    if (formData) options.body = formData;
+    const response = await fetch(basePath + '/api/media.php',options);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) throw new Error(result.error?.message || 'عملیات رسانه ناموفق بود.');
+    return result.data || {};
+  }
+  async function loadMedia() {
+    if (!mediaGrid) return;
+    mediaGrid.innerHTML = '<p class="builder-empty">در حال دریافت فایل‌ها…</p>';
+    try {
+      const data = await mediaRequest();
+      const files = data.files || [];
+      mediaGrid.innerHTML = files.length ? files.map(file => {
+        const isImage = String(file.mime_type || '').indexOf('image/') === 0;
+        const preview = isImage
+          ? '<img src="' + escapeHtml(file.url) + '" alt="' + escapeHtml(file.alt_text || '') + '" loading="lazy">'
+          : '<div class="builder-media-video">VIDEO</div>';
+        return '<article class="builder-media-item" data-media-id="' + Number(file.id) + '">' + preview +
+          '<div><strong>' + escapeHtml(file.filename) + '</strong><small>' + escapeHtml(file.mime_type) + '</small></div>' +
+          '<button type="button" class="secondary-button compact" data-media-select="' + Number(file.id) + '" data-media-url="' + escapeHtml(file.url) + '">انتخاب</button></article>';
+      }).join('') : '<p class="builder-empty">هنوز فایلی بارگذاری نشده است.</p>';
+    } catch (error) {
+      mediaGrid.innerHTML = '<p class="builder-empty">' + escapeHtml(error.message) + '</p>';
+    }
+  }
+  function openMediaPicker() {
+    if (!mediaModal) return;
+    mediaModal.hidden = false;
+    loadMedia();
+  }
+  if (mediaModal) {
+    mediaModal.addEventListener('click',event => {
+      if (event.target === mediaModal || event.target.closest('[data-media-close]')) mediaModal.hidden = true;
+      const select = event.target.closest('[data-media-select]');
+      if (select) {
+        const form = $('#builderBlockForm');
+        const input = form && form.elements.src;
+        if (input) {
+          input.value = select.dataset.mediaUrl || '';
+          input.dispatchEvent(new Event('input',{bubbles:true}));
+        }
+        mediaModal.hidden = true;
+      }
+    });
+  }
+  $('#builderBlockForm')?.addEventListener('click',event => {
+    if (event.target.closest('[data-open-media]')) openMediaPicker();
+  });
+  document.getElementById('builderMediaUpload')?.addEventListener('submit',async event => {
+    event.preventDefault();
+    if (mediaStatus) mediaStatus.textContent = 'در حال بارگذاری…';
+    try {
+      const formData = new FormData(event.currentTarget);
+      await mediaRequest('POST',formData);
+      event.currentTarget.reset();
+      if (mediaStatus) mediaStatus.textContent = 'فایل بارگذاری شد.';
+      await loadMedia();
+    } catch (error) {
+      if (mediaStatus) mediaStatus.textContent = error.message;
+    }
+  });
+  const templates = {
+    'feature-grid':{type:'grid',label:'گرید ویژگی‌ها',content:{columns:3,children:[
+      {id:'node-feature-1',type:'card',content:{title:'طراحی دقیق',body:'توضیح کوتاه درباره ویژگی اول'}},
+      {id:'node-feature-2',type:'card',content:{title:'توسعه سریع',body:'توضیح کوتاه درباره ویژگی دوم'}},
+      {id:'node-feature-3',type:'card',content:{title:'واکنش‌گرا',body:'توضیح کوتاه درباره ویژگی سوم'}}
+    ]}},
+    callout:{type:'cta',label:'دعوت به اقدام',content:{title:'آماده شروع هستی؟',body:'برای شروع یک گفت‌وگو با من در ارتباط باش.',button_text:'تماس با من',button_url:'#contact'}},
+    'profile-intro':{type:'container',label:'معرفی شخصی',content:{direction:'column',children:[
+      {id:'node-profile-heading',type:'heading',content:{text:'سلام، من میلاد هستم',level:2}},
+      {id:'node-profile-copy',type:'paragraph',content:{text:'اینجا می‌توانی معرفی کوتاهی درباره خودت بنویسی.'}},
+      {id:'node-profile-button',type:'button',content:{text:'مشاهده پروژه‌ها',url:'#work'}}
+    ]}}
+  };
+  async function applyTemplate(key) {
+    const template = templates[key];
+    if (!template) return;
+    try {
+      const created = await request('builder-block-add','POST',{type:template.type});
+      await request('builder-block-save','PUT',{
+        label:template.label,content:template.content,settings:{},is_visible:true
+      },created.id);
+      if (templateModal) templateModal.hidden = true;
+      await load(created.id);
+      status('قالب آماده به صفحه اضافه شد.','success');
+    } catch (error) { status(error.message,'error'); }
+  }
+  $('#builderTemplates')?.addEventListener('click',() => { if (templateModal) templateModal.hidden = false; });
+  if (templateModal) templateModal.addEventListener('click',event => {
+    if (event.target === templateModal || event.target.closest('[data-template-close]')) templateModal.hidden = true;
+    const button = event.target.closest('[data-template]');
+    if (button) applyTemplate(button.dataset.template);
+  });
+
+
+  $('[data-add-block]').forEach(button => button.addEventListener('click',() => addBlock(button.dataset.addBlock)));
   $$('[data-library-tab]').forEach(button => button.addEventListener('click',() => setLibraryTab(button.dataset.libraryTab)));
   $$('[data-inspector-tab]').forEach(button => button.addEventListener('click',() => setInspectorTab(button.dataset.inspectorTab)));
   $('#builderSaveAll')?.addEventListener('click',saveAll);
