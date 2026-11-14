@@ -15,14 +15,14 @@ DirectoryIndex index.php index.html
 
 # Apache 2.4+ authorization syntax.
 <IfModule mod_authz_core.c>
-  <FilesMatch "^(config\.php|config\.example\.php|config\.local\.php|\.env|composer\.(json|lock)|.*\.sql)$">
+  <FilesMatch "^(config\.php|config\.local\.php|\.env|composer\.(json|lock)|.*\.sql)$">
     Require all denied
   </FilesMatch>
 </IfModule>
 
 # Apache 2.2 compatibility.
 <IfModule !mod_authz_core.c>
-  <FilesMatch "^(config\.php|config\.example\.php|config\.local\.php|\.env|composer\.(json|lock)|.*\.sql)$">
+  <FilesMatch "^(config\.php|config\.local\.php|\.env|composer\.(json|lock)|.*\.sql)$">
     Order allow,deny
     Deny from all
   </FilesMatch>
