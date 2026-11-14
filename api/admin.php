@@ -231,6 +231,7 @@ try {
                     if (array_key_exists($key, $data)) {
                         $value = trim((string) $data[$key]);
                         if (mb_strlen($value) > 2000) api_fail('VALIDATION_ERROR', 'یکی از تنظیمات بیش از حد طولانی است.', 422);
+                        if ($key === 'site_title' && $value === '') api_fail('VALIDATION_ERROR', 'عنوان سایت نمی‌تواند خالی باشد.', 422);
                         if (in_array($key, ['canonical_url','og_image_url','github_url','telegram_url'], true)) {
                             $parts = parse_url($value);
                             if (!is_array($parts) || strtolower((string) ($parts['scheme'] ?? '')) !== 'https' || empty($parts['host'])) {
