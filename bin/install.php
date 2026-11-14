@@ -29,7 +29,7 @@ try {
     $settings = [
         'site_title' => 'میلاد | توسعه‌دهنده مستقل و سازنده محصولات دیجیتال',
         'site_description' => 'فضای دیجیتال میلاد؛ توسعه‌دهنده مستقل، علاقه‌مند به نرم‌افزار متن‌باز و سازنده پروژه‌هایی مانند Zenora Linux و ZenoraChat.',
-        'canonical_url' => rtrim((string) cfg('app.base_url', 'https://miladalizadw.ir'), '/') . '/',
+        'canonical_url' => app_absolute_url('/'),
         'og_image_url' => rtrim((string) cfg('app.base_url', 'https://miladalizadw.ir'), '/') . '/og-image.svg',
         'github_url' => 'https://github.com/miladalizadw',
         'telegram_url' => 'https://t.me/miladalizadw',
