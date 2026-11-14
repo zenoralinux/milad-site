@@ -574,7 +574,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   document.documentElement.dataset.builderPreview = '1';
   var selectedKey = null, selectedNodeId = '', selectedLegacyField = '';
   function sendToParent(message){
-    if (window.parent !== window) sendToParent(message,'*');
+    if (window.parent !== window) window.parent.postMessage(message,'*');
   }
   function safeHref(value){
     var raw = String(value || '');

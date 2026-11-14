@@ -390,7 +390,7 @@
       node.addEventListener('dragend',() => {
         dragId = null;
         node.setAttribute('aria-grabbed','false');
-        $$$('.builder-block').forEach(item => item.classList.remove('is-drop-target'));
+        $$('.builder-block').forEach(item => item.classList.remove('is-drop-target'));
       });
     });
     $$('[data-up]').forEach(button => button.addEventListener('click',() => move(Number(button.dataset.up),-1)));
