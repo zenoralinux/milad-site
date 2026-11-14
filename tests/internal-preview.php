@@ -37,16 +37,6 @@ $checks = [
     'favicon reference is removed' => strpos($output, './favicon.svg') === false,
 ];
 
-foreach ($checks as $label => $passed) {
-    echo ($passed ? '[PASS] ' : '[FAIL] ') . $label . PHP_EOL;
-}
-
-if (in_array(false, $checks, true)) {
-    exit(1);
-}
-
-
-
 $nestedHtml = builder_render_nested_widget([
     'id' => 'widget-root-test',
     'type' => 'container',
@@ -113,4 +103,10 @@ $checks = array_merge($checks, [
     'unsafe element styles are rejected' => $unsafeStyle === '',
 ]);
 
+foreach ($checks as $label => $passed) {
+    echo ($passed ? '[PASS] ' : '[FAIL] ') . $label . PHP_EOL;
+}
+if (in_array(false, $checks, true)) {
+    exit(1);
+}
 echo "Internal preview and element editing checks passed." . PHP_EOL;
