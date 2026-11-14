@@ -4,7 +4,7 @@ declare(strict_types=1);
 // Keep the original static homepage available if the PHP configuration/bootstrap
 // cannot be loaded (for example, a malformed local config.php on shared hosting).
 try {
-    require __DIR__ . '/app/bootstrap.php';
+    require_once __DIR__ . '/app/bootstrap.php';
 } catch (Throwable $e) {
     error_log('Homepage bootstrap failed: ' . $e->getMessage());
     http_response_code(200);
@@ -157,6 +157,15 @@ $html = str_replace('02 — A LITTLE ABOUT ME', h($about['section_index'] ?? '02
 $html = str_replace('پشت هر محصول،<br><span class="type-gradient">یک طرز فکر است.</span>', h($about['title_line1'] ?? 'پشت هر محصول،') . '<br><span class="type-gradient">' . h($about['title_line2'] ?? 'یک طرز فکر است.') . '</span>', $html);
 $html = str_replace('برای من توسعه نرم‌افزار فقط کنار هم گذاشتن کدها نیست؛ فرایند فهم مسئله، طراحی راه‌حل و بهتر کردن تجربه آدم‌هاست.', h($about['description'] ?? ''), $html);
 $html = str_replace('بیشتر در گیت‌هاب', h($about['link_text'] ?? 'بیشتر در گیت‌هاب'), $html);
+$aboutLinkUrl = public_href((string) (($about['link_url'] ?? '') !== '' ? $about['link_url'] : $github));
+$html = preg_replace_callback(
+    '/(<a class="text-link" href=")[^"]*(" target="_blank" rel="noopener noreferrer">)/',
+    static function (array $match) use ($aboutLinkUrl): string {
+        return $match[1] . h($aboutLinkUrl) . $match[2];
+    },
+    $html,
+    1
+) ?? $html;
 $principles = public_section('principles');
 $principleHtml = '<div class="principles-grid">';
 foreach (($principles['items'] ?? []) as $item) {
@@ -180,22 +189,7 @@ $footer = public_section('footer');
 $html = str_replace('ساخته‌شده با دقت و علاقه.', h($footer['tagline'] ?? 'ساخته‌شده با دقت و علاقه.'), $html);
 $html = str_replace('تمام حقوق محفوظ است.', h($footer['copyright'] ?? 'تمام حقوق محفوظ است.'), $html);
 
-foreach ([
-    'hero' => '<section class="hero section-shell" id="home">',
-    'intro' => '<section class="intro-strip">',
-    'projects' => '<section class="work-section section-shell" id="work">',
-    'about' => '<section class="about-section section-shell" id="about">',
-    'now' => '<section class="now-section section-shell" id="now">',
-    'contact' => '<section class="contact-section section-shell" id="contact">',
-] as $key => $marker) {
-    if (isset($sections[$key]) && !$sections[$key]['is_visible']) $html = remove_named_section($html, $marker);
-}
-if (isset($sections['principles']) && !$sections['principles']['is_visible']) {
-    $html = preg_replace('/<div class="principles-grid">.*?<\/div>/s', '', $html, 1) ?? $html;
-}
-if (isset($sections['footer']) && !$sections['footer']['is_visible']) {
-    $html = remove_named_element($html, '<footer class="site-footer">', '</footer>');
-}
+// Block visibility is owned by the visual builder after its migration; keep source fragments intact for live toggling.
 $projectCount = count($projects);
 $html = str_replace('۰۵ پروژه', h(fa_digits($projectCount)) . ' پروژه', $html);
 // Prefix root-relative links from the static source with the detected installation path.
@@ -212,5 +206,27 @@ $html = preg_replace_callback(
     },
     $html
 ) ?? $html;
+
+require_once __DIR__ . '/app/page_builder.php';
+$builderBlocks = builder_home_blocks();
+$builderDesign = builder_design_settings();
+$isBuilderPreview = isset($_GET['builder_preview']) && (string) $_GET['builder_preview'] === '1';
+$html = builder_apply_to_html($html, $builderBlocks, $builderDesign, $isBuilderPreview);
+
+if (isset($_GET['builder_preview']) && (string) $_GET['builder_preview'] === '1') {
+    start_admin_session();
+    if (!current_admin()) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+        exit('Preview access denied.');
+    }
+    $previewAssets = builder_preview_script();
+    $bodyEnd = stripos($html, '</body>');
+    if ($bodyEnd !== false) {
+        $html = substr($html, 0, $bodyEnd) . $previewAssets . substr($html, $bodyEnd);
+    }
+    header('Cache-Control: no-store, private');
+    header('X-Robots-Tag: noindex, nofollow');
+}
 
 echo $html;

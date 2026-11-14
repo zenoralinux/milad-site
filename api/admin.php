@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/app/bootstrap.php';
+require_once dirname(__DIR__) . '/app/page_builder.php';
 start_admin_session();
 
 function api_fail(string $code, string $message, int $status = 400, array $fields = []): void
@@ -218,6 +219,236 @@ try {
             $pdo->commit();
             log_activity((int) $admin['id'], 'reorder', 'project', null, 'تغییر ترتیب پروژه‌ها');
             json_response(['ok' => true, 'data' => [], 'message' => 'ترتیب پروژه‌ها ذخیره شد.']);
+        case 'builder':
+            if ($method !== 'GET') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $pageStmt = $pdo->query("SELECT id, slug, title, status FROM pages WHERE slug='home' LIMIT 1");
+            $page = $pageStmt->fetch();
+            if (!$page) api_fail('BUILDER_NOT_READY', 'صفحه‌ساز هنوز راه‌اندازی نشده است.', 503);
+            json_response(['ok' => true, 'data' => [
+                'page' => $page,
+                'blocks' => builder_home_blocks(),
+                'design' => builder_design_settings()
+            ]]);
+
+        case 'builder-block-add':
+            if ($method !== 'POST') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $data = json_body();
+            $type = (string) ($data['type'] ?? '');
+            $defaults = [
+                'text' => ['label' => 'بخش متنی جدید', 'content' => ['title' => 'عنوان جدید', 'body' => 'متن این بخش را ویرایش کن.']],
+                'cta' => ['label' => 'دعوت به اقدام', 'content' => ['title' => 'آماده شروع یک پروژه هستی؟', 'body' => 'برای شروع گفت‌وگو با من در ارتباط باش.', 'button_text' => 'ارتباط با من', 'button_url' => '#contact']],
+                'stats' => ['label' => 'آمار و اعداد', 'content' => ['title' => 'چند عدد درباره مسیر من', 'items' => [
+                    ['value' => '۰۵+', 'label' => 'پروژه', 'description' => 'ایده‌هایی که ساخته شده‌اند'],
+                    ['value' => '۱۰+', 'label' => 'فناوری', 'description' => 'ابزارهای مورد استفاده']
+                ]]],
+                'spacer' => ['label' => 'فاصله عمودی', 'content' => ['height' => 48]]
+            ];
+            if (!isset($defaults[$type])) api_fail('INVALID_BLOCK_TYPE', 'نوع بلوک قابل افزودن نیست.', 422);
+            $pageId = builder_home_page_id();
+            $maxOrder = (int) $pdo->query("SELECT COALESCE(MAX(sort_order),0) FROM page_blocks WHERE page_id=" . $pageId)->fetchColumn();
+            $blockKey = 'custom-' . bin2hex(random_bytes(6));
+            $insert = $pdo->prepare("INSERT INTO page_blocks (page_id,block_key,block_type,label,content_json,settings_json,is_visible,sort_order) VALUES (?,?,?,?,?,'{}',1,?)");
+            $encoded = json_encode($defaults[$type]['content'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $insert->execute([$pageId,$blockKey,$type,$defaults[$type]['label'],$encoded,$maxOrder + 10]);
+            $newId = (int) $pdo->lastInsertId();
+            log_activity((int) $admin['id'], 'create', 'page_block', $newId, 'افزودن بلوک ' . $type);
+            json_response(['ok' => true, 'data' => ['id' => $newId], 'message' => 'بلوک اضافه شد.'], 201);
+
+        case 'builder-block-save':
+            if ($method !== 'PUT') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $id = (int) ($_GET['id'] ?? 0);
+            if ($id < 1) api_fail('INVALID_ID', 'شناسه بلوک معتبر نیست.', 422);
+            $find = $pdo->prepare("SELECT * FROM page_blocks WHERE id=? AND page_id=? LIMIT 1");
+            $find->execute([$id,builder_home_page_id()]);
+            $existing = $find->fetch(PDO::FETCH_ASSOC);
+            if (!$existing) api_fail('NOT_FOUND', 'بلوک پیدا نشد.', 404);
+            $data = json_body();
+            $label = trim((string) ($data['label'] ?? $existing['label']));
+            $content = $data['content'] ?? null;
+            $settings = $data['settings'] ?? [];
+            if ($label === '' || mb_strlen($label) > 140 || !is_array($content) || !is_array($settings)) {
+                api_fail('VALIDATION_ERROR', 'اطلاعات بلوک معتبر نیست.', 422);
+            }
+            foreach ($content as $field => $value) {
+                if (!is_string($field) || (!is_string($value) && !is_array($value) && !is_numeric($value) && !is_bool($value))) {
+                    api_fail('VALIDATION_ERROR', 'ساختار محتوای بلوک معتبر نیست.', 422);
+                }
+                if (is_string($value) && mb_strlen($value) > 5000) api_fail('VALIDATION_ERROR', 'یکی از فیلدهای بلوک بیش از حد طولانی است.', 422);
+            }
+            $allowedStyles = ['background','text_color','padding','radius'];
+            $cleanSettings = [];
+            foreach ($allowedStyles as $key) {
+                if (!array_key_exists($key, $settings)) continue;
+                if (in_array($key, ['background','text_color'], true)) {
+                    if (!is_string($settings[$key]) || !preg_match('/^#[0-9a-fA-F]{6}$/', $settings[$key])) {
+                        api_fail('VALIDATION_ERROR', 'رنگ بلوک معتبر نیست.', 422);
+                    }
+                    $cleanSettings[$key] = $settings[$key];
+                } else {
+                    if (!is_numeric($settings[$key])) api_fail('VALIDATION_ERROR', 'مقدار ظاهری بلوک معتبر نیست.', 422);
+                    $cleanSettings[$key] = max(0, min($key === 'padding' ? 180 : 48, (int) $settings[$key]));
+                }
+            }
+            $contentJson = json_encode($content, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $settingsJson = json_encode($cleanSettings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if ($contentJson === false || $settingsJson === false || strlen($contentJson) > 50000) {
+                api_fail('VALIDATION_ERROR', 'حجم محتوای بلوک بیش از حد مجاز است.', 422);
+            }
+            $snapshot = json_encode([
+                'label' => $existing['label'],
+                'content_json' => $existing['content_json'],
+                'settings_json' => $existing['settings_json'],
+                'is_visible' => (int) $existing['is_visible']
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $recentRevision = $pdo->prepare("SELECT COUNT(*) FROM content_revisions WHERE entity_type='block' AND entity_id=? AND created_at >= (UTC_TIMESTAMP() - INTERVAL 5 MINUTE)");
+            $recentRevision->execute([$id]);
+            if ((int) $recentRevision->fetchColumn() === 0) {
+                $revision = $pdo->prepare("INSERT INTO content_revisions (entity_type,entity_id,snapshot_json,created_by) VALUES ('block',?,?,?)");
+                $revision->execute([$id,$snapshot,(int) $admin['id']]);
+            }
+            $visible = !empty($data['is_visible']) ? 1 : 0;
+            $save = $pdo->prepare("UPDATE page_blocks SET label=?,content_json=?,settings_json=?,is_visible=? WHERE id=?");
+            $save->execute([$label,$contentJson,$settingsJson,$visible,$id]);
+            $legacyTypes = ['hero','intro','projects','about','now','contact'];
+            if (in_array($existing['block_type'], $legacyTypes, true) && $existing['block_key'] === $existing['block_type']) {
+                $sync = $pdo->prepare("UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key=?");
+                $sync->execute([$contentJson,$visible,$existing['block_type']]);
+            }
+            if ($existing['block_type'] === 'about') {
+                if (isset($content['principles_items']) && is_array($content['principles_items'])) {
+                    $principlesJson = json_encode(['items' => array_slice($content['principles_items'], 0, 12)], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    $showPrinciples = !isset($content['show_principles']) || !empty($content['show_principles']) ? 1 : 0;
+                    $syncPrinciples = $pdo->prepare("UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key='principles'");
+                    $syncPrinciples->execute([$principlesJson,$showPrinciples]);
+                }
+            }
+            if ($existing['block_type'] === 'footer' && $existing['block_key'] === 'footer') {
+                $syncFooter = $pdo->prepare("UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key='footer'");
+                $syncFooter->execute([$contentJson,$visible]);
+            }
+            log_activity((int) $admin['id'], 'update', 'page_block', $id, 'ویرایش بلوک ' . $label);
+            json_response(['ok' => true, 'data' => [
+                'id' => $id, 'label' => $label, 'content' => $content,
+                'settings' => $cleanSettings, 'is_visible' => (bool) $visible
+            ], 'message' => 'بلوک ذخیره شد.']);
+
+        case 'builder-block-reorder':
+            if ($method !== 'POST') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $ids = json_body()['ids'] ?? [];
+            if (!is_array($ids) || count($ids) > 100) api_fail('VALIDATION_ERROR', 'فهرست مرتب‌سازی معتبر نیست.', 422);
+            $pageId = builder_home_page_id();
+            $current = $pdo->prepare("SELECT id,block_type,block_key FROM page_blocks WHERE page_id=? ORDER BY sort_order,id");
+            $current->execute([$pageId]);
+            $rows = $current->fetchAll(PDO::FETCH_ASSOC);
+            $expected = array_map('intval', array_column($rows, 'id'));
+            $provided = array_map('intval', $ids);
+            $sortedExpected = $expected;
+            $sortedProvided = $provided;
+            sort($sortedExpected);
+            sort($sortedProvided);
+            if (count(array_unique($provided)) !== count($provided) || $sortedExpected !== $sortedProvided) {
+                api_fail('VALIDATION_ERROR', 'فهرست بلوک‌ها تغییر کرده است؛ صفحه را تازه‌سازی کن.', 409);
+            }
+            $pdo->beginTransaction();
+            try {
+                $updateOrder = $pdo->prepare("UPDATE page_blocks SET sort_order=? WHERE id=? AND page_id=?");
+                $syncOrder = $pdo->prepare("UPDATE site_sections SET sort_order=? WHERE section_key=?");
+                $legacy = ['hero','intro','projects','about','now','contact'];
+                foreach ($provided as $index => $blockId) {
+                    $updateOrder->execute([$index + 1,$blockId,$pageId]);
+                    foreach ($rows as $row) {
+                        if ((int) $row['id'] === $blockId && in_array($row['block_type'], $legacy, true) && $row['block_key'] === $row['block_type']) {
+                            $syncOrder->execute([$index + 1,$row['block_type']]);
+                            break;
+                        }
+                    }
+                }
+                $pdo->commit();
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                throw $e;
+            }
+            log_activity((int) $admin['id'], 'reorder', 'page_blocks', null, 'مرتب‌سازی بلوک‌های صفحه اصلی');
+            json_response(['ok' => true, 'data' => [], 'message' => 'ترتیب بلوک‌ها ذخیره شد.']);
+
+        case 'builder-block-delete':
+            if ($method !== 'DELETE') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $id = (int) ($_GET['id'] ?? 0);
+            $find = $pdo->prepare("SELECT block_type,block_key FROM page_blocks WHERE id=? AND page_id=? LIMIT 1");
+            $find->execute([$id,builder_home_page_id()]);
+            $removed = $find->fetch(PDO::FETCH_ASSOC);
+            if (!$removed) api_fail('NOT_FOUND', 'بلوک پیدا نشد.', 404);
+            $delete = $pdo->prepare("DELETE FROM page_blocks WHERE id=? AND page_id=?");
+            $delete->execute([$id,builder_home_page_id()]);
+            $legacyTypes = ['hero','intro','projects','about','now','contact'];
+            if (in_array($removed['block_type'], $legacyTypes, true) && $removed['block_key'] === $removed['block_type']) {
+                $hideLegacy = $pdo->prepare("UPDATE site_sections SET is_visible=0 WHERE section_key=?");
+                $hideLegacy->execute([$removed['block_type']]);
+            }
+            if ($removed['block_type'] === 'footer' && $removed['block_key'] === 'footer') {
+                $pdo->exec("UPDATE site_sections SET is_visible=0 WHERE section_key='footer'");
+            }
+            log_activity((int) $admin['id'], 'delete', 'page_block', $id, 'حذف بلوک صفحه اصلی');
+            json_response(['ok' => true, 'data' => [], 'message' => 'بلوک حذف شد.']);
+
+        case 'builder-block-duplicate':
+            if ($method !== 'POST') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $id = (int) ($_GET['id'] ?? 0);
+            $find = $pdo->prepare("SELECT * FROM page_blocks WHERE id=? AND page_id=? LIMIT 1");
+            $find->execute([$id,builder_home_page_id()]);
+            $source = $find->fetch(PDO::FETCH_ASSOC);
+            if (!$source) api_fail('NOT_FOUND', 'بلوک پیدا نشد.', 404);
+            if (in_array($source['block_type'], ['hero','intro','projects','about','now','contact','footer'], true)) {
+                api_fail('DUPLICATE_NOT_SUPPORTED', 'برای جلوگیری از نمایش تکراری سکشن‌های اصلی، این بلوک قابل تکثیر نیست.', 422);
+            }
+            $insert = $pdo->prepare("INSERT INTO page_blocks (page_id,block_key,block_type,label,content_json,settings_json,is_visible,sort_order) VALUES (?,?,?,?,?,?,1,?)");
+            $insert->execute([
+                (int) $source['page_id'],
+                'custom-' . bin2hex(random_bytes(6)),
+                $source['block_type'],
+                mb_substr((string) $source['label'] . ' - کپی', 0, 140),
+                $source['content_json'],
+                $source['settings_json'],
+                (int) $source['sort_order'] + 1
+            ]);
+            $newId = (int) $pdo->lastInsertId();
+            log_activity((int) $admin['id'], 'duplicate', 'page_block', $newId, 'تکثیر بلوک');
+            json_response(['ok' => true, 'data' => ['id' => $newId], 'message' => 'بلوک تکثیر شد.'], 201);
+
+        case 'builder-design':
+            if ($method === 'GET') {
+                json_response(['ok' => true, 'data' => builder_design_settings()]);
+            }
+            if ($method !== 'PUT') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $data = json_body();
+            $rules = [
+                'accent_color' => ['color'],
+                'page_background' => ['color'],
+                'content_width' => ['int',760,1600],
+                'corner_radius' => ['int',0,48],
+                'font_scale' => ['float',0.85,1.2],
+                'section_spacing' => ['int',32,180]
+            ];
+            $upsert = $pdo->prepare("INSERT INTO design_settings (setting_key,setting_value) VALUES (?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)");
+            $clean = [];
+            foreach ($rules as $key => $rule) {
+                if (!array_key_exists($key, $data)) continue;
+                if (!is_scalar($data[$key])) api_fail('VALIDATION_ERROR', 'یکی از مقادیر ظاهری معتبر نیست.', 422);
+                $value = trim((string) $data[$key]);
+                if ($rule[0] === 'color') {
+                    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $value)) api_fail('VALIDATION_ERROR', 'یکی از رنگ‌ها معتبر نیست.', 422);
+                } elseif ($rule[0] === 'float') {
+                    if (!is_numeric($value) || (float) $value < $rule[1] || (float) $value > $rule[2]) api_fail('VALIDATION_ERROR', 'مقیاس فونت معتبر نیست.', 422);
+                    $value = (string) $value;
+                } else {
+                    if (!preg_match('/^[0-9]+$/', $value) || (int) $value < $rule[1] || (int) $value > $rule[2]) api_fail('VALIDATION_ERROR', 'یکی از مقادیر ظاهری خارج از محدوده مجاز است.', 422);
+                    $value = (string) (int) $value;
+                }
+                $clean[$key] = $value;
+                $upsert->execute([$key,$value]);
+            }
+            log_activity((int) $admin['id'], 'update', 'design', null, 'ویرایش تنظیمات ظاهری');
+            json_response(['ok' => true, 'data' => array_merge(builder_design_settings(), $clean), 'message' => 'تنظیمات ظاهری ذخیره شد.']);
         case 'settings':
             $allowed = ['site_title','site_description','canonical_url','og_image_url','github_url','telegram_url','avatar_path','theme_color'];
             if ($method === 'GET') {

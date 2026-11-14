@@ -84,10 +84,9 @@
   function setView(view) {
     $$('.admin-view').forEach(node => node.classList.toggle('is-active', node.id === 'view-' + view));
     $$('.side-link[data-view]').forEach(node => node.classList.toggle('is-active', node.dataset.view === view));
-    const titles = {dashboard:'نمای کلی',content:'محتوای سایت',projects:'مدیریت پروژه‌ها',settings:'تنظیمات سایت',activity:'فعالیت‌های اخیر'};
+    const titles = {dashboard:'نمای کلی',builder:'صفحه‌ساز بصری',projects:'مدیریت پروژه‌ها',settings:'تنظیمات سایت',activity:'فعالیت‌های اخیر'};
     $('#pageTitle').textContent = titles[view] || 'مدیریت';
     $('#sidebar')?.classList.remove('is-open');
-    if (view === 'content' && !sections.length) loadSections();
     if (view === 'projects') loadProjects();
     if (view === 'settings') loadSettings();
     if (view === 'activity') loadActivity(true);
