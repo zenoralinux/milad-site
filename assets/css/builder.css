@@ -359,3 +359,23 @@
 .builder-box-model-grid label{display:grid;gap:4px;font-size:9px;color:var(--muted)}
 .builder-box-model-grid input{width:100%;min-width:0;padding:8px;border:1px solid var(--builder-line);border-radius:8px;background:rgba(255,255,255,.035);color:var(--text);direction:ltr;text-align:center}
 .builder-spacing-link{display:flex!important;align-items:center;gap:7px;margin-top:8px;font-size:9px!important}
+
+.builder-layer-node-wrap{display:block;min-width:0;margin:3px 0;padding:2px 3px 2px 0;border-radius:9px}
+.builder-layer-node-wrap[open]{background:rgba(255,255,255,.018)}
+.builder-layer-node-wrap summary.builder-layer-node{display:flex;align-items:center;gap:7px;min-height:33px;padding:6px 7px;border-radius:8px;list-style:none;cursor:pointer;user-select:none}
+.builder-layer-node-wrap summary.builder-layer-node::-webkit-details-marker{display:none}
+.builder-layer-node-wrap summary.builder-layer-node:hover{background:rgba(255,255,255,.055)}
+.builder-layer-node-wrap summary.builder-layer-node.is-selected{background:rgba(165,138,255,.13);outline:1px solid rgba(165,138,255,.4)}
+.builder-layer-node-icon{width:16px;flex:0 0 16px;color:#b9a4ff;font-size:11px;text-align:center}
+.builder-layer-node-copy{display:grid;min-width:0;gap:2px}
+.builder-layer-node-copy strong{font-size:10px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.builder-layer-node-copy small{font-size:8px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.builder-layer-node-state{margin-right:auto;color:#c2b5ff;font-size:10px}
+.builder-layer-node-actions{display:flex;gap:3px;padding:0 7px 4px 25px}
+.builder-layer-node-actions button{width:21px;height:20px;border:0;border-radius:6px;background:transparent;color:var(--muted);font-size:9px;cursor:pointer}
+.builder-layer-node-actions button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.builder-layer-node-wrap .builder-layer-children{margin:1px 0 4px 14px;padding-left:7px;border-left:1px solid rgba(165,138,255,.18)}
+.builder-layer-node-wrap.is-drop-target{outline:1px dashed #a58aff;outline-offset:2px}
+.builder-layer-node-wrap summary.is-hidden,.builder-layer-node-wrap summary.is-locked{opacity:.55}
+.builder-block.is-locked{border-style:dashed}
+.builder-block.is-locked .builder-block-preview{opacity:.45}

@@ -378,20 +378,42 @@
 
   function renderNavigatorNodes(items,block,depth=0) {
     if (!Array.isArray(items) || depth > 8) return '';
+    const hasSelected = node => {
+      if (!node || typeof node !== 'object') return false;
+      if (String(node.id || '') === String(selectedNodeId || '')) return true;
+      const content = node.content || node;
+      const children = Array.isArray(node.children) ? node.children : (Array.isArray(content.children) ? content.children : []);
+      return children.some(hasSelected);
+    };
     return items.slice(0,40).map(node => {
       if (!node || typeof node !== 'object') return '';
       const content = node.content || node;
       const type = String(node.type || 'paragraph');
       const label = content.text || content.title || content.label || content.value || names[type] || type;
       const children = Array.isArray(node.children) ? node.children : (Array.isArray(content.children) ? content.children : []);
-      return '<div class="builder-layer-node-wrap"><button type="button" class="builder-layer-node' +
-        (String(node.id || '') === String(selectedNodeId || '') ? ' is-selected' : '') +
+      const selected = String(node.id || '') === String(selectedNodeId || '');
+      const hidden = node.is_visible === false;
+      const locked = !!(node.styles && node.styles.locked);
+      const expandable = children.length > 0;
+      const summary = '<summary class="builder-layer-node' + (selected ? ' is-selected' : '') +
+        (hidden ? ' is-hidden' : '') + (locked ? ' is-locked' : '') + '" draggable="true" data-node-drag="' + escapeHtml(node.id || '') +
         '" data-node-select="' + escapeHtml(node.id || '') + '" data-block-id="' + Number(block.id) + '">' +
-        '<span>' + escapeHtml(names[type] || type) + '</span><small>' + escapeHtml(String(label).slice(0,38)) +
-        '</small></button>' + (children.length ? '<div class="builder-layer-children">' +
-        renderNavigatorNodes(children,block,depth+1) + '</div>' : '') + '</div>';
+        '<span class="builder-layer-node-icon" aria-hidden="true">' + (expandable ? '▾' : '•') + '</span>' +
+        '<span class="builder-layer-node-copy"><strong>' + escapeHtml(names[type] || type) + '</strong><small>' +
+        escapeHtml(String(label).slice(0,38)) + '</small></span>' +
+        '<span class="builder-layer-node-state" title="' + (locked ? 'قفل شده' : hidden ? 'مخفی' : 'نمایان') + '">' +
+        (locked ? '▣' : hidden ? '◌' : '') + '</span></summary>';
+      const actions = '<div class="builder-layer-node-actions"><button type="button" data-node-hide="' + escapeHtml(node.id || '') +
+        '" data-block-id="' + Number(block.id) + '" title="نمایش / مخفی‌کردن">' + (hidden ? '◉' : '◌') +
+        '</button><button type="button" data-node-lock="' + escapeHtml(node.id || '') + '" data-block-id="' + Number(block.id) +
+        '" title="قفل / بازکردن">' + (locked ? '🔒' : '🔓') + '</button></div>';
+      return '<details class="builder-layer-node-wrap"' + (expandable && (hasSelected(node) || depth === 0) ? ' open' : '') +
+        ' data-node-group="' + escapeHtml(node.id || '') + '">' + summary + actions +
+        (expandable ? '<div class="builder-layer-children">' + renderNavigatorNodes(children,block,depth+1) + '</div>' : '') +
+        '</details>';
     }).join('');
   }
+
   function renderCanvas() {
     const canvas = $('#builderCanvas');
     if (!canvas) return;
@@ -413,16 +435,17 @@
       const selected = Number(block.id) === Number(selectedId);
       const hidden = !Number(block.is_visible);
       const cloneable = !['hero','intro','projects','about','now','contact','footer'].includes(block.block_type);
-      return '<article class="builder-block' + (selected ? ' is-selected' : '') + (hidden ? ' is-hidden' : '') +
+      const locked = !!(block.settings && block.settings.locked);
+      return '<article class="builder-block' + (selected ? ' is-selected' : '') + (hidden ? ' is-hidden' : '') + (locked ? ' is-locked' : '') +
         '" draggable="true" data-block-id="' + Number(block.id) + '">' +
         '<span class="builder-drag-handle" title="برای جابه‌جایی بکش">⠿</span>' +
         '<div class="builder-block-copy"><strong>' + escapeHtml(block.label || names[block.block_type] || block.block_type) +
         '</strong><small>' + escapeHtml(names[block.block_type] || block.block_type) + ' · ' +
-        (hidden ? 'مخفی' : 'نمایش در سایت') + '</small><div class="builder-block-preview"><b>' +
+        (hidden ? 'مخفی' : 'نمایش در سایت') + (locked ? ' · قفل' : '') + '</small><div class="builder-block-preview"><b>' +
         escapeHtml(titleOf(block)) + '</b><br>' + escapeHtml(summarize(block)).slice(0,100) + '</div>' +
         renderNavigatorNodes((block.content && (block.content.children || block.content.principles_items || block.content.items)) || [],block) +
         '</div>' +
-        '<div class="builder-block-actions"><button type="button" data-up="' + Number(block.id) + '" title="بالا">↑</button>' +
+        '<div class="builder-block-actions"><button type="button" data-lock-block="' + Number(block.id) + '" title="قفل / بازکردن">' + (locked ? '🔒' : '🔓') + '</button><button type="button" data-up="' + Number(block.id) + '" title="بالا">↑</button>' +
         '<button type="button" data-down="' + Number(block.id) + '" title="پایین">↓</button>' +
         (cloneable ? '<button type="button" data-clone="' + Number(block.id) + '" title="تکثیر">＋</button>' : '') +
         '<button type="button" data-delete="' + Number(block.id) + '" title="حذف">×</button></div></article>';
@@ -478,9 +501,23 @@
       event.stopPropagation();
       selectNestedNode(Number(button.dataset.blockId),String(button.dataset.nodeSelect));
     }));
+    $$('[data-node-hide]').forEach(button => button.addEventListener('click',event => {
+      event.preventDefault(); event.stopPropagation();
+      setNestedNodeVisibility(Number(button.dataset.blockId),String(button.dataset.nodeHide));
+    }));
+    $$('[data-node-lock]').forEach(button => button.addEventListener('click',event => {
+      event.preventDefault(); event.stopPropagation();
+      toggleNestedNodeLock(Number(button.dataset.blockId),String(button.dataset.nodeLock));
+    }));
+    $$('[data-lock-block]').forEach(button => button.addEventListener('click',event => {
+      event.stopPropagation();
+      toggleBlockLock(Number(button.dataset.lockBlock));
+    }));
+    bindNestedNavigatorDrag();
+
     $$('.builder-block').forEach(node => {
       node.addEventListener('click',event => {
-        if (event.target.closest('button')) return;
+        if (event.target.closest('button,summary')) return;
         selectBlock(Number(node.dataset.blockId));
       });
       node.addEventListener('dragstart',event => {
@@ -523,6 +560,83 @@
   }
 
   function move(id,delta) {
+  function setNestedNodeVisibility(blockId,nodeId) {
+    const block=blocks.find(item=>Number(item.id)===Number(blockId));
+    const record=block&&findNestedNode(block,nodeId);if(!record)return;
+    queueUndo(block);record.node.is_visible=record.node.is_visible===false;
+    selectedId=Number(block.id);selectedNodeId=nodeId;selectedProjectId=null;
+    renderCanvas();renderInspector();postPreviewState();
+    scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
+  }
+  function toggleNestedNodeLock(blockId,nodeId) {
+    const block=blocks.find(item=>Number(item.id)===Number(blockId));
+    const record=block&&findNestedNode(block,nodeId);if(!record)return;
+    queueUndo(block);record.node.styles=Object.assign({},record.node.styles||{});
+    if(record.node.styles.locked)delete record.node.styles.locked;else record.node.styles.locked=true;
+    selectedId=Number(block.id);selectedNodeId=nodeId;selectedProjectId=null;
+    renderCanvas();renderInspector();postPreviewState();
+    scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
+  }
+  function toggleBlockLock(blockId) {
+    const block=blocks.find(item=>Number(item.id)===Number(blockId));if(!block)return;
+    queueUndo(block);block.settings=Object.assign({},block.settings||{});
+    block.settings.locked=!block.settings.locked;
+    selectedId=Number(block.id);selectedNodeId=null;selectedProjectId=null;
+    renderCanvas();renderInspector();postPreviewState();
+    scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings,is_visible:!!block.is_visible});
+  }
+  function nestedNodeDepth(node,depth=1) {
+    if(!node||depth>8)return depth;
+    const children=Array.isArray(node.children)?node.children:(node.content&&Array.isArray(node.content.children)?node.content.children:[]);
+    let maximum=depth;children.forEach(child=>{maximum=Math.max(maximum,nestedNodeDepth(child,depth+1));});
+    return maximum;
+  }
+  function bindNestedNavigatorDrag() {
+    $$('[data-node-drag]').forEach(item=>{
+      item.addEventListener('dragstart',event=>{
+        const blockId=Number(item.dataset.blockId),nodeId=String(item.dataset.nodeDrag||'');
+        if(!blockId||!nodeId){event.preventDefault();return;}
+        event.dataTransfer.effectAllowed='move';
+        event.dataTransfer.setData('text/plain','milad-node:'+blockId+':'+nodeId);
+      });
+      item.addEventListener('dragover',event=>{event.preventDefault();const group=item.closest('[data-node-group]');if(group)group.classList.add('is-drop-target');event.dataTransfer.dropEffect='move';});
+      item.addEventListener('dragleave',()=>{const group=item.closest('[data-node-group]');if(group)group.classList.remove('is-drop-target');});
+      item.addEventListener('dragend',()=>{$$('[data-node-group]').forEach(group=>group.classList.remove('is-drop-target'));});
+      item.addEventListener('drop',event=>{
+        event.preventDefault();
+        const targetId=String(item.dataset.nodeDrag||''),blockId=Number(item.dataset.blockId);
+        const parts=String(event.dataTransfer.getData('text/plain')||'').split(':');
+        const sourceBlockId=Number(parts[1]),sourceId=String(parts.slice(2).join(':')||'');
+        if(!sourceId||sourceBlockId!==blockId||sourceId===targetId)return;
+        const block=blocks.find(candidate=>Number(candidate.id)===blockId);
+        const source=block&&findNestedNode(block,sourceId),target=block&&findNestedNode(block,targetId);
+        if(!source||!target||source.node===target.node)return;
+        let cursor=target.node;
+        while(cursor&&cursor!==block){if(cursor===source.node)return;cursor=cursor.id?findNestedNode(block,cursor.id)?.parent:null;}
+        const targetType=String(target.node.type||'');
+        const targetChildren=Array.isArray(target.node.children)?target.node.children:
+          (target.node.content&&Array.isArray(target.node.content.children)?target.node.content.children:null);
+        const moveInto=['container','grid','card'].includes(targetType);
+        const destination=moveInto?(targetChildren||[]):target.collection;
+        if(moveInto&&destination.length>=40)return;
+        if(moveInto&&nestedNodeDepth(source.node)+nestedNodeDepth(target.node)>8)return;
+        queueUndo(block);
+        source.collection.splice(source.index,1);
+        if(moveInto){
+          if(!Array.isArray(target.node.children))target.node.children=destination;
+          destination.push(source.node);
+        } else {
+          const index=destination.findIndex(candidate=>candidate&&String(candidate.id)===targetId);
+          destination.splice(index<0?destination.length:index,0,source.node);
+        }
+        selectedId=Number(block.id);selectedNodeId=sourceId;
+        renderCanvas();renderInspector();postPreviewState();
+        scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
+      });
+    });
+  }
+
+
     const from = blocks.findIndex(item => Number(item.id) === id);
     const to = from + delta;
     if (from < 0 || to < 0 || to >= blocks.length) return;
@@ -1966,6 +2080,12 @@
   function hideSelectedElement() {
     const project=activeProject();
     const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    if(block&&selectedNodeId){
+      const record=findNestedNode(block,selectedNodeId);if(!record)return;
+      queueUndo(block);record.node.is_visible=record.node.is_visible===false;
+      renderCanvas();renderInspector();postPreviewState();
+      scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});return;
+    }
     if(project){queueUndoProject(project);project.is_published=!project.is_published;scheduleProjectSave(project,projectFormPayloadForProject(project));renderCanvas();postPreviewState();return;}
     if(!block)return;queueUndo(block);block.is_visible=!block.is_visible;
     renderCanvas();postPreviewState();scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
@@ -1980,6 +2100,13 @@
     renderCanvas();renderInspector();postPreviewState();scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
   }
   function moveSelectedElement(delta) {
+  function toggleLockSelectedElement() {
+    const block=blocks.find(item=>Number(item.id)===Number(selectedId));
+    if(!block){status('قفل کارت پروژه هنوز در ساختار دادهٔ پروژه تعریف نشده است.','error');return;}
+    if(selectedNodeId)toggleNestedNodeLock(Number(block.id),selectedNodeId);
+    else toggleBlockLock(Number(block.id));
+  }
+
     const project=activeProject();
     const block=blocks.find(item=>Number(item.id)===Number(selectedId));
     if(project){
@@ -2021,6 +2148,7 @@
       else if(action==='up')moveSelectedElement(-1);
       else if(action==='down')moveSelectedElement(1);
       else if(action==='hide')hideSelectedElement();
+      else if(action==='lock')toggleLockSelectedElement();
       else if(action==='reset-styles')resetSelectedStyles();
       else if(action==='parent')selectParentElement();
       else if(action==='child')selectFirstChildElement();
@@ -2183,10 +2311,10 @@
     });
   });
   $('#builderLayerExpandAll')?.addEventListener('click',() => {
-    $$('.builder-navigator details').forEach(node => node.open = true);
+    $$('.builder-layers-list details').forEach(node => node.open = true);
   });
   $('#builderLayerCollapseAll')?.addEventListener('click',() => {
-    $$('.builder-navigator details').forEach(node => node.open = false);
+    $$('.builder-layers-list details').forEach(node => node.open = false);
   });
 
   document.querySelectorAll('[data-view="builder"]').forEach(button => button.addEventListener('click',() => {

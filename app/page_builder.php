@@ -786,6 +786,8 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     }
     if (item.id) node.setAttribute('data-widget-node',String(item.id));
     var styles = item.styles || {};
+    node.dataset.builderLocked = styles.locked ? '1' : '0';
+    if (item.is_visible === false) node.hidden = true;
     var styleMap = {background:'backgroundColor',color:'color',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',height:'height',min_width:'minWidth',max_width:'maxWidth',min_height:'minHeight',max_height:'maxHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display',flex_direction:'flexDirection',grid_columns:'gridTemplateColumns',align_items:'alignItems',justify_content:'justifyContent',visibility:'visibility'};
     Object.keys(styleMap).forEach(function(key){
       if (styles[key] === undefined || styles[key] === '') return;
@@ -1228,6 +1230,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       }
       if (!node) return;
       node.dataset.builderId = String(block.id);
+      node.dataset.builderLocked = block.settings && block.settings.locked ? '1' : '0';
       node.hidden = !block.is_visible;
       node.style.backgroundColor = block.settings && block.settings.background || '';
       node.style.color = block.settings && block.settings.text_color || '';
@@ -1342,6 +1345,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     }
     var block = event.target.closest('[data-builder-key]');
     if (!block) return;
+    if (event.target.closest('[data-builder-locked="1"]') || block.dataset.builderLocked === '1') return;
     if (event.target.closest('a')) event.preventDefault();
     event.stopPropagation();
     var fieldNode = event.target.closest('[data-builder-edit-field]');
@@ -1477,6 +1481,11 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   function selectResizeTarget(target){
     var block = target && target.closest('[data-builder-key]');
     if (!block) return;
+    if (target.closest('[data-builder-locked="1"]') || block.dataset.builderLocked === '1') {
+      resizeTarget = null;
+      if (resizeOverlay) resizeOverlay.hidden = true;
+      return;
+    }
     resizeBlock = block;
     var widget = target.closest('[data-widget-node]');
     resizeNodeId = widget && block.contains(widget) ? String(widget.dataset.widgetNode || '') : '';

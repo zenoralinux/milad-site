@@ -182,6 +182,7 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
   <button type="button" role="menuitem" data-canvas-action="up">انتقال به بالا</button>
   <button type="button" role="menuitem" data-canvas-action="down">انتقال به پایین</button>
   <button type="button" role="menuitem" data-canvas-action="hide">نمایش / مخفی‌کردن</button>
+  <button type="button" role="menuitem" data-canvas-action="lock">قفل / بازکردن المان</button>
   <button type="button" role="menuitem" data-canvas-action="reset-styles">بازنشانی استایل</button>
   <button type="button" role="menuitem" data-canvas-action="copy-styles">کپی استایل</button>
   <button type="button" role="menuitem" data-canvas-action="paste-styles">جای‌گذاری استایل</button>
