@@ -413,6 +413,7 @@
         if (!projectDragId || !targetId || projectDragId === targetId) return;
         const from = projects.findIndex(item => Number(item.id) === projectDragId);
         if (from < 0) return;
+        queueUndoProjectOrder();
         const targetAfterRemoval = projects.findIndex(item => Number(item.id) === targetId);
         if (targetAfterRemoval < 0) return;
         const moved = projects.splice(from,1)[0];
@@ -707,6 +708,7 @@
         status('عنوان، Slug یا ساختار JSON لینک‌ها معتبر نیست.','error');
         return;
       }
+      queueUndoProject(project);
       Object.assign(project,payload);
       renderCanvas();
       postPreviewState();
@@ -1044,11 +1046,37 @@
   const redoStack = [];
   let pendingUndo = null;
   let pendingUndoTimer = null;
+  let pendingProjectUndo = null;
+  let pendingProjectUndoTimer = null;
 
   function cloneData(value) {
     return JSON.parse(JSON.stringify(value));
   }
+  function queueUndoProject(project) {
+    if (pendingUndoTimer) window.clearTimeout(pendingUndoTimer);
+    if (pendingUndo) { undoStack.push(pendingUndo); pendingUndo = null; pendingUndoTimer = null; }
+    if (!pendingProjectUndo || Number(pendingProjectUndo.id) !== Number(project.id)) {
+      if (pendingProjectUndo) undoStack.push(pendingProjectUndo);
+      pendingProjectUndo = {kind:'project',id:Number(project.id),payload:projectFormPayloadForProject(project)};
+    }
+    if (pendingProjectUndoTimer) window.clearTimeout(pendingProjectUndoTimer);
+    pendingProjectUndoTimer = window.setTimeout(() => {
+      if (pendingProjectUndo) undoStack.push(pendingProjectUndo);
+      pendingProjectUndo = null; pendingProjectUndoTimer = null; updateHistoryButtons();
+    },700);
+    redoStack.length = 0; updateHistoryButtons();
+  }
+  function queueUndoProjectOrder() {
+    if (pendingProjectUndoTimer) window.clearTimeout(pendingProjectUndoTimer);
+    if (pendingProjectUndo) { undoStack.push(pendingProjectUndo); pendingProjectUndo = null; pendingProjectUndoTimer = null; }
+    if (pendingUndoTimer) window.clearTimeout(pendingUndoTimer);
+    if (pendingUndo) { undoStack.push(pendingUndo); pendingUndo = null; pendingUndoTimer = null; }
+    undoStack.push({kind:'project-order',order:projects.map(item => Number(item.id))});
+    redoStack.length = 0; updateHistoryButtons();
+  }
   function queueUndo(block) {
+    if (pendingProjectUndoTimer) window.clearTimeout(pendingProjectUndoTimer);
+    if (pendingProjectUndo) { undoStack.push(pendingProjectUndo); pendingProjectUndo = null; pendingProjectUndoTimer = null; }
     if (!pendingUndo || Number(pendingUndo.id) !== Number(block.id)) {
       if (pendingUndo) undoStack.push(pendingUndo);
       pendingUndo = {
@@ -1072,6 +1100,8 @@
     updateHistoryButtons();
   }
   function queueUndoOrder() {
+    if (pendingProjectUndoTimer) window.clearTimeout(pendingProjectUndoTimer);
+    if (pendingProjectUndo) { undoStack.push(pendingProjectUndo); pendingProjectUndo = null; pendingProjectUndoTimer = null; }
     if (pendingUndoTimer) window.clearTimeout(pendingUndoTimer);
     if (pendingUndo) { undoStack.push(pendingUndo); pendingUndo = null; pendingUndoTimer = null; }
     undoStack.push({kind:'order',order:blocks.map(item => Number(item.id))});
@@ -1081,11 +1111,31 @@
   function updateHistoryButtons() {
     const undo = document.getElementById('builderUndo');
     const redo = document.getElementById('builderRedo');
-    if (undo) undo.disabled = !undoStack.length && !pendingUndo;
+    if (undo) undo.disabled = !undoStack.length && !pendingUndo && !pendingProjectUndo;
     if (redo) redo.disabled = !redoStack.length;
   }
   async function applyHistorySnapshot(snapshot, destination) {
     if (!snapshot) return;
+    if (snapshot.kind === 'project-order') {
+      destination.push({kind:'project-order',order:projects.map(item => Number(item.id))});
+      const positions = new Map(snapshot.order.map((id,index) => [Number(id),index]));
+      projects.sort((a,b) => (positions.get(Number(a.id)) ?? 999999) - (positions.get(Number(b.id)) ?? 999999));
+      await request('project-reorder','POST',{ids:projects.map(item => Number(item.id))});
+      renderCanvas(); postPreviewState(); updateHistoryButtons();
+      status('ترتیب کارت‌های پروژه بازیابی شد.','success'); return;
+    }
+    if (snapshot.kind === 'project') {
+      const currentProject = projects.find(item => Number(item.id) === Number(snapshot.id));
+      if (!currentProject) return;
+      if (await flushProjectSave(Number(currentProject.id)) === false) throw new Error('ذخیره تغییرات معلق پروژه ناموفق بود.');
+      destination.push({kind:'project',id:Number(currentProject.id),payload:projectFormPayloadForProject(currentProject)});
+      await request('project-save','PUT',snapshot.payload,Number(snapshot.id));
+      Object.assign(currentProject,cloneData(snapshot.payload));
+      selectedProjectId = Number(currentProject.id); selectedId = null; selectedNodeId = null; selectedLegacyField = null;
+      renderCanvas(); renderInspector(); postPreviewState(); updateHistoryButtons();
+      status('ویرایش کارت پروژه بازیابی شد.','success'); return;
+    }
+
     if (snapshot.kind === 'order') {
       destination.push({kind:'order',order:blocks.map(item => Number(item.id))});
       const positions = new Map(snapshot.order.map((id,index) => [Number(id),index]));
@@ -1119,6 +1169,8 @@
     status('تغییر قبلی بازیابی شد.','success');
   }
   async function undoEdit() {
+    if (pendingProjectUndoTimer) window.clearTimeout(pendingProjectUndoTimer);
+    if (pendingProjectUndo) { undoStack.push(pendingProjectUndo); pendingProjectUndo = null; pendingProjectUndoTimer = null; }
     if (pendingUndoTimer) window.clearTimeout(pendingUndoTimer);
     if (pendingUndo) { undoStack.push(pendingUndo); pendingUndo = null; pendingUndoTimer = null; }
     const snapshot = undoStack.pop();
@@ -1852,7 +1904,7 @@
     const current=project?project.title:(record?record.node.name||names[record.node.type]||'':block&&block.label);
     const next=window.prompt('نام المان:',String(current||''));
     if(next===null||!next.trim())return;
-    if(project){project.title=next.trim();scheduleProjectSave(project,projectFormPayloadForProject(project));renderCanvas();postPreviewState();renderInspector();}
+    if(project){queueUndoProject(project);project.title=next.trim();scheduleProjectSave(project,projectFormPayloadForProject(project));renderCanvas();postPreviewState();renderInspector();}
     else if(block){queueUndo(block);if(record)record.node.name=next.trim();else block.label=next.trim();renderCanvas();scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});}
   }
   function projectFormPayloadForProject(project) {
@@ -1861,14 +1913,14 @@
   function hideSelectedElement() {
     const project=activeProject();
     const block=blocks.find(item=>Number(item.id)===Number(selectedId));
-    if(project){project.is_published=!project.is_published;scheduleProjectSave(project,projectFormPayloadForProject(project));renderCanvas();postPreviewState();return;}
+    if(project){queueUndoProject(project);project.is_published=!project.is_published;scheduleProjectSave(project,projectFormPayloadForProject(project));renderCanvas();postPreviewState();return;}
     if(!block)return;queueUndo(block);block.is_visible=!block.is_visible;
     renderCanvas();postPreviewState();scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
   }
   function resetSelectedStyles() {
     const project=activeProject();
     const block=blocks.find(item=>Number(item.id)===Number(selectedId));
-    if(project){project.visual_variant='generic';scheduleProjectSave(project,projectFormPayloadForProject(project));renderCanvas();postPreviewState();renderInspector();return;}
+    if(project){queueUndoProject(project);project.visual_variant='generic';scheduleProjectSave(project,projectFormPayloadForProject(project));renderCanvas();postPreviewState();renderInspector();return;}
     if(!block)return;queueUndo(block);
     if(selectedNodeId){const record=findNestedNode(block,selectedNodeId);if(!record)return;record.node.styles={};}
     else block.settings={};
@@ -1880,7 +1932,7 @@
     if(project){
       const from=projects.findIndex(item=>Number(item.id)===Number(project.id)),to=from+delta;
       if(from<0||to<0||to>=projects.length)return;
-      const item=projects.splice(from,1)[0];projects.splice(to,0,item);saveProjectOrder();return;
+      queueUndoProjectOrder();const item=projects.splice(from,1)[0];projects.splice(to,0,item);saveProjectOrder();return;
     }
     if(!block)return;
     if(selectedNodeId){
