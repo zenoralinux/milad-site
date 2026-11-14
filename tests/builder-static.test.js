@@ -24,4 +24,14 @@ assert(js.includes('Array.isArray(template.blocks)') && js.includes('const creat
   assert(api.includes("'" + type + "' =>"),'API default for ' + type);
   assert(renderer.includes("'" + type + "'"),'server renderer registry for ' + type);
 });
+const preview=fs.readFileSync('app/page_builder.php','utf8');
+assert(js.includes('function directStyleUpdate(message)') && js.includes("message.type === 'milad-builder-direct-style'"),'direct canvas sizing and style persistence');
+assert(js.includes('function moveNestedNode(') && js.includes('data-layer-node-wrap'),'tree navigator and nested drag reorder');
+assert(js.includes('function copySelectedNode()') && js.includes('function pasteSelectedNode()') && js.includes('function duplicateSelectedNode()'),'nested copy/paste/duplicate');
+assert(js.includes('function showBuilderContextMenu(') && js.includes('data-context-cmd="delete"'),'canvas context menu');
+assert(js.includes('builderLayerSearch') && js.includes('builderLayerExpandAll') && js.includes('builderLayerCollapseAll'),'layer search and tree controls');
+assert(js.includes("activeDevice==='desktop'") && js.includes('target.responsive[activeDevice]'),'device-specific direct manipulation');
+assert(preview.includes('milad-direct-overlay') && preview.includes('data-md-axis="both"'),'in-preview resize handles');
+assert(preview.includes('studioPlainText(c.heading_before)') && preview.includes('studioPlainText(c.description)'),'Selected Work plain-text sanitization');
+assert((studio.match(/id="builderTemplateModal"/g)||[]).length===1,'single template modal id');
 console.log('Milad Studio Pro static invariants passed');
