@@ -21,35 +21,35 @@ $csrf = csrf_token();
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#080b12">
-  <title>پنل مدیریت | میلاد</title><link rel="stylesheet" href="/assets/css/admin.css">
-  <script src="/assets/js/admin.js" defer></script>
+  <title>پنل مدیریت | میلاد</title><link rel="stylesheet" href="<?= h(app_url('assets/css/admin.css')) ?>">
+  <script src="<?= h(app_url('assets/js/admin.js')) ?>" defer></script>
 </head>
-<body data-mode="<?= $setupError ? 'setup' : ($admin ? 'admin' : 'login') ?>" data-csrf="<?= h($csrf) ?>">
+<body data-mode="<?= $setupError ? 'setup' : ($admin ? 'admin' : 'login') ?>" data-csrf="<?= h($csrf) ?>" data-base-path="<?= h(app_base_path()) ?>">
 <?php if ($setupError): ?>
   <main class="setup-screen"><section class="setup-card">
     <div class="brand-mark">M<span>.</span></div><span class="eyebrow">ADMIN CMS · SETUP REQUIRED</span>
     <h1>پنل آماده راه‌اندازی است</h1><p>برای فعال شدن پنل، اتصال پایگاه داده را تنظیم و نصب اولیه را از خط فرمان اجرا کن.</p>
     <ol><li>فایل <code>config.example.php</code> را به <code>config.php</code> کپی کن.</li><li>اطلاعات MySQL را وارد و Secret را با یک مقدار تصادفی طولانی جایگزین کن.</li><li>در ترمینال اجرا کن: <code>php bin/install.php</code></li></ol>
     <p class="setup-error"><?= h(cfg('app.debug', false) ? $setupError : 'پیکربندی دیتابیس هنوز انجام نشده یا ارتباط با آن برقرار نیست.') ?></p>
-    <a class="text-link" href="/">بازگشت به وب‌سایت ↗</a>
+    <a class="text-link" href="<?= h(app_url('/')) ?>">بازگشت به وب‌سایت ↗</a>
   </section></main>
 <?php elseif (!$admin): ?>
   <main class="login-screen"><div class="login-decoration login-decoration-one"></div><div class="login-decoration login-decoration-two"></div>
     <section class="login-card">
-      <a class="login-brand" href="/"><span class="brand-mark">M<span>.</span></span><span><strong>Milad</strong><small>Personal workspace</small></span></a>
+      <a class="login-brand" href="<?= h(app_url('/')) ?>"><span class="brand-mark">M<span>.</span></span><span><strong>Milad</strong><small>Personal workspace</small></span></a>
       <span class="eyebrow">SECURE ADMIN ACCESS</span><h1>خوش برگشتی.</h1><p>برای مدیریت محتوای وب‌سایت وارد حساب مدیر شو.</p>
       <form id="loginForm" class="stack-form">
         <label>نام کاربری<input name="username" autocomplete="username" required minlength="3" autofocus></label>
         <label>رمز عبور<input name="password" type="password" autocomplete="current-password" required minlength="12"></label>
         <div class="form-error" id="loginError" role="alert"></div>
         <button class="primary-button" type="submit"><span>ورود به پنل</span><b>↙</b></button>
-      </form><a class="back-link" href="/">← بازگشت به وب‌سایت</a>
+      </form><a class="back-link" href="<?= h(app_url('/')) ?>">← بازگشت به وب‌سایت</a>
     </section><span class="login-foot">MILAD DIGITAL SPACE · PRIVATE AREA</span>
   </main>
 <?php else: ?>
   <div class="admin-app">
     <aside class="sidebar" id="sidebar">
-      <a class="sidebar-brand" href="/"><span class="brand-mark">M<span>.</span></span><span><strong>Milad</strong><small>Control center</small></span></a>
+      <a class="sidebar-brand" href="<?= h(app_url('/')) ?>"><span class="brand-mark">M<span>.</span></span><span><strong>Milad</strong><small>Control center</small></span></a>
       <div class="sidebar-label">WORKSPACE</div>
       <nav class="side-nav" aria-label="منوی مدیریت">
         <button class="side-link is-active" data-view="dashboard"><span>◫</span> نمای کلی</button>
@@ -65,7 +65,7 @@ $csrf = csrf_token();
     </aside>
     <main class="admin-main">
       <header class="admin-topbar"><div class="topbar-start"><button class="mobile-menu" id="mobileMenu" aria-label="باز کردن منو">☰</button><div><span class="eyebrow">PERSONAL WEBSITE / CMS</span><h1 id="pageTitle">نمای کلی</h1></div></div>
-        <div class="topbar-actions"><span class="live-indicator"><i></i> سیستم مدیریت فعال</span><a class="view-site" href="/" target="_blank" rel="noopener">مشاهده سایت ↗</a></div>
+        <div class="topbar-actions"><span class="live-indicator"><i></i> سیستم مدیریت فعال</span><a class="view-site" href="<?= h(app_url('/')) ?>" target="_blank" rel="noopener">مشاهده سایت ↗</a></div>
       </header>
       <div class="admin-content">
         <section class="admin-view is-active" id="view-dashboard">
