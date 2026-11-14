@@ -251,3 +251,8 @@
   #view-builder .builder-element-style-grid{grid-template-columns:1fr}
   #view-builder .builder-element-style-grid .builder-responsive-label{grid-column:auto}
 }
+
+#view-builder .builder-form label,#view-builder .builder-element-style-grid>label{font-size:12px;line-height:1.65}
+#view-builder .builder-form input:not([type="checkbox"]):not([type="color"]),#view-builder .builder-form textarea,#view-builder .builder-form select{font-size:13px;min-height:38px}
+.builder-nested-item{grid-template-columns:18px minmax(0,1fr) 25px 25px 25px 25px!important;cursor:grab}
+.builder-nested-item.is-dragging{opacity:.45}.builder-nested-item.is-drop-target{border-color:var(--accent)}

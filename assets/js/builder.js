@@ -325,8 +325,10 @@
         const from = blocks.findIndex(item => Number(item.id) === dragId);
         const to = blocks.findIndex(item => Number(item.id) === targetId);
         if (from < 0 || to < 0) return;
+        queueUndoOrder();
         const moved = blocks.splice(from,1)[0];
-        blocks.splice(to,0,moved);
+        const targetAfterRemoval = blocks.findIndex(item => Number(item.id) === targetId);
+        blocks.splice(targetAfterRemoval < 0 ? blocks.length : targetAfterRemoval,0,moved);
         await saveOrder();
       });
       node.addEventListener('dragend',() => {
@@ -346,8 +348,9 @@
     const from = blocks.findIndex(item => Number(item.id) === id);
     const to = from + delta;
     if (from < 0 || to < 0 || to >= blocks.length) return;
+    queueUndoOrder();
     const moved = blocks.splice(from,1)[0];
-    blocks.splice(to,0,moved);
+    blocks.splice(to > from ? to - 1 : to,0,moved);
     saveOrder();
   }
 
@@ -408,13 +411,13 @@
     const children = Array.isArray(node.children) ? node.children : (Array.isArray(content.children) ? content.children : []);
     const nestedTools = nested
       ? '<div class="builder-nested-editor"><div class="builder-panel-heading"><div><strong>فرزندان این المان</strong><small>برای ویرایش هر فرزند روی آن در پیش‌نمایش کلیک کن</small></div><span>' + children.length + '</span></div>' +
-        '<div class="builder-nested-add"><select id="builderNodeChildType"><option value="heading">عنوان</option><option value="paragraph">متن</option><option value="button">دکمه</option><option value="card">کارت</option><option value="image">تصویر</option><option value="icon">آیکون</option><option value="divider">جداکننده</option><option value="counter">شمارنده</option><option value="list">فهرست</option><option value="container">کانتینر</option><option value="grid">گرید</option></select><button type="button" class="secondary-button compact" data-node-child-add>＋ افزودن فرزند</button></div>' +
+        '<div class="builder-nested-add"><select id="builderNodeChildType"><option value="heading">عنوان</option><option value="paragraph">متن</option><option value="button">دکمه</option><option value="card">کارت</option><option value="image">تصویر</option><option value="icon">آیکون</option><option value="divider">جداکننده</option><option value="counter">شمارنده</option><option value="list">فهرست</option><option value="video">ویدیو</option><option value="container">کانتینر</option><option value="grid">گرید</option></select><button type="button" class="secondary-button compact" data-node-child-add>＋ افزودن فرزند</button></div>' +
         '<div class="builder-nested-list">' + children.map((child,index) => {
           const c = child && (child.content || child) || {};
           const childType = String(child.type || 'paragraph');
           const childTitle = c.text || c.title || c.label || names[childType] || childType;
-          return '<div class="builder-nested-item"><span class="builder-nested-grip">⠿</span><span><strong>' + escapeHtml(names[childType] || childType) + '</strong><small>' + escapeHtml(String(childTitle).slice(0,70)) + '</small></span>' +
-            '<button type="button" data-node-child-up="' + index + '" title="بالا">↑</button><button type="button" data-node-child-down="' + index + '" title="پایین">↓</button><button type="button" data-node-child-delete="' + index + '" title="حذف">×</button></div>';
+          return '<div class="builder-nested-item" draggable="true" data-nested-index="' + index + '"><span class="builder-nested-grip">⠿</span><span><strong>' + escapeHtml(names[childType] || childType) + '</strong><small>' + escapeHtml(String(childTitle).slice(0,70)) + '</small></span>' +
+            '<button type="button" data-node-child-up="' + index + '" title="بالا">↑</button><button type="button" data-node-child-down="' + index + '" title="پایین">↓</button><button type="button" data-node-child-clone="' + index + '" title="تکثیر">＋</button><button type="button" data-node-child-delete="' + index + '" title="حذف">×</button></div>';
         }).join('') + '</div></div>'
       : '';
     host.innerHTML = '<form id="builderNodeForm" class="builder-form">' +
@@ -637,7 +640,7 @@
           const childContent = child.content || child;
           const childTitle = childContent.text || childContent.title || childContent.label || names[childType] || childType;
           return '<div class="builder-nested-item"><span class="builder-nested-grip">⠿</span><span><strong>' + escapeHtml(names[childType] || childType) + '</strong><small>' + escapeHtml(String(childTitle).slice(0,70)) + '</small></span>' +
-            '<button type="button" data-child-up="' + index + '" title="بالا">↑</button><button type="button" data-child-down="' + index + '" title="پایین">↓</button><button type="button" data-child-delete="' + index + '" title="حذف">×</button></div>';
+            '<button type="button" data-child-up="' + index + '" title="بالا">↑</button><button type="button" data-child-down="' + index + '" title="پایین">↓</button><button type="button" data-child-clone="' + index + '" title="تکثیر">＋</button><button type="button" data-child-delete="' + index + '" title="حذف">×</button></div>';
         }).join('') + '</div><small class="builder-nested-hint">برای ویرایش دقیق متن و داده‌های هر فرزند، ساختار JSON در بخش محتوا نیز قابل ویرایش است.</small></div>'
       : '';
 
@@ -733,6 +736,13 @@
     redoStack.length = 0;
     updateHistoryButtons();
   }
+  function queueUndoOrder() {
+    if (pendingUndoTimer) window.clearTimeout(pendingUndoTimer);
+    if (pendingUndo) { undoStack.push(pendingUndo); pendingUndo = null; pendingUndoTimer = null; }
+    undoStack.push({kind:'order',order:blocks.map(item => Number(item.id))});
+    redoStack.length = 0;
+    updateHistoryButtons();
+  }
   function updateHistoryButtons() {
     const undo = document.getElementById('builderUndo');
     const redo = document.getElementById('builderRedo');
@@ -741,8 +751,17 @@
   }
   async function applyHistorySnapshot(snapshot, destination) {
     if (!snapshot) return;
+    if (snapshot.kind === 'order') {
+      destination.push({kind:'order',order:blocks.map(item => Number(item.id))});
+      const positions = new Map(snapshot.order.map((id,index) => [Number(id),index]));
+      blocks.sort((a,b) => (positions.get(Number(a.id)) ?? 999999) - (positions.get(Number(b.id)) ?? 999999));
+      await request('builder-block-reorder','POST',{ids:blocks.map(item => Number(item.id))});
+      renderCanvas(); postPreviewState(); updateHistoryButtons();
+      status('ترتیب قبلی بازیابی شد.','success'); return;
+    }
     const current = blocks.find(item => Number(item.id) === Number(snapshot.id));
     if (!current) return;
+    if (await flushSave(Number(current.id),true) === false) throw new Error('ذخیره تغییرات معلق ناموفق بود.');
     destination.push({
       id:Number(current.id),
       payload:{
@@ -794,29 +813,33 @@
 
   async function flushSave(id,immediate) {
     const state = saveStates.get(id);
-    if (!state || !state.payload) return;
-    if (state.timer) {
-      window.clearTimeout(state.timer);
-      state.timer = null;
+    if (!state || !state.payload) return true;
+    if (state.timer) { window.clearTimeout(state.timer); state.timer = null; }
+    if (state.inFlight) {
+      const prior = await state.inFlight;
+      if (prior === false) return false;
+      return state.payload ? flushSave(id,true) : true;
     }
-    if (state.saving) {
-      state.again = true;
-      return;
-    }
-    state.saving = true;
-    state.again = false;
     const payload = state.payload;
-    try {
-      await request('builder-block-save','PUT',payload,id);
-      status('تغییرات ذخیره شدند.','success');
-      return true;
-    } catch (error) {
-      status(error.message,'error');
-      return false;
-    } finally {
-      state.saving = false;
-      if (state.again) flushSave(id,true);
-    }
+    state.saving = true;
+    state.inFlight = (async () => {
+      try {
+        await request('builder-block-save','PUT',payload,id);
+        if (state.payload === payload) state.payload = null;
+        status('تغییرات ذخیره شدند.','success');
+        return true;
+      } catch (error) { status(error.message,'error'); return false; }
+      finally { state.saving = false; state.inFlight = null; }
+    })();
+    const result = await state.inFlight;
+    if (result === false) return false;
+    if (state.payload && state.payload !== payload) return flushSave(id,true);
+    return true;
+  }
+
+  async function flushAllPending() {
+    const results = await Promise.all(Array.from(saveStates.keys()).map(id => flushSave(id,true)));
+    return results.every(value => value !== false);
   }
 
   async function addBlock(type) {
@@ -836,6 +859,7 @@
   async function deleteBlock(id) {
     const block = blocks.find(item => Number(item.id) === id);
     if (!block || !window.confirm('بخش «' + (block.label || names[block.block_type]) + '» حذف شود؟')) return;
+    if (await flushSave(id,true) === false) return;
     const state = saveStates.get(id);
     if (state && state.timer) window.clearTimeout(state.timer);
     try {
@@ -933,6 +957,10 @@
   async function load(selectId = null) {
     status('در حال دریافت ساختار و محتوای صفحه…');
     try {
+      if (loaded && !(await flushAllPending())) {
+        status('ذخیره برخی تغییرات ناموفق بود؛ تازه‌سازی لغو شد.','error');
+        return;
+      }
       const data = await request('builder');
       blocks = data.blocks || [];
       const normalizedBlocks = [];
@@ -1007,6 +1035,24 @@
       }
     });
   }
+  let nestedDragSource = null;
+  root.addEventListener('dragstart',event => {
+    const item = event.target.closest('.builder-nested-item[data-nested-index]');
+    if (!item) return;
+    nestedDragSource = {list:item.parentElement,index:Number(item.dataset.nestedIndex)};
+    item.classList.add('is-dragging'); event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain',String(item.dataset.nestedIndex));
+  });
+  root.addEventListener('dragover',event => {
+    const item = event.target.closest('.builder-nested-item[data-nested-index]');
+    if (item && nestedDragSource && nestedDragSource.list === item.parentElement) { event.preventDefault(); item.classList.add('is-drop-target'); }
+  });
+  root.addEventListener('drop',event => {
+    const item = event.target.closest('.builder-nested-item[data-nested-index]');
+    if (!item || !nestedDragSource || nestedDragSource.list !== item.parentElement) return;
+    event.preventDefault(); updateNestedChildren('move',nestedDragSource.index,Number(item.dataset.nestedIndex)); nestedDragSource = null;
+  });
+  root.addEventListener('dragend',() => { nestedDragSource = null; });
   root.addEventListener('click',event => {
     if (event.target.closest('[data-open-media]')) openMediaPicker();
     const addChild = event.target.closest('[data-child-add]');
@@ -1017,6 +1063,8 @@
     if (upChild) updateNestedChildren('up',Number(upChild.dataset.childUp));
     const downChild = event.target.closest('[data-child-down]');
     if (downChild) updateNestedChildren('down',Number(downChild.dataset.childDown));
+    const cloneChild = event.target.closest('[data-child-clone]');
+    if (cloneChild) updateNestedChildren('clone',Number(cloneChild.dataset.childClone));
     const nodeAdd = event.target.closest('[data-node-child-add]');
     if (nodeAdd) updateNestedChildren('add',-1);
     const nodeRemove = event.target.closest('[data-node-child-delete]');
@@ -1025,6 +1073,8 @@
     if (nodeUp) updateNestedChildren('up',Number(nodeUp.dataset.nodeChildUp));
     const nodeDown = event.target.closest('[data-node-child-down]');
     if (nodeDown) updateNestedChildren('down',Number(nodeDown.dataset.nodeChildDown));
+    const cloneNodeChild = event.target.closest('[data-node-child-clone]');
+    if (cloneNodeChild) updateNestedChildren('clone',Number(cloneNodeChild.dataset.nodeChildClone));
     const nodeDelete = event.target.closest('[data-node-delete]');
     if (nodeDelete) deleteSelectedNode();
     const loadHistory = event.target.closest('[data-load-revisions]');
@@ -1101,8 +1151,14 @@
   $$('[data-library-tab]').forEach(button => button.addEventListener('click',() => setLibraryTab(button.dataset.libraryTab)));
   $$('[data-inspector-tab]').forEach(button => button.addEventListener('click',() => setInspectorTab(button.dataset.inspectorTab)));
   $('#builderSaveAll')?.addEventListener('click',saveAll);
+  function regenerateNodeIds(node) {
+    if (!node || typeof node !== 'object') return;
+    node.id = makeNodeId();
+    const content = node.content && typeof node.content === 'object' ? node.content : {};
+    (Array.isArray(node.children) ? node.children : (Array.isArray(content.children) ? content.children : [])).forEach(regenerateNodeIds);
+  }
   function newChildNode(type) {
-    const id = 'node-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7);
+    const id = makeNodeId();
     const defaults = {
       heading:{content:{text:'عنوان جدید',level:2}},
       paragraph:{content:{text:'متن جدید را وارد کن.'}},
@@ -1113,6 +1169,7 @@
       divider:{content:{}},
       counter:{content:{value:'۱۲+',label:'عنوان آمار'}},
       list:{content:{items:[{text:'مورد اول'},{text:'مورد دوم'}]}},
+      video:{content:{url:'',title:'ویدیو'}},
       container:{content:{direction:'column'},children:[]},
       grid:{content:{columns:2},children:[
         {id:id+'-a',type:'card',content:{title:'کارت اول',body:'توضیحات'}},
@@ -1136,7 +1193,7 @@
     scheduleSave(block,{label:block.label,content:block.content || {},settings:block.settings || {},is_visible:!!block.is_visible});
   }
 
-  function updateNestedChildren(action,index) {
+  function updateNestedChildren(action,index,targetIndex) {
     const block = blocks.find(item => Number(item.id) === Number(selectedId));
     if (!block) return;
     const selectedRecord = selectedNodeId ? findNestedNode(block,selectedNodeId) : null;
@@ -1149,6 +1206,14 @@
     if (action === 'add') {
       const select = $('#builderNodeChildType') || $('#builderChildType');
       children.push(newChildNode(select ? select.value : 'paragraph'));
+    } else if (action === 'clone') {
+      if (index < 0 || index >= children.length) return;
+      const copy = cloneData(children[index]); regenerateNodeIds(copy);
+      children.splice(index + 1,0,copy);
+    } else if (action === 'move') {
+      if (index < 0 || index >= children.length || targetIndex < 0 || targetIndex >= children.length) return;
+      const moved = children.splice(index,1)[0];
+      children.splice(targetIndex > index ? targetIndex - 1 : targetIndex,0,moved);
     } else if (action === 'delete') {
       if (index < 0 || index >= children.length) return;
       children.splice(index,1);
@@ -1158,6 +1223,7 @@
       const moved = children.splice(index,1)[0];
       children.splice(target,0,moved);
     }
+    queueUndo(block);
     if (parentNode) parentNode.children = children;
     else block.content.children = children;
     const payload = {label:block.label,content:block.content,settings:block.settings || {},is_visible:!!block.is_visible};
