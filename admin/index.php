@@ -124,7 +124,9 @@ try {
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#080b12">
   <title>پنل مدیریت | میلاد</title><link rel="stylesheet" href="<?= h(app_url('assets/css/admin.css')) ?>">
+  <link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css')) ?>">
   <script src="<?= h(app_url('assets/js/admin.js')) ?>" defer></script>
+  <script src="<?= h(app_url('assets/js/builder.js')) ?>" defer></script>
 </head>
 <body data-mode="<?= $setupError ? 'setup' : ($admin ? 'admin' : 'login') ?>" data-csrf="<?= h($csrf) ?>" data-base-path="<?= h(app_base_path()) ?>">
 <?php if ($setupError): ?>
@@ -167,6 +169,7 @@ try {
       <nav class="side-nav" aria-label="منوی مدیریت">
         <button class="side-link is-active" data-view="dashboard"><span>◫</span> نمای کلی</button>
         <button class="side-link" data-view="content"><span>▤</span> محتوای سایت</button>
+        <button class="side-link" data-view="builder"><span>✥</span> صفحه‌ساز بصری</button>
         <button class="side-link" data-view="projects"><span>▦</span> مدیریت پروژه‌ها</button>
         <button class="side-link" data-view="settings"><span>⚙</span> تنظیمات سایت</button>
         <button class="side-link" data-view="activity"><span>◷</span> فعالیت‌های اخیر</button>
@@ -196,6 +199,61 @@ try {
         <section class="admin-view" id="view-content">
           <div class="view-intro"><div><span class="section-kicker">CONTENT STUDIO</span><h2>محتوای سایت</h2><p>متن‌ها و بخش‌های صفحه اصلی را بدون تغییر کد مدیریت کن.</p></div></div>
           <div class="content-layout"><div class="section-picker panel-card" id="sectionPicker"><div class="loading-line">در حال دریافت بخش‌ها…</div></div><section class="panel-card editor-panel" id="sectionEditor"><div class="empty-state"><b>✳</b><h3>یک بخش را انتخاب کن</h3><p>برای ویرایش، یکی از بخش‌های سمت راست را انتخاب کن.</p></div></section></div>
+        </section>
+        <section class="admin-view" id="view-builder">
+          <div class="view-intro">
+            <div><span class="section-kicker">MILAD STUDIO</span><h2>صفحه‌ساز بصری</h2><p>ساختار صفحه اصلی را مرتب کن، بلوک تازه اضافه کن و ظاهر کلی سایت را از همین‌جا تغییر بده.</p></div>
+            <a class="secondary-button" href="<?= h(app_url('/')) ?>" target="_blank" rel="noopener">مشاهده سایت ↗</a>
+          </div>
+          <div class="builder-toolbar panel-card">
+            <div class="builder-toolbar-start"><strong>صفحه اصلی</strong><span class="builder-status" id="builderStatus">در حال آماده‌سازی…</span></div>
+            <div class="builder-toolbar-end">
+              <div class="builder-device-tabs" aria-label="اندازه پیش‌نمایش">
+                <button type="button" class="is-active" data-device="desktop">دسکتاپ</button>
+                <button type="button" data-device="tablet">تبلت</button>
+                <button type="button" data-device="mobile">موبایل</button>
+              </div>
+              <button class="secondary-button" id="builderReload" type="button">↻ تازه‌سازی</button>
+            </div>
+          </div>
+          <div class="builder-workspace">
+            <aside class="builder-library panel-card">
+              <div class="builder-panel-heading"><div><strong>کتابخانه بلوک‌ها</strong><small>برای افزودن به صفحه انتخاب کن</small></div></div>
+              <div class="builder-library-list">
+                <button class="builder-library-item" type="button" data-add-block="text"><b>¶</b><span>بخش متنی<small>عنوان و توضیحات</small></span></button>
+                <button class="builder-library-item" type="button" data-add-block="cta"><b>↗</b><span>دعوت به اقدام<small>متن و دکمه لینک‌دار</small></span></button>
+                <button class="builder-library-item" type="button" data-add-block="stats"><b>▥</b><span>آمار و اعداد<small>کارت‌های آماری</small></span></button>
+                <button class="builder-library-item" type="button" data-add-block="spacer"><b>↕</b><span>فاصله عمودی<small>تنظیم ریتم صفحه</small></span></button>
+              </div>
+              <div class="builder-separator"></div>
+              <div class="builder-note">سکشن‌های فعلی سایت حفظ شده‌اند. بلوک‌های تازه بدون نیاز به ویرایش کد به صفحه اضافه می‌شوند.</div>
+            </aside>
+            <section class="builder-canvas-wrap panel-card">
+              <div class="builder-canvas-header"><strong>ساختار و ترتیب صفحه</strong><small>برای جابه‌جایی، بلوک‌ها را بکش</small></div>
+              <div class="builder-canvas" id="builderCanvas" data-device="desktop"><div class="builder-empty">در حال دریافت بلوک‌ها…</div></div>
+            </section>
+            <aside class="builder-inspector panel-card">
+              <div class="builder-inspector-inner">
+                <div>
+                  <div class="builder-panel-heading"><div><strong>تنظیمات بلوک</strong><small>محتوا و ظاهر انتخاب‌شده</small></div></div>
+                  <div id="builderInspectorForm"><div class="builder-empty">یک بلوک را انتخاب کن.</div></div>
+                </div>
+                <div>
+                  <div class="builder-separator"></div>
+                  <div class="builder-design-heading"><strong>ظاهر کلی سایت</strong></div>
+                  <form id="builderDesignForm" class="builder-form">
+                    <label class="color-field">رنگ اصلی<input type="color" name="accent_color" value="#a58aff"></label>
+                    <label class="color-field">پس‌زمینه صفحه<input type="color" name="page_background" value="#080b12"></label>
+                    <label>عرض محتوا<input type="range" name="content_width" min="760" max="1600" step="20" value="1160"></label>
+                    <label>گردی گوشه‌ها<input type="range" name="corner_radius" min="0" max="48" value="22"></label>
+                    <label>مقیاس فونت<input type="range" name="font_scale" min="0.85" max="1.2" step="0.05" value="1"></label>
+                    <label>فاصله سکشن‌ها<input type="range" name="section_spacing" min="32" max="180" step="4" value="72"></label>
+                    <div class="builder-form-actions"><button class="primary-button compact" type="submit">ذخیره ظاهر</button></div>
+                  </form>
+                </div>
+              </div>
+            </aside>
+          </div>
         </section>
         <section class="admin-view" id="view-projects">
           <div class="view-intro"><div><span class="section-kicker">PORTFOLIO MANAGER</span><h2>پروژه‌ها</h2><p>پروژه‌های نمایش‌داده‌شده در صفحه اصلی را کنترل کن.</p></div><button class="primary-button compact" id="newProjectButton">＋ پروژه جدید</button></div>
