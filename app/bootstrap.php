@@ -8,12 +8,29 @@ function app_config(): array
     static $config = null;
     if ($config !== null) return $config;
     $path = getenv('MILAD_SITE_CONFIG') ?: MILAD_ROOT . '/config.php';
-    if (!is_file($path)) {
-        $config = [];
+    if (is_file($path)) {
+        $loaded = require $path;
+        $config = is_array($loaded) ? $loaded : [];
         return $config;
     }
-    $loaded = require $path;
-    $config = is_array($loaded) ? $loaded : [];
+    $config = [
+        'app' => [
+            'name' => 'Milad Site',
+            'base_url' => getenv('MILAD_APP_BASE_URL') ?: 'https://miladalizadw.ir',
+            'timezone' => getenv('MILAD_APP_TIMEZONE') ?: 'Europe/Berlin',
+            'debug' => filter_var(getenv('MILAD_APP_DEBUG') ?: '0', FILTER_VALIDATE_BOOLEAN),
+            'session_name' => 'milad_admin',
+            'ip_hash_key' => getenv('MILAD_APP_IP_HASH_KEY') ?: 'SET_A_LONG_RANDOM_SECRET_BEFORE_PRODUCTION',
+        ],
+        'database' => [
+            'host' => getenv('MILAD_DB_HOST') ?: '',
+            'port' => (int) (getenv('MILAD_DB_PORT') ?: 3306),
+            'name' => getenv('MILAD_DB_NAME') ?: '',
+            'username' => getenv('MILAD_DB_USER') ?: '',
+            'password' => getenv('MILAD_DB_PASSWORD') ?: '',
+            'charset' => 'utf8mb4',
+        ],
+    ];
     return $config;
 }
 
@@ -25,6 +42,19 @@ function cfg(string $key, mixed $default = null): mixed
         $value = $value[$part];
     }
     return $value;
+}
+
+if (!function_exists('mb_strlen')) {
+    function mb_strlen(string $value, ?string $encoding = null): int {
+        return preg_match_all('/./us', $value, $matches) ?: 0;
+    }
+}
+if (!function_exists('mb_substr')) {
+    function mb_substr(string $value, int $start, ?int $length = null, ?string $encoding = null): string {
+        preg_match_all('/./us', $value, $matches);
+        $chars = $matches[0] ?? [];
+        return implode('', array_slice($chars, $start, $length));
+    }
 }
 
 date_default_timezone_set((string) cfg('app.timezone', 'UTC'));
@@ -171,7 +201,7 @@ function get_site_sections(): array
 
 function get_projects(bool $publishedOnly = true): array
 {
-    $sql = 'SELECT * FROM projects ' . ($publishedOnly ? 'WHERE is_published = 1 ' : '') . 'ORDER BY is_featured DESC, sort_order ASC, id ASC';
+    $sql = 'SELECT * FROM projects ' . ($publishedOnly ? 'WHERE is_published = 1 ' : '') . 'ORDER BY sort_order ASC, id ASC';
     $projects = db()->query($sql)->fetchAll();
     if (!$projects) return [];
     $ids = array_map(static fn($p) => (int) $p['id'], $projects);
