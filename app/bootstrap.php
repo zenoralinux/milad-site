@@ -1,6 +1,28 @@
 <?php
 declare(strict_types=1);
 
+
+// PHP 7.4 compatibility helpers. PHP 8+ native implementations are kept intact.
+if (!function_exists('str_starts_with')) {
+    function str_starts_with(string $haystack, string $needle): bool
+    {
+        if ($needle === '') {
+            return true;
+        }
+        return strpos($haystack, $needle) === 0;
+    }
+}
+
+if (!function_exists('str_contains')) {
+    function str_contains(string $haystack, string $needle): bool
+    {
+        if ($needle === '') {
+            return true;
+        }
+        return strpos($haystack, $needle) !== false;
+    }
+}
+
 define('MILAD_ROOT', dirname(__DIR__));
 
 function app_config(): array
@@ -75,7 +97,7 @@ function app_config(): array
     return $config;
 }
 
-function cfg(string $key, mixed $default = null): mixed
+function cfg(string $key, $default = null)
 {
     $value = app_config();
     foreach (explode('.', $key) as $part) {
@@ -189,7 +211,7 @@ function db(): PDO
     return $pdo;
 }
 
-function h(mixed $value): string
+function h($value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
@@ -266,7 +288,7 @@ function require_admin(): array
     return $admin;
 }
 
-function json_response(array $payload, int $status = 200): never
+function json_response(array $payload, int $status = 200): void
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -358,12 +380,18 @@ function get_projects(bool $publishedOnly = true): array
 
 function project_visual_markup(string $variant): string
 {
-    return match ($variant) {
-        'zenora' => '<div class="zenora-symbol">Z<span>.</span></div><span class="visual-caption">A Linux experience, reimagined.</span><span class="visual-orbit"></span>',
-        'chat' => '<div class="chat-window"><div class="chat-window-head"><i></i><i></i><i></i><span>ZenoraChat</span></div><div class="chat-bubble chat-bubble--a"></div><div class="chat-bubble chat-bubble--b"></div><div class="chat-bubble chat-bubble--a short"></div><div class="chat-compose"><span></span><b>↗</b></div></div><span class="visual-caption">Conversations, thoughtfully designed.</span>',
-        'android' => '<div class="android-device"><div class="android-screen"><span class="android-logo">Z</span><span class="android-line"></span><span class="android-line small"></span><span class="android-card"></span></div></div><span class="visual-caption">Native, focused, familiar.</span>',
-        'arm' => '<div class="terminal-window"><div class="terminal-head"><span></span><span></span><span></span><b>zenora — terminal</b></div><div class="terminal-code"><em>$</em> zenora --start<br><i>»</i> initializing environment<br><i>»</i> ready<span class="terminal-caret"></span></div></div><span class="visual-caption">Linux tools, on the move.</span>',
-        'wsl' => '<div class="wsl-mark"><span>W</span><b>+</b><span>Z</span></div><div class="wsl-lines"><i></i><i></i><i></i></div><span class="visual-caption">A familiar Linux workflow on Windows.</span>',
-        default => '<div class="generic-project-mark">M<span>.</span></div><span class="visual-caption">Designed and built with intent.</span>',
-    };
+    switch ($variant) {
+        case 'zenora':
+            return '<div class="zenora-symbol">Z<span>.</span></div><span class="visual-caption">A Linux experience, reimagined.</span><span class="visual-orbit"></span>';
+        case 'chat':
+            return '<div class="chat-window"><div class="chat-window-head"><i></i><i></i><i></i><span>ZenoraChat</span></div><div class="chat-bubble chat-bubble--a"></div><div class="chat-bubble chat-bubble--b"></div><div class="chat-bubble chat-bubble--a short"></div><div class="chat-compose"><span></span><b>↗</b></div></div><span class="visual-caption">Conversations, thoughtfully designed.</span>';
+        case 'android':
+            return '<div class="android-device"><div class="android-screen"><span class="android-logo">Z</span><span class="android-line"></span><span class="android-line small"></span><span class="android-card"></span></div></div><span class="visual-caption">Native, focused, familiar.</span>';
+        case 'arm':
+            return '<div class="terminal-window"><div class="terminal-head"><span></span><span></span><span></span><b>zenora — terminal</b></div><div class="terminal-code"><em>$</em> zenora --start<br><i>»</i> initializing environment<br><i>»</i> ready<span class="terminal-caret"></span></div></div><span class="visual-caption">Linux tools, on the move.</span>';
+        case 'wsl':
+            return '<div class="wsl-mark"><span>W</span><b>+</b><span>Z</span></div><div class="wsl-lines"><i></i><i></i><i></i></div><span class="visual-caption">A familiar Linux workflow on Windows.</span>';
+        default:
+            return '<div class="generic-project-mark">M<span>.</span></div><span class="visual-caption">Designed and built with intent.</span>';
+    }
 }
