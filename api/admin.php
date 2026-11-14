@@ -511,6 +511,22 @@ try {
             if ($restoredLabel === '') $restoredLabel = (string) $currentBlock['label'];
             $restore = $pdo->prepare('UPDATE page_blocks SET label=?,content_json=?,settings_json=?,is_visible=? WHERE id=?');
             $restore->execute([$restoredLabel,(string) $snapshot['content_json'],(string) $snapshot['settings_json'],!empty($snapshot['is_visible']) ? 1 : 0,$blockId]);
+            $legacyTypes = ['hero','intro','projects','about','now','contact'];
+            if (in_array($currentBlock['block_type'], $legacyTypes, true) && $currentBlock['block_key'] === $currentBlock['block_type']) {
+                $sync = $pdo->prepare('UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key=?');
+                $sync->execute([(string) $snapshot['content_json'],!empty($snapshot['is_visible']) ? 1 : 0,$currentBlock['block_type']]);
+            }
+            if ($currentBlock['block_type'] === 'about') {
+                $restoredContentArray = is_array($restoredContent) ? $restoredContent : [];
+                if (isset($restoredContentArray['principles_items']) && is_array($restoredContentArray['principles_items'])) {
+                    $principlesJson = json_encode(['items' => array_slice($restoredContentArray['principles_items'], 0, 12)], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    $showPrinciples = !isset($restoredContentArray['show_principles']) || !empty($restoredContentArray['show_principles']) ? 1 : 0;
+                    $pdo->prepare("UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key='principles'")->execute([$principlesJson,$showPrinciples]);
+                }
+            }
+            if ($currentBlock['block_type'] === 'footer' && $currentBlock['block_key'] === 'footer') {
+                $pdo->prepare("UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key='footer'")->execute([(string) $snapshot['content_json'],!empty($snapshot['is_visible']) ? 1 : 0]);
+            }
             log_activity((int) $admin['id'], 'restore', 'page_block', $blockId, 'بازیابی نسخه قبلی بلوک');
             json_response(['ok' => true, 'data' => ['id' => $blockId], 'message' => 'نسخه قبلی بازیابی شد.']);
 
