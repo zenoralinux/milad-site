@@ -5,24 +5,24 @@ DirectoryIndex index.php index.html
   RewriteEngine On
 
   # Route the legacy static entry file to the PHP-rendered homepage when PHP is enabled.
-  RewriteRule ^index\\.html$ index.php [R=302,L]
+  RewriteRule ^index\.html$ index.php [R=302,L]
   RewriteRule ^admin/?$ admin/index.php [L,QSA]
   RewriteRule ^api/admin/?$ api/admin.php [L,QSA]
 
   # Keep application internals, configuration, SQL, and runtime storage private.
-  RewriteRule ^(?:app|bin|config|database|storage|docs|\\.git)(?:/|$) - [F,L]
+  RewriteRule ^(?:app|bin|config|database|storage|docs|\.git)(?:/|$) - [F,L]
 </IfModule>
 
 # Apache 2.4+ authorization syntax.
 <IfModule mod_authz_core.c>
-  <FilesMatch "^(config\\.php|config\\.example\\.php|config\\.local\\.php|\\.env|composer\\.(json|lock)|.*\\.sql)$">
+  <FilesMatch "^(config\.php|config\.example\.php|config\.local\.php|\.env|composer\.(json|lock)|.*\.sql)$">
     Require all denied
   </FilesMatch>
 </IfModule>
 
 # Apache 2.2 compatibility.
 <IfModule !mod_authz_core.c>
-  <FilesMatch "^(config\\.php|config\\.example\\.php|config\\.local\\.php|\\.env|composer\\.(json|lock)|.*\\.sql)$">
+  <FilesMatch "^(config\.php|config\.example\.php|config\.local\.php|\.env|composer\.(json|lock)|.*\.sql)$">
     Order allow,deny
     Deny from all
   </FilesMatch>
