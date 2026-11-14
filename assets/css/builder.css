@@ -302,3 +302,6 @@
 .studio-editor .builder-library-item[draggable="true"]{cursor:grab}
 .studio-editor .builder-library-item.is-dragging{opacity:.45}
 .studio-editor .is-library-drop-target{outline:2px dashed var(--accent)!important;outline-offset:3px;background:rgba(165,138,255,.06)!important}
+
+.studio-template-card>span em{width:max-content;margin-top:4px;padding:3px 7px;border:1px solid rgba(163,230,53,.22);border-radius:20px;color:#bef264;background:rgba(163,230,53,.07);font-size:8px;font-style:normal}
+.studio-template-card.is-full-page-template{border-color:rgba(163,230,53,.2)}

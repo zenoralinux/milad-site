@@ -160,10 +160,10 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
 <header><div><span class="section-kicker">MILAD STUDIO LIBRARY</span><h3 id="builderTemplateTitle">کتابخانه قالب‌ها</h3><p>قالب‌های آماده را بر اساس کاربرد و سبک بصری پیدا کن و به صفحه اضافه کن.</p></div><button type="button" data-template-close aria-label="بستن">×</button></header>
 <div class="studio-template-tools"><input id="builderTemplateSearch" type="search" placeholder="جست‌وجوی قالب‌ها…">
 <div class="studio-template-filters" role="group" aria-label="فیلتر دسته‌بندی قالب‌ها">
-<button type="button" class="is-active" data-template-filter="all">همه</button><button type="button" data-template-filter="hero">معرفی</button><button type="button" data-template-filter="business">کسب‌وکار</button><button type="button" data-template-filter="content">محتوا</button><button type="button" data-template-filter="personal">شخصی</button>
+<button type="button" class="is-active" data-template-filter="all">همه</button><button type="button" data-template-filter="full">صفحات کامل</button><button type="button" data-template-filter="hero">معرفی</button><button type="button" data-template-filter="business">کسب‌وکار</button><button type="button" data-template-filter="content">محتوا</button><button type="button" data-template-filter="personal">شخصی</button>
 </div></div>
 <div class="builder-template-grid studio-template-grid" id="builderTemplateGrid"></div>
-<p class="studio-template-footnote">قالب‌ها به‌صورت بلوک‌های قابل ویرایش اضافه می‌شوند؛ محتوای فعلی صفحه حذف نمی‌شود.</p>
+<p class="studio-template-footnote">قالب‌های سکشن یا صفحه کامل به انتهای صفحه اضافه می‌شوند؛ محتوای قبلی حذف نمی‌شود.</p>
 </section></div>
 <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 </body></html>

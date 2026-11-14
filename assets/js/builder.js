@@ -1316,32 +1316,84 @@
     'newsletter-box':{title:'Newsletter CTA',category:'content',description:'دعوت به عضویت خبرنامه',type:'newsletter',label:'عضویت در خبرنامه',content:{title:'از خبرهای تازه جا نمان',description:'مقالات و به‌روزرسانی‌های جدید را دریافت کن.',placeholder:'آدرس ایمیل شما',button_text:'عضویت'},settings:{background:'#064e3b',text_color:'#ffffff',padding:36,radius:22,text_align:'center'}},
     'tabs-content':{title:'Content Tabs',category:'content',description:'بخش چندتب محتوایی',type:'tabs',label:'تب‌های محتوایی',content:{title:'بیشتر بدانید',items:[{title:'معرفی',description:'اطلاعات کلی درباره محصول و خدمات.'},{title:'ویژگی‌ها',description:'جزئیات قابلیت‌ها و امکانات.'},{title:'پشتیبانی',description:'راه‌های دریافت راهنمایی.'}]}},
     'minimal-contact':{title:'Minimal Contact',category:'hero',description:'بخش تماس مینیمال',type:'container',label:'بخش ارتباط',content:{direction:'column',children:[{id:'node-c-1',type:'heading',content:{text:'بیایید با هم چیزی بسازیم.',level:2}},{id:'node-c-2',type:'paragraph',content:{text:'برای همکاری، پیشنهاد یا پرسش با من در ارتباط باش.'}},{id:'node-c-3',type:'button',content:{text:'ارسال پیام',url:'#contact'}}]},settings:{background:'#fff7ed',text_color:'#431407',padding:40,radius:24}}
+    'full-developer-portfolio':{title:'Developer Portfolio · Full Page',category:'full',description:'معرفی، مهارت‌ها، مسیر حرفه‌ای، پروژه‌ها و تماس',blocks:[
+      {type:'container',label:'معرفی توسعه‌دهنده',settings:{background:'#17152f',text_color:'#f6f2ff',padding:52,radius:26},content:{direction:'column',children:[{id:'fp-dev-h',type:'heading',content:{text:'ایده‌ها را به محصول تبدیل می‌کنم.',level:1}},{id:'fp-dev-p',type:'paragraph',content:{text:'توسعه‌دهنده مستقل علاقه‌مند به لینوکس و نرم‌افزارهای متن‌باز.'}},{id:'fp-dev-b',type:'button',content:{text:'مشاهده پروژه‌ها',url:'#work'}}]}},
+      {type:'grid',label:'مهارت‌ها',content:{columns:3,children:[{id:'fp-dev-f1',type:'feature',content:{symbol:'⌘',title:'توسعه نرم‌افزار',description:'ساخت محصولات کاربردی'}},{id:'fp-dev-f2',type:'feature',content:{symbol:'🐧',title:'Linux & Open Source',description:'سیستم‌عامل و متن‌باز'}},{id:'fp-dev-f3',type:'feature',content:{symbol:'✦',title:'رابط کاربری',description:'تجربه مدرن و روان'}}]}},
+      {type:'timeline',label:'مسیر حرفه‌ای',content:{title:'مسیر من',items:[{date:'۱۴۰۳',title:'شروع توسعه',description:'آغاز ساخت پروژه‌ها'},{date:'۱۴۰۴',title:'متن‌باز',description:'انتشار ابزارهای آزاد'},{date:'۱۴۰۵',title:'توسعه محصولات',description:'تمرکز بر کیفیت'}]}},
+      {type:'grid',label:'پروژه‌های منتخب',content:{columns:3,children:[{id:'fp-dev-p1',type:'card',content:{title:'پروژه اول',body:'شرح و فناوری‌ها'}},{id:'fp-dev-p2',type:'card',content:{title:'پروژه دوم',body:'شرح و دستاوردها'}},{id:'fp-dev-p3',type:'card',content:{title:'پروژه سوم',body:'شرح و لینک مشاهده'}}]}},
+      {type:'cta',label:'دعوت به همکاری',settings:{background:'#312e81',text_color:'#fff',padding:38,radius:22,text_align:'center'},content:{title:'برای ساخت ایده بعدی آماده‌ای؟',body:'برای همکاری با من در ارتباط باش.',button_text:'ارتباط با من',button_url:'#contact'}}
+    ]},
+    'full-saas-landing':{title:'SaaS Landing · Full Page',category:'full',description:'معرفی محصول، امکانات، قیمت‌گذاری و FAQ',blocks:[
+      {type:'container',label:'Hero محصول SaaS',settings:{background:'#172554',text_color:'#eff6ff',padding:52,radius:26,text_align:'center'},content:{direction:'column',children:[{id:'fp-saas-h',type:'heading',content:{text:'راهکار هوشمند برای رشد کسب‌وکار شما',level:1}},{id:'fp-saas-p',type:'paragraph',content:{text:'مدیریت کارها و همکاری تیمی در یک فضای یکپارچه.'}},{id:'fp-saas-b',type:'button',content:{text:'شروع رایگان',url:'#contact'}}]}},
+      {type:'grid',label:'امکانات محصول',content:{columns:3,children:[{id:'fp-saas-f1',type:'feature',content:{symbol:'⚡',title:'سریع و ساده',description:'فرایندهای روزمره را ساده کن.'}},{id:'fp-saas-f2',type:'feature',content:{symbol:'🔒',title:'امن و مطمئن',description:'از داده‌ها محافظت کن.'}},{id:'fp-saas-f3',type:'feature',content:{symbol:'☁',title:'همیشه در دسترس',description:'از هر دستگاهی استفاده کن.'}}]}},
+      {type:'grid',label:'پلن‌های قیمت‌گذاری',content:{columns:3,children:[{id:'fp-saas-p1',type:'pricing',content:{title:'رایگان',price:'۰',period:'همیشگی',description:'برای شروع',items:[{text:'امکانات پایه'}],button_text:'شروع کنید',button_url:'#contact'}},{id:'fp-saas-p2',type:'pricing',content:{title:'حرفه‌ای',price:'۲۹۹٬۰۰۰',period:'ماهانه',description:'برای تیم‌ها',items:[{text:'تمام امکانات'},{text:'پشتیبانی سریع'}],button_text:'انتخاب پلن',button_url:'#contact'},styles:{background:'#172554',color:'#fff'}},{id:'fp-saas-p3',type:'pricing',content:{title:'سازمانی',price:'توافقی',period:'سفارشی',description:'برای سازمان‌ها',items:[{text:'امکانات اختصاصی'}],button_text:'مشاوره',button_url:'#contact'}}]}},
+      {type:'accordion',label:'پرسش‌های متداول',content:{title:'سؤالات متداول',items:[{question:'آیا اشتراک قابل لغو است؟',answer:'بله، شرایط اشتراک قابل تنظیم است.'},{question:'چطور شروع کنم؟',answer:'از دکمه شروع استفاده کن.'}]}},
+      {type:'cta',label:'دعوت به شروع',settings:{background:'#0f766e',text_color:'#fff',padding:38,radius:22,text_align:'center'},content:{title:'همین امروز شروع کن',body:'اولین قدم را بردار.',button_text:'شروع رایگان',button_url:'#contact'}}
+    ]},
+    'full-cyber-tech':{title:'Cyber Tech · Full Page',category:'full',description:'قالب فناوری تیره با قابلیت‌ها، مشخصات فنی و دانلود',blocks:[
+      {type:'container',label:'Hero فناوری',settings:{background:'#071b16',text_color:'#eafff3',padding:54,radius:26},content:{direction:'column',children:[{id:'fp-cyber-h',type:'heading',content:{text:'تکنولوژی بدون محدودیت',level:1}},{id:'fp-cyber-p',type:'paragraph',content:{text:'محصولی مدرن برای توسعه‌دهندگان و کاربران حرفه‌ای.'}},{id:'fp-cyber-b',type:'button',content:{text:'دریافت محصول',url:'#contact'}}]}},
+      {type:'grid',label:'قابلیت‌های فنی',content:{columns:3,children:[{id:'fp-cyber-f1',type:'feature',content:{symbol:'⌘',title:'کنترل کامل',description:'تنظیم متناسب با نیاز'}},{id:'fp-cyber-f2',type:'feature',content:{symbol:'⚡',title:'عملکرد سریع',description:'سرعت و پایداری'}},{id:'fp-cyber-f3',type:'feature',content:{symbol:'◈',title:'متن‌باز',description:'شفاف و قابل توسعه'}}]}},
+      {type:'stats',label:'مشخصات و آمار',content:{title:'در یک نگاه',items:[{value:'۶۴-bit',label:'معماری',description:'پشتیبانی مدرن'},{value:'۲۴/۷',label:'دسترسی',description:'همیشه آماده'},{value:'۰۱',label:'هسته اصلی',description:'ساختار یکپارچه'}]}},
+      {type:'timeline',label:'نقشه راه',content:{title:'نقشه راه توسعه',items:[{date:'مرحله ۱',title:'نسخه اولیه',description:'انتشار نسخه پایه'},{date:'مرحله ۲',title:'قابلیت بیشتر',description:'توسعه ابزارها'},{date:'مرحله ۳',title:'اکوسیستم',description:'گسترش جامعه'}]}},
+      {type:'cta',label:'دریافت و شروع',settings:{background:'#052e24',text_color:'#ecfdf5',padding:40,radius:22,text_align:'center'},content:{title:'آماده تجربه نسل بعدی هستی؟',body:'نسخه جدید را بررسی کن.',button_text:'دریافت و شروع',button_url:'#contact'}}
+    ]},
+    'full-creative-agency':{title:'Creative Agency · Full Page',category:'full',description:'قالب آژانس خلاق با خدمات، نمونه‌کار، تیم و مشتریان',blocks:[
+      {type:'container',label:'معرفی آژانس',settings:{background:'#fff1e8',text_color:'#431407',padding:50,radius:26},content:{direction:'column',children:[{id:'fp-agency-h',type:'heading',content:{text:'ایده‌های بزرگ، تجربه‌های ماندگار',level:1}},{id:'fp-agency-p',type:'paragraph',content:{text:'به برندها کمک می‌کنیم تجربه‌های دیجیتال بهتری بسازند.'}},{id:'fp-agency-b',type:'button',content:{text:'شروع پروژه',url:'#contact'}}]}},
+      {type:'grid',label:'خدمات آژانس',content:{columns:3,children:[{id:'fp-agency-f1',type:'feature',content:{symbol:'✦',title:'استراتژی برند',description:'هویت و مسیر ارتباطی'}},{id:'fp-agency-f2',type:'feature',content:{symbol:'◈',title:'طراحی محصول',description:'رابط و تجربه کاربری'}},{id:'fp-agency-f3',type:'feature',content:{symbol:'⚡',title:'توسعه وب',description:'محصول سریع و منعطف'}}]}},
+      {type:'gallery',label:'نمونه‌کارها',content:{title:'منتخب پروژه‌ها',items:[{src:'',alt:'نمونه اول',title:'پروژه اول'},{src:'',alt:'نمونه دوم',title:'پروژه دوم'},{src:'',alt:'نمونه سوم',title:'پروژه سوم'}]}},
+      {type:'team',label:'اعضای تیم',content:{title:'با تیم ما آشنا شوید',items:[{name:'عضو اول',role:'مدیر خلاقیت'},{name:'عضو دوم',role:'طراح محصول'},{name:'عضو سوم',role:'توسعه‌دهنده'}]}},
+      {type:'grid',label:'بازخورد مشتریان',content:{columns:2,children:[{id:'fp-agency-q1',type:'testimonial',content:{quote:'تجربه همکاری حرفه‌ای و نتیجه عالی بود.',author:'مشتری اول',role:'مدیر کسب‌وکار'}},{id:'fp-agency-q2',type:'testimonial',content:{quote:'تیم با دقت پروژه را تحویل داد.',author:'مشتری دوم',role:'مدیر محصول'}}]}},
+      {type:'cta',label:'شروع همکاری',settings:{background:'#7c2d12',text_color:'#fff7ed',padding:40,radius:22,text_align:'center'},content:{title:'پروژه بعدی را با هم بسازیم',body:'درباره ایده‌ات صحبت کن.',button_text:'درخواست همکاری',button_url:'#contact'}}
+    ]},
+    'full-editorial-blog':{title:'Editorial Blog · Full Page',category:'full',description:'قالب محتوایی با مطالب منتخب، دسته‌بندی و خبرنامه',blocks:[
+      {type:'container',label:'معرفی مجله',settings:{background:'#f1f5f9',text_color:'#0f172a',padding:46,radius:22},content:{direction:'column',children:[{id:'fp-blog-h',type:'heading',content:{text:'ایده‌ها، یادداشت‌ها و روایت‌ها',level:1}},{id:'fp-blog-p',type:'paragraph',content:{text:'مقاله‌ها، تجربه‌ها و بینش‌های تازه در یک فضای مینیمال.'}}]}},
+      {type:'grid',label:'مطالب منتخب',content:{columns:3,children:[{id:'fp-blog-a1',type:'card',content:{title:'راهنمای شروع',body:'معرفی کوتاه مقاله اول.'}},{id:'fp-blog-a2',type:'card',content:{title:'نگاه عمیق‌تر',body:'معرفی کوتاه مقاله دوم.'}},{id:'fp-blog-a3',type:'card',content:{title:'یادداشت تازه',body:'معرفی کوتاه مقاله سوم.'}}]}},
+      {type:'tabs',label:'دسته‌بندی مطالب',content:{title:'موضوعات',items:[{title:'فناوری',description:'مقاله‌های فنی'},{title:'طراحی',description:'تجربه کاربری و محصول'},{title:'تجربه‌ها',description:'روایت‌ها و آموخته‌ها'}]}},
+      {type:'timeline',label:'آخرین انتشارها',content:{title:'تازه‌ترین مطالب',items:[{date:'۱۴۰۵/۰۱',title:'مقاله اول',description:'خلاصه مطلب اول'},{date:'۱۴۰۵/۰۲',title:'مقاله دوم',description:'خلاصه مطلب دوم'},{date:'۱۴۰۵/۰۳',title:'مقاله سوم',description:'خلاصه مطلب سوم'}]}},
+      {type:'newsletter',label:'عضویت خبرنامه',content:{title:'مطالب تازه را دریافت کن',description:'برای دریافت مقاله‌ها عضو شو.',placeholder:'آدرس ایمیل',button_text:'عضویت'}},
+      {type:'cta',label:'ارتباط با تحریریه',settings:{background:'#0f172a',text_color:'#f8fafc',padding:36,radius:22,text_align:'center'},content:{title:'پیشنهاد یا دیدگاهی داری؟',body:'برای همکاری یا ارسال پیشنهاد با ما تماس بگیر.',button_text:'ارتباط با ما',button_url:'#contact'}}
+    ]},
+
   };
   function renderTemplateCatalog() {
     const host = document.getElementById('builderTemplateGrid');
     if (!host) return;
     const term = String(document.getElementById('builderTemplateSearch')?.value || '').trim().toLocaleLowerCase('fa');
     const active = document.querySelector('[data-template-filter].is-active')?.dataset.templateFilter || 'all';
-    const palette = {hero:['#312e81','#818cf8'],business:['#0f766e','#5eead4'],content:['#9a3412','#fdba74'],personal:['#6d28d9','#c4b5fd']};
+    const palette = {hero:['#312e81','#818cf8'],business:['#0f766e','#5eead4'],content:['#9a3412','#fdba74'],personal:['#6d28d9','#c4b5fd'],full:['#1f2937','#a3e635']};
     const entries = Object.entries(templates).filter(([key,item]) => (active === 'all' || item.category === active) && (!term || (key + ' ' + item.title + ' ' + item.description).toLocaleLowerCase('fa').includes(term)));
     host.innerHTML = entries.map(([key,item]) => {
       const colors = palette[item.category] || palette.personal;
       const preview = '<div class="studio-template-preview" style="--template-primary:' + colors[0] + ';--template-accent:' + colors[1] + '"><span></span><b></b><i></i><div><em></em><em></em><em></em></div></div>';
-      return '<button type="button" class="studio-template-card" data-template="' + escapeHtml(key) + '">' + preview + '<span><strong>' + escapeHtml(item.title) + '</strong><small>' + escapeHtml(item.description) + '</small></span><i>＋</i></button>';
+      return '<button type="button" class="studio-template-card' + (Array.isArray(item.blocks) ? ' is-full-page-template' : '') + '" data-template="' + escapeHtml(key) + '">' + preview + '<span><strong>' + escapeHtml(item.title) + '</strong><small>' + escapeHtml(item.description) + '</small><em>' + (Array.isArray(item.blocks) ? item.blocks.length + ' سکشن · صفحه کامل' : 'سکشن آماده') + '</em></span><i>＋</i></button>';
     }).join('') || '<div class="builder-empty">قالبی با این مشخصات پیدا نشد.</div>';
   }
   async function applyTemplate(key) {
     const template = templates[key];
     if (!template) return;
+    const sections = Array.isArray(template.blocks) ? template.blocks : [template];
+    const createdIds = [];
+    const templateButton = templateModal && templateModal.querySelector('[data-template="' + key + '"]');
+    if (templateButton) templateButton.disabled = true;
+    status('در حال افزودن ' + sections.length + ' بخش قالب…');
     try {
-      const created = await request('builder-block-add','POST',{type:template.type});
-      await request('builder-block-save','PUT',{
-        label:template.label,content:template.content,settings:template.settings || {},is_visible:true
-      },created.id);
+      for (const section of sections) {
+        const created = await request('builder-block-add','POST',{type:section.type});
+        createdIds.push(Number(created.id));
+        await request('builder-block-save','PUT',{
+          label:section.label,content:section.content || {},settings:section.settings || {},is_visible:true
+        },created.id);
+      }
       if (templateModal) templateModal.hidden = true;
-      await load(created.id);
-      status('قالب آماده به صفحه اضافه شد.','success');
-    } catch (error) { status(error.message,'error'); }
+      await load(createdIds[createdIds.length - 1] || null);
+      status(Array.isArray(template.blocks) ? 'قالب کامل به صفحه اضافه شد؛ همه بخش‌ها قابل ویرایش هستند.' : 'سکشن آماده به صفحه اضافه شد.','success');
+    } catch (error) {
+      await Promise.all(createdIds.map(id => request('builder-block-delete','DELETE',{},id).catch(() => null)));
+      await load();
+      status(error.message,'error');
+    } finally {
+      if (templateButton) templateButton.disabled = false;
+    }
   }
   $('#builderTemplates')?.addEventListener('click',() => { if (templateModal) templateModal.hidden = false; renderTemplateCatalog(); });
   document.getElementById('builderTemplateSearch')?.addEventListener('input',renderTemplateCatalog);

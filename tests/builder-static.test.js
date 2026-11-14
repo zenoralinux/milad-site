@@ -17,7 +17,9 @@ const api=fs.readFileSync('api/admin.php','utf8');
 assert(studio.includes('class="studio-editor"') && studio.includes('builderPreviewDocument'),'standalone Studio route and internal preview');
 assert(!admin.includes('id="view-builder"') && !admin.includes("assets/js/builder.js"),'dashboard does not mount Studio');
 assert(js.includes('function renderRepeaterControl') && js.includes('data-repeater-add'),'visual repeater controls');
-assert(js.includes("'pricing-table'") && js.includes("'faq-section'") && js.includes("'career-timeline'"),'expanded template catalog');
+assert(js.includes("'pricing-table'") && js.includes("'faq-section'") && js.includes("'career-timeline'"),'expanded section template catalog');
+assert(js.includes("'full-developer-portfolio'") && js.includes("'full-saas-landing'") && js.includes("'full-cyber-tech'") && js.includes("'full-creative-agency'") && js.includes("'full-editorial-blog'"),'full-page template catalog');
+assert(js.includes('Array.isArray(template.blocks)') && js.includes('const createdIds = []'),'multi-section template insertion and rollback');
 ['pricing','accordion','testimonial','gallery','timeline','skill','logo_cloud','team','tabs','newsletter','icon_box'].forEach(type=>{
   assert(api.includes("'" + type + "' =>"),'API default for ' + type);
   assert(renderer.includes("'" + type + "'"),'server renderer registry for ' + type);
