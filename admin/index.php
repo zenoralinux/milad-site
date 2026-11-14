@@ -118,6 +118,31 @@ try {
     );
     error_log('[Milad CMS setup] stage=' . $setupStage . ' | ' . $setupDebug);
 }
+
+$builderPreviewDocument = '';
+$builderPreviewError = '';
+if ($admin && !$setupError) {
+    $hadPreviewFlag = array_key_exists('builder_preview', $_GET);
+    $originalPreviewFlag = $_GET['builder_preview'] ?? null;
+    $_GET['builder_preview'] = '1';
+    $previewBufferLevel = ob_get_level();
+    ob_start();
+    try {
+        include dirname(__DIR__) . '/index.php';
+        $builderPreviewDocument = (string) ob_get_clean();
+        $builderPreviewDocument = builder_make_internal_preview($builderPreviewDocument);
+    } catch (Throwable $previewError) {
+        while (ob_get_level() > $previewBufferLevel) ob_end_clean();
+        $builderPreviewError = 'ساخت پیش‌نمایش داخلی ناموفق بود.';
+        error_log('[Milad Studio internal preview] ' . $previewError->getMessage());
+    }
+    if ($hadPreviewFlag) {
+        $_GET['builder_preview'] = $originalPreviewFlag;
+    } else {
+        unset($_GET['builder_preview']);
+    }
+}
+
 ?><!doctype html>
 <html lang="fa" dir="rtl">
 <head>
@@ -209,7 +234,6 @@ try {
                 <button type="button" data-device="mobile">موبایل</button>
               </div>
               <button class="primary-button compact" id="builderSaveAll" type="button">ذخیره تغییرات</button>
-              <a class="secondary-button" id="builderOpenPreview" href="<?= h(app_url('index.php?builder_preview=1')) ?>" target="_blank" rel="noopener">پیش‌نمایش مستقل ↗</a>
               <button class="secondary-button" id="builderReload" type="button">↻ تازه‌سازی</button>
             </div>
           </div>
@@ -236,7 +260,8 @@ try {
             <section class="builder-canvas-wrap panel-card">
               <div class="builder-canvas-header"><strong>پیش‌نمایش زنده سایت</strong><small>روی هر بخش کلیک کن تا تنظیماتش باز شود؛ تغییرات در همین نما دیده می‌شوند</small></div>
               <div class="builder-preview-frame-shell" id="builderPreviewShell" data-device="desktop">
-                <iframe id="builderPreviewFrame" title="پیش‌نمایش زنده وب‌سایت" src="<?= h(app_url('index.php?builder_preview=1')) ?>" referrerpolicy="same-origin" loading="eager"></iframe>
+                <iframe id="builderPreviewFrame" title="پیش‌نمایش زنده وب‌سایت" srcdoc="<?= h($builderPreviewDocument) ?>" loading="eager"></iframe>
+                <?php if ($builderPreviewError !== ''): ?><p class="builder-preview-hint"><?= h($builderPreviewError) ?></p><?php endif; ?>
               </div>
             </section>
             <aside class="builder-inspector panel-card">
