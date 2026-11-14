@@ -358,9 +358,17 @@ try {
         case 'builder-block-delete':
             if ($method !== 'DELETE') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
             $id = (int) ($_GET['id'] ?? 0);
+            $find = $pdo->prepare("SELECT block_type,block_key FROM page_blocks WHERE id=? AND page_id=? LIMIT 1");
+            $find->execute([$id,builder_home_page_id()]);
+            $removed = $find->fetch(PDO::FETCH_ASSOC);
+            if (!$removed) api_fail('NOT_FOUND', 'بلوک پیدا نشد.', 404);
             $delete = $pdo->prepare("DELETE FROM page_blocks WHERE id=? AND page_id=?");
             $delete->execute([$id,builder_home_page_id()]);
-            if (!$delete->rowCount()) api_fail('NOT_FOUND', 'بلوک پیدا نشد.', 404);
+            $legacyTypes = ['hero','intro','projects','about','now','contact'];
+            if (in_array($removed['block_type'], $legacyTypes, true) && $removed['block_key'] === $removed['block_type']) {
+                $hideLegacy = $pdo->prepare("UPDATE site_sections SET is_visible=0 WHERE section_key=?");
+                $hideLegacy->execute([$removed['block_type']]);
+            }
             log_activity((int) $admin['id'], 'delete', 'page_block', $id, 'حذف بلوک صفحه اصلی');
             json_response(['ok' => true, 'data' => [], 'message' => 'بلوک حذف شد.']);
 
