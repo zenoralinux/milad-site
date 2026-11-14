@@ -101,6 +101,9 @@ $html = preg_replace('/<meta property="og:title" content="[^"]*">/', '<meta prop
 $html = preg_replace('/<meta property="og:description" content="[^"]*">/', '<meta property="og:description" content="' . h($siteDescription) . '">', $html, 1);
 $html = preg_replace('/<meta property="og:url" content="[^"]*">/', '<meta property="og:url" content="' . h($canonical) . '">', $html, 1);
 $html = preg_replace('/<meta property="og:image" content="[^"]*">/', '<meta property="og:image" content="' . h($ogImage) . '">', $html, 1);
+$html = preg_replace('/<meta name="twitter:title" content="[^"]*">/', '<meta name="twitter:title" content="' . h($siteTitle) . '">', $html, 1);
+$html = preg_replace('/<meta name="twitter:description" content="[^"]*">/', '<meta name="twitter:description" content="' . h($siteDescription) . '">', $html, 1);
+$html = preg_replace('/<meta name="theme-color" content="[^"]*">/', '<meta name="theme-color" content="' . h(public_setting('theme_color', '#080b12')) . '">', $html, 1);
 $html = str_replace('https://github.com/miladalizadw', h($github), $html);
 $html = str_replace('https://t.me/miladalizadw', h($telegram), $html);
 $html = str_replace('./milad_avatar.jpg', h($avatar), $html);
