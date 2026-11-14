@@ -8,9 +8,8 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
-$configPath = getenv('MILAD_SITE_CONFIG') ?: MILAD_ROOT . '/config.php';
-if (!is_file($configPath)) {
-    fwrite(STDERR, "Missing config.php. Copy config.example.php to config.php, fill database credentials, then run this command again.\n");
+if (!cfg('database.host') || !cfg('database.name') || !cfg('database.username')) {
+    fwrite(STDERR, "Database configuration missing. Copy config.example.php to config.php or set MILAD_DB_HOST, MILAD_DB_NAME, MILAD_DB_USER and MILAD_DB_PASSWORD.\n");
     exit(1);
 }
 
