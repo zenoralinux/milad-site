@@ -178,6 +178,8 @@ function db(): PDO
     // First normal request installs the schema and seed content automatically.
     require_once MILAD_ROOT . '/app/installer.php';
     ensure_app_installed($pdo);
+    require_once MILAD_ROOT . '/app/migrations.php';
+    run_app_migrations($pdo);
     return $pdo;
 }
 
