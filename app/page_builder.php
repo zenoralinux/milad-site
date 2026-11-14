@@ -1174,53 +1174,100 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   var resizeTarget = null;
   var resizeBlock = null;
   var resizeNodeId = '';
+  var resizeObserver = null;
+  var resizeFrame = 0;
 
   function ensureResizeOverlay(){
     if (resizeOverlay) return resizeOverlay;
     var style = document.createElement('style');
     style.id = 'builder-direct-resize-style';
-    style.textContent = '.builder-direct-resize{position:absolute;z-index:2147483000;border:2px solid #8b6cff;pointer-events:none;box-sizing:border-box}.builder-direct-resize i{position:absolute;width:12px;height:12px;background:#fff;border:2px solid #8b6cff;border-radius:50%;pointer-events:auto;box-sizing:border-box}.builder-direct-resize .r{right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}.builder-direct-resize .b{bottom:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}.builder-direct-resize .c{right:-7px;bottom:-7px;cursor:nwse-resize}.builder-direct-resize-label{position:absolute;top:-30px;left:0;background:#171225;color:#fff;padding:4px 8px;border-radius:7px;font:12px/1 sans-serif;white-space:nowrap}';
+    style.textContent = '.builder-direct-resize{position:fixed;z-index:2147483000;border:2px solid #8b6cff;pointer-events:none;box-sizing:border-box;outline:1px solid rgba(139,108,255,.15)}.builder-direct-resize i{position:absolute;width:11px;height:11px;background:#fff;border:2px solid #8b6cff;border-radius:3px;pointer-events:auto;box-sizing:border-box;touch-action:none}.builder-direct-resize .tl{left:-7px;top:-7px;cursor:nwse-resize}.builder-direct-resize .t{left:50%;top:-7px;transform:translateX(-50%);cursor:ns-resize}.builder-direct-resize .tr{right:-7px;top:-7px;cursor:nesw-resize}.builder-direct-resize .r{right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}.builder-direct-resize .br{right:-7px;bottom:-7px;cursor:nwse-resize}.builder-direct-resize .b{left:50%;bottom:-7px;transform:translateX(-50%);cursor:ns-resize}.builder-direct-resize .bl{left:-7px;bottom:-7px;cursor:nesw-resize}.builder-direct-resize .l{left:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}.builder-direct-resize-label{position:absolute;top:-31px;left:0;background:#171225;color:#fff;padding:5px 8px;border:1px solid rgba(255,255,255,.12);border-radius:7px;font:12px/1.2 sans-serif;white-space:nowrap;box-shadow:0 5px 18px rgba(0,0,0,.2)}';
     document.head.appendChild(style);
     resizeOverlay = document.createElement('div');
     resizeOverlay.className = 'builder-direct-resize';
-    resizeOverlay.innerHTML = '<span class="builder-direct-resize-label"></span><i class="r" data-resize-axis="x"></i><i class="b" data-resize-axis="y"></i><i class="c" data-resize-axis="both"></i>';
+    resizeOverlay.setAttribute('aria-hidden','true');
+    resizeOverlay.innerHTML = '<span class="builder-direct-resize-label"></span><i class="tl" data-resize-handle="tl"></i><i class="t" data-resize-handle="t"></i><i class="tr" data-resize-handle="tr"></i><i class="r" data-resize-handle="r"></i><i class="br" data-resize-handle="br"></i><i class="b" data-resize-handle="b"></i><i class="bl" data-resize-handle="bl"></i><i class="l" data-resize-handle="l"></i>';
     document.body.appendChild(resizeOverlay);
-    resizeOverlay.querySelectorAll('[data-resize-axis]').forEach(function(handle){
+    resizeOverlay.querySelectorAll('[data-resize-handle]').forEach(function(handle){
       handle.addEventListener('pointerdown',function(event){
-        if (!resizeTarget) return;
-        event.preventDefault(); event.stopPropagation();
-        var axis = handle.getAttribute('data-resize-axis');
-        var rect = resizeTarget.getBoundingClientRect();
-        var startX = event.clientX, startY = event.clientY, startW = rect.width, startH = rect.height;
-        var maxW = Math.max(1,(resizeTarget.parentElement || document.body).getBoundingClientRect().width);
+        if (!resizeTarget || !resizeBlock) return;
+        event.preventDefault();
+        event.stopPropagation();
+        var direction = String(handle.getAttribute('data-resize-handle') || '');
+        var startRect = resizeTarget.getBoundingClientRect();
+        var startX = event.clientX;
+        var startY = event.clientY;
+        var startW = startRect.width;
+        var startH = startRect.height;
+        var parent = resizeTarget.parentElement || document.body;
+        var parentW = Math.max(24,parent.getBoundingClientRect().width);
+        var right = direction.indexOf('r') !== -1;
+        var left = direction.indexOf('l') !== -1;
+        var top = direction.indexOf('t') !== -1;
+        var bottom = direction.indexOf('b') !== -1;
+        var horizontal = right || left;
+        var vertical = top || bottom;
+        var latest = {width:startW,height:startH};
+
         function move(e){
-          if (axis === 'x' || axis === 'both') resizeTarget.style.width = Math.max(24,startW + e.clientX - startX) + 'px';
-          if (axis === 'y' || axis === 'both') resizeTarget.style.minHeight = Math.max(0,startH + e.clientY - startY) + 'px';
-          positionResizeOverlay();
+          var dx = e.clientX - startX;
+          var dy = e.clientY - startY;
+          if (horizontal) {
+            latest.width = Math.max(24,Math.min(parentW,startW + (right ? dx : -dx)));
+            resizeTarget.style.width = Math.round(latest.width) + 'px';
+            resizeTarget.style.maxWidth = '100%';
+          }
+          if (vertical) {
+            latest.height = Math.max(0,Math.min(4000,startH + (bottom ? dy : -dy)));
+            resizeTarget.style.minHeight = Math.round(latest.height) + 'px';
+          }
+          scheduleResizeOverlay();
         }
         function up(){
           document.removeEventListener('pointermove',move,true);
           document.removeEventListener('pointerup',up,true);
-          var r = resizeTarget.getBoundingClientRect();
-          var parent = resizeTarget.parentElement || document.body;
-          var parentW = Math.max(1,parent.getBoundingClientRect().width);
-          sendToParent({type:'milad-builder-direct-resize',key:resizeBlock && resizeBlock.dataset.builderKey || '',nodeId:resizeNodeId,widthPercent:(r.width / parentW) * 100,height:r.height});
+          document.removeEventListener('pointercancel',up,true);
+          var finalRect = resizeTarget.getBoundingClientRect();
+          var finalParent = resizeTarget.parentElement || document.body;
+          var finalParentW = Math.max(1,finalParent.getBoundingClientRect().width);
+          sendToParent({
+            type:'milad-builder-direct-resize',
+            key:resizeBlock.dataset.builderKey || '',
+            nodeId:resizeNodeId,
+            widthPercent:Math.max(1,Math.min(100,(finalRect.width / finalParentW) * 100)),
+            widthPx:Math.round(finalRect.width),
+            height:Math.round(finalRect.height),
+            handle:direction
+          });
         }
         document.addEventListener('pointermove',move,true);
         document.addEventListener('pointerup',up,true);
+        document.addEventListener('pointercancel',up,true);
       },true);
     });
     return resizeOverlay;
   }
+
+  function scheduleResizeOverlay(){
+    if (resizeFrame) return;
+    resizeFrame = window.requestAnimationFrame(function(){
+      resizeFrame = 0;
+      positionResizeOverlay();
+    });
+  }
   function positionResizeOverlay(){
-    if (!resizeTarget || !resizeOverlay) return;
+    if (!resizeTarget || !resizeOverlay || !resizeTarget.isConnected) {
+      if (resizeOverlay) resizeOverlay.hidden = true;
+      return;
+    }
     var rect = resizeTarget.getBoundingClientRect();
-    resizeOverlay.style.left = (rect.left + window.scrollX) + 'px';
-    resizeOverlay.style.top = (rect.top + window.scrollY) + 'px';
+    resizeOverlay.hidden = false;
+    resizeOverlay.style.left = rect.left + 'px';
+    resizeOverlay.style.top = rect.top + 'px';
     resizeOverlay.style.width = rect.width + 'px';
     resizeOverlay.style.height = rect.height + 'px';
     var label = resizeOverlay.querySelector('.builder-direct-resize-label');
-    if (label) label.textContent = Math.round(rect.width) + ' × ' + Math.round(rect.height);
+    if (label) label.textContent = Math.round(rect.width) + ' × ' + Math.round(rect.height) + ' px';
   }
   function selectResizeTarget(target){
     var block = target && target.closest('[data-builder-key]');
@@ -1231,14 +1278,19 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     resizeTarget = widget || block;
     ensureResizeOverlay();
     positionResizeOverlay();
+    if (resizeObserver) resizeObserver.disconnect();
+    if (typeof ResizeObserver === 'function') {
+      resizeObserver = new ResizeObserver(scheduleResizeOverlay);
+      resizeObserver.observe(resizeTarget);
+      if (resizeTarget.parentElement) resizeObserver.observe(resizeTarget.parentElement);
+    }
   }
   document.addEventListener('click',function(event){
     var target = event.target.closest('[data-widget-node],[data-builder-key]');
     if (target) selectResizeTarget(target);
   },false);
-  window.addEventListener('scroll',positionResizeOverlay,true);
-  window.addEventListener('resize',positionResizeOverlay);
-
+  window.addEventListener('scroll',scheduleResizeOverlay,true);
+  window.addEventListener('resize',scheduleResizeOverlay);
   window.addEventListener('message',function(event){
     if (event.source !== window.parent) return;
     var message = event.data || {};
