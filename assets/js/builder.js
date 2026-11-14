@@ -502,16 +502,27 @@
     allowed.forEach(key=>{if(message.styles&&message.styles[key]!==undefined)patch[key]=String(message.styles[key]);});
     if(!Object.keys(patch).length)return;
     queueUndo(block);
+    const activeDevice=previewShell && previewShell.dataset.device ? previewShell.dataset.device : 'desktop';
+    function applyResponsive(target){
+      if(activeDevice==='desktop')Object.assign(target,patch);
+      else{
+        target.responsive=Object.assign({},target.responsive||{});
+        target.responsive[activeDevice]=Object.assign({},target.responsive[activeDevice]||{},patch);
+      }
+    }
     if(message.nodeId){
       const record=findNestedNode(block,String(message.nodeId));
       if(!record)return;
-      record.node.styles=Object.assign({},record.node.styles||{},patch);
+      record.node.styles=Object.assign({},record.node.styles||{});
+      applyResponsive(record.node.styles);
     }else if(message.legacyField){
       block.content=Object.assign({},block.content||{});
       block.content.element_styles=Object.assign({},block.content.element_styles||{});
-      block.content.element_styles[message.legacyField]=Object.assign({},block.content.element_styles[message.legacyField]||{},patch);
+      const legacy=block.content.element_styles[message.legacyField]=Object.assign({},block.content.element_styles[message.legacyField]||{});
+      applyResponsive(legacy);
     }else{
-      block.settings=Object.assign({},block.settings||{},patch);
+      block.settings=Object.assign({},block.settings||{});
+      applyResponsive(block.settings);
     }
     const payload={label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible};
     renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
