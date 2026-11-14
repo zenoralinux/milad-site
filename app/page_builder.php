@@ -144,7 +144,8 @@ function builder_render_custom_block(array $block): string
                 '</span><h3>' . h($item['label'] ?? '') . '</h3><p>' . h($item['description'] ?? '') . '</p></article>';
         }
         return '<section class="section-shell builder-custom-block builder-stats-block"' . $style .
-            '><div class="container"><div class="principles-grid">' . $cards . '</div></div></section>';
+            '><div class="container">' . ($title !== '' ? '<h2>' . $title . '</h2>' : '') .
+            '<div class="principles-grid">' . $cards . '</div></div></section>';
     }
     if ($type === 'spacer') {
         $height = max(8, min(240, (int) ($content['height'] ?? 48)));
