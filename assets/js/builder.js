@@ -709,7 +709,7 @@
     $$('[data-library-tab]').forEach(button => {
       button.classList.toggle('is-active',button.dataset.libraryTab === tab);
     });
-    $('[data-library-panel]').forEach(panel => {
+    document.querySelectorAll('[data-library-panel]').forEach(panel => {
       panel.hidden = false;
     });
   }
