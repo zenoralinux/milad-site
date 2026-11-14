@@ -372,13 +372,14 @@
         selectNestedNode(Number(button.dataset.blockId),String(button.dataset.nodeSelect));
       });
       button.addEventListener('dragstart',event => {
+        event.stopPropagation();
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('application/x-milad-node',JSON.stringify({blockId:Number(button.dataset.blockId),nodeId:String(button.dataset.nodeSelect)}));
       });
       button.addEventListener('dragover',event => { event.preventDefault(); button.classList.add('is-drop-target'); });
       button.addEventListener('dragleave',() => button.classList.remove('is-drop-target'));
       button.addEventListener('drop',event => {
-        event.preventDefault(); button.classList.remove('is-drop-target');
+        event.preventDefault();event.stopPropagation();button.classList.remove('is-drop-target');
         let source; try { source=JSON.parse(event.dataTransfer.getData('application/x-milad-node') || '{}'); } catch(e) { return; }
         if (Number(source.blockId)!==Number(button.dataset.blockId) || String(source.nodeId)===String(button.dataset.nodeSelect)) return;
         moveNestedNode(Number(source.blockId),String(source.nodeId),String(button.dataset.nodeSelect));
