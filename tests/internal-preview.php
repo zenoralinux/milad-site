@@ -15,7 +15,7 @@ $fixture = <<<'HTML'
   <meta property="og:image" content="https://example.test/og.svg">
   <script type="application/ld+json">{"url":"https://example.test/"}</script>
 </head>
-<body><img src="./milad_avatar.jpg" alt="profile"></body>
+<body><img src="https://cdn.example.test/custom-profile.jpg" alt="تصویر پروفایل میلاد"></body>
 </html>
 HTML;
 
@@ -24,7 +24,8 @@ $output = builder_make_internal_preview($fixture);
 $checks = [
     'stylesheet is embedded' => strpos($output, 'id="builder-embedded-site-css"') !== false,
     'site JavaScript is embedded' => strpos($output, 'id="builder-embedded-site-js"') !== false,
-    'profile image is embedded as data' => strpos($output, 'data:image/jpeg;base64,') !== false,
+    'profile image is embedded as data' => strpos($output, 'data:image/jpeg;base64,') !== false &&
+        !preg_match('/<img\\b[^>]*src=["\\']https?:\\/\\//i', $output),
     'external metadata is removed' => strpos($output, 'https://example.test/') === false,
     'local asset paths are removed' => strpos($output, './assets/') === false && strpos($output, '../assets/') === false,
     'favicon reference is removed' => strpos($output, './favicon.svg') === false,
