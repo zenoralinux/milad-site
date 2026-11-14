@@ -529,7 +529,7 @@
     status('ابعاد و فاصله‌های عنصر به‌روزرسانی شد.','success');
   }
 
-  let nodeClipboard=null;
+  let nodeClipboard=null,blockClipboardId=null;
   function freshenNodeIds(node){
     if(!node||typeof node!=='object')return;
     node.id=makeNodeId();
@@ -539,13 +539,14 @@
   function copySelectedNode(){
     const block=blocks.find(item=>Number(item.id)===Number(selectedId));
     const record=block&&selectedNodeId&&findNestedNode(block,selectedNodeId);
-    if(!record)return;
-    nodeClipboard=cloneData(record.node);
+    if(!record){if(block){blockClipboardId=Number(block.id);nodeClipboard=null;status('بلوک کپی شد.','success');}return;}
+    nodeClipboard=cloneData(record.node);blockClipboardId=null;
     status('المان کپی شد.','success');
   }
   function pasteSelectedNode(){
     const block=blocks.find(item=>Number(item.id)===Number(selectedId));
-    if(!block||!nodeClipboard)return;
+    if(!nodeClipboard){if(blockClipboardId)cloneBlock(blockClipboardId);return;}
+    if(!block)return;
     const target=selectedNodeId&&findNestedNode(block,selectedNodeId);
     const collection=target&&Array.isArray(target.node.children)?target.node.children:(target?target.collection:(block.content.children||(block.content.children=[])));
     const clone=cloneData(nodeClipboard);freshenNodeIds(clone);queueUndo(block);collection.push(clone);
@@ -554,12 +555,13 @@
     renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
   }
   function duplicateSelectedNode(){
+    if(!selectedNodeId){if(selectedId!==null)cloneBlock(Number(selectedId));return;}
     copySelectedNode();pasteSelectedNode();
   }
   function deleteSelectedNode(){
     const block=blocks.find(item=>Number(item.id)===Number(selectedId));
     const record=block&&selectedNodeId&&findNestedNode(block,selectedNodeId);
-    if(!record)return;
+    if(!record){if(block)deleteBlock(Number(block.id));return;}
     queueUndo(block);record.collection.splice(record.index,1);selectedNodeId=null;
     const payload={label:block.label,content:block.content,settings:block.settings||{},is_visible:!!block.is_visible};
     renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
