@@ -305,3 +305,16 @@
 
 .studio-template-card>span em{width:max-content;margin-top:4px;padding:3px 7px;border:1px solid rgba(163,230,53,.22);border-radius:20px;color:#bef264;background:rgba(163,230,53,.07);font-size:8px;font-style:normal}
 .studio-template-card.is-full-page-template{border-color:rgba(163,230,53,.2)}
+
+
+/* Studio direct-manipulation + layer navigation upgrade */
+.builder-layers-tools{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;margin:10px 0 12px}
+.builder-layers-tools input{min-width:0;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.045);color:inherit;padding:10px 12px}
+.builder-layers-tools button{width:38px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.055);color:inherit;cursor:pointer}
+.builder-layers-tools button:hover{background:rgba(165,138,255,.18);border-color:rgba(165,138,255,.55)}
+.builder-block{position:relative;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.builder-block:hover{transform:translateX(-2px);box-shadow:0 10px 24px rgba(0,0,0,.16)}
+.builder-block.is-selected{box-shadow:0 0 0 1px rgba(165,138,255,.55),0 14px 32px rgba(0,0,0,.22)}
+.builder-canvas-header small{display:block;margin-top:4px;opacity:.72}
+.builder-preview-frame-shell{position:relative;overflow:auto}
+@media(max-width:1100px){.builder-layers-tools{grid-template-columns:minmax(0,1fr) auto auto}}
