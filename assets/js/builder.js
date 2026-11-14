@@ -161,7 +161,9 @@
     settings = settings || {};
     return '<div class="builder-element-style-grid">' +
       '<label class="color-field">رنگ پس‌زمینه<input type="color" name="style_background" value="' + escapeHtml(settings.background || '#080b12') + '"></label>' +
+      '<label class="builder-check builder-style-default"><input type="checkbox" name="style_background_default" ' + (!settings.background ? 'checked' : '') + '> استفاده از رنگ پیش‌فرض</label>' +
       '<label class="color-field">رنگ متن<input type="color" name="style_text_color" value="' + escapeHtml(settings.text_color || '#f3f5fb') + '"></label>' +
+      '<label class="builder-check builder-style-default"><input type="checkbox" name="style_text_color_default" ' + (!settings.text_color ? 'checked' : '') + '> استفاده از رنگ پیش‌فرض</label>' +
       '<label>اندازه فونت<input name="style_font_size" value="' + escapeHtml(settings.font_size ?? '') + '" placeholder="مثلاً 24px"></label>' +
       '<label>وزن فونت<select name="style_font_weight"><option value="">پیش‌فرض</option>' + ['400','500','600','700','800','900'].map(v => '<option value="' + v + '"' + (String(settings.font_weight || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
       '<label>ارتفاع خط<input name="style_line_height" value="' + escapeHtml(settings.line_height ?? '') + '" placeholder="مثلاً 1.8"></label>' +
@@ -183,7 +185,9 @@
     const next = Object.assign({},initial || {});
     ['background','text_color','font_weight','text_align','border','shadow','display'].forEach(key => {
       const field = form.elements['style_' + key];
-      if (field && field.value !== '') next[key] = field.value;
+      const useDefault = form.elements['style_' + key + '_default'];
+      if (useDefault && useDefault.checked) delete next[key];
+      else if (field && field.value !== '') next[key] = field.value;
       else if (field) delete next[key];
     });
     ['font_size','line_height','width','max_width','min_height','gap','padding','margin','radius'].forEach(key => {
@@ -895,8 +899,8 @@
     try {
       const data = await request('builder');
       blocks = data.blocks || [];
-      let normalized = false;
-      blocks.forEach(block => { if (normalizeNestedIds(block)) normalized = true; });
+      const normalizedBlocks = [];
+      blocks.forEach(block => { if (normalizeNestedIds(block)) normalizedBlocks.push(block); });
       design = data.design || {};
       if (selectId !== null) { selectedId = Number(selectId); selectedNodeId = null; selectedLegacyField = null; }
       if (!blocks.some(item => Number(item.id) === Number(selectedId))) {
@@ -904,7 +908,7 @@
         selectedNodeId = null; selectedLegacyField = null;
       }
       renderCanvas();
-      if (normalized) blocks.forEach(block => scheduleSave(block,{label:block.label,content:block.content || {},settings:block.settings || {},is_visible:!!block.is_visible}));
+      normalizedBlocks.forEach(block => scheduleSave(block,{label:block.label,content:block.content || {},settings:block.settings || {},is_visible:!!block.is_visible}));
       renderInspector();
       renderDesign();
       loaded = true;
