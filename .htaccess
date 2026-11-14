@@ -1,0 +1,18 @@
+Options -Indexes
+
+# Never expose host configuration, SQL dumps, logs, or repository metadata.
+<FilesMatch "^(config(\.example|\.local|\.production)?\.php|.*\.(sql|log|ini|bak|dist))$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^\.git(?:/|$) - [F,L,NC]
+  RewriteRule ^(?:app|database|storage)(?:/|$) - [F,L,NC]
+</IfModule>
