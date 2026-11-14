@@ -3,7 +3,7 @@ Options -Indexes
 RewriteEngine On
 
 # Route the legacy static entry file to the PHP-rendered homepage when PHP is enabled.
-RewriteRule ^index\.html$ / [R=302,L]
+RewriteRule ^index\.html$ index.php [R=302,L]
 RewriteRule ^admin/?$ admin/index.php [L,QSA]
 RewriteRule ^api/admin/?$ api/admin.php [L,QSA]
 
