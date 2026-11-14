@@ -52,6 +52,8 @@
   let design = {};
   let selectedId = null;
   let dragId = null;
+  let activeInspectorTab = 'content';
+  let activeLibraryTab = 'elements';
   let loaded = false;
   let previewReady = false;
   const saveStates = new Map();
@@ -197,6 +199,7 @@
 
   function selectBlock(id) {
     selectedId = id;
+    activeInspectorTab = 'content';
     renderCanvas();
     renderInspector();
     postPreviewState();
@@ -256,27 +259,51 @@
     };
   }
 
+  function setInspectorTab(tab) {
+    activeInspectorTab = tab;
+    $$('[data-inspector-tab]').forEach(button => {
+      button.classList.toggle('is-active',button.dataset.inspectorTab === tab);
+    });
+    $$('[data-inspector-panel]').forEach(panel => {
+      panel.hidden = panel.dataset.inspectorPanel !== tab;
+    });
+  }
+
+  function setLibraryTab(tab) {
+    activeLibraryTab = tab;
+    $$('[data-library-tab]').forEach(button => {
+      button.classList.toggle('is-active',button.dataset.libraryTab === tab);
+    });
+    $$('[data-library-panel]').forEach(panel => {
+      panel.hidden = panel.dataset.libraryPanel !== tab;
+    });
+  }
+
   function renderInspector() {
     const block = blocks.find(item => Number(item.id) === Number(selectedId));
     const host = $('#builderInspectorForm');
     if (!block) {
-      host.innerHTML = '<div class="builder-empty">برای ویرایش، روی یک بخش در پیش‌نمایش کلیک کن یا از فهرست لایه‌ها انتخابش کن.</div>';
+      host.innerHTML = '<div class="builder-empty">برای ویرایش، روی یک بخش در پیش‌نمایش کلیک کن یا از ساختار صفحه انتخابش کن.</div>';
+      setInspectorTab(activeInspectorTab);
       return;
     }
     const specs = fields[block.block_type] || [];
     const controls = specs.map(([key,label]) => fieldControl(key,label,(block.content || {})[key])).join('');
     const settings = block.settings || {};
     host.innerHTML = '<form id="builderBlockForm" class="builder-form">' +
-      '<div class="builder-inspector-title"><strong>' + escapeHtml(names[block.block_type] || block.block_type) + '</strong><small>ویرایش زنده · ذخیره خودکار</small></div>' +
-      '<label>نام در ساختار<input name="label" maxlength="140" value="' + escapeHtml(block.label || names[block.block_type]) + '"></label>' +
-      controls +
-      '<label class="builder-check"><input type="checkbox" name="visible" ' + (block.is_visible ? 'checked' : '') + '> نمایش این بخش در سایت</label>' +
-      '<div class="builder-separator"></div><strong>ظاهر این بخش</strong>' +
+      '<section data-inspector-panel="content"><div class="builder-panel-heading"><div><strong>محتوای بلوک</strong><small>متن‌ها و داده‌های این بخش</small></div></div>' +
+      controls + '</section>' +
+      '<section data-inspector-panel="style" hidden><div class="builder-panel-heading"><div><strong>استایل بلوک</strong><small>ظاهر مستقل این بخش</small></div></div>' +
       '<label class="color-field">رنگ پس‌زمینه<input type="color" name="background" value="' + escapeHtml(settings.background || '#080b12') + '"></label>' +
       '<label class="color-field">رنگ متن<input type="color" name="text_color" value="' + escapeHtml(settings.text_color || '#f3f5fb') + '"></label>' +
       '<label>فاصله عمودی<input type="range" name="padding" min="0" max="180" value="' + escapeHtml(settings.padding ?? 0) + '"></label>' +
-      '<label>گردی گوشه‌ها<input type="range" name="radius" min="0" max="48" value="' + escapeHtml(settings.radius ?? 0) + '"></label>' +
-      '<div class="builder-form-actions"><button class="primary-button compact" type="button" id="builderSaveNow">ذخیره همین حالا</button></div></form>';
+      '<label>گردی گوشه‌ها<input type="range" name="radius" min="0" max="48" value="' + escapeHtml(settings.radius ?? 0) + '"></label></section>' +
+      '<section data-inspector-panel="advanced" hidden><div class="builder-panel-heading"><div><strong>تنظیمات پیشرفته</strong><small>شناسه و وضعیت نمایش بلوک</small></div></div>' +
+      '<label>نام در Navigator<input name="label" maxlength="140" value="' + escapeHtml(block.label || names[block.block_type]) + '"></label>' +
+      '<label class="builder-check"><input type="checkbox" name="visible" ' + (block.is_visible ? 'checked' : '') + '> نمایش این بخش در سایت</label>' +
+      '<div class="builder-note">کلید داخلی: <code>' + escapeHtml(block.block_key || '') + '</code><br>برای ویرایش مستقیم متن، روی متن در پیش‌نمایش دوبار کلیک کن.</div>' +
+      '<div class="builder-form-actions"><button class="primary-button compact" type="button" id="builderSaveNow">ذخیره همین حالا</button></div></section>' +
+      '</form>';
 
     const form = $('#builderBlockForm');
     const syncFromForm = () => {
@@ -295,6 +322,7 @@
     };
     form.addEventListener('input',syncFromForm);
     form.addEventListener('change',syncFromForm);
+    form.addEventListener('submit',event => event.preventDefault());
     $('#builderSaveNow').addEventListener('click',() => {
       const payload = currentBlockPayload(block,form);
       if (!payload) { status('ساختار JSON معتبر نیست.','error'); return; }
@@ -305,6 +333,7 @@
       postPreviewState();
       flushSave(Number(block.id),true);
     });
+    setInspectorTab(activeInspectorTab);
   }
 
   function scheduleSave(block,payload) {
@@ -337,8 +366,10 @@
     try {
       await request('builder-block-save','PUT',payload,id);
       status('تغییرات ذخیره شدند.','success');
+      return true;
     } catch (error) {
       status(error.message,'error');
+      return false;
     } finally {
       state.saving = false;
       if (state.again) flushSave(id,true);
@@ -403,8 +434,10 @@
       design = await request('builder-design','PUT',payload);
       postPreviewState();
       status('ظاهر سایت ذخیره شد.','success');
+      return true;
     } catch (error) {
       status(error.message,'error');
+      return false;
     } finally {
       designSaving = false;
       if (designSaveAgain) persistDesign();
@@ -427,6 +460,23 @@
     if (designSaveTimer) window.clearTimeout(designSaveTimer);
     designSaveTimer = null;
     await persistDesign();
+  }
+
+  async function saveAll() {
+    const button = $('#builderSaveAll');
+    if (button) button.disabled = true;
+    try {
+      const pending = Array.from(saveStates.keys());
+      const results = await Promise.all(pending.map(id => flushSave(id,true)));
+      if (designSaveTimer) window.clearTimeout(designSaveTimer);
+      designSaveTimer = null;
+      const designResult = await persistDesign();
+      if (results.every(result => result !== false) && designResult !== false) {
+        status('همه تغییرات ذخیره شدند.','success');
+      }
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   function setDevice(device) {
@@ -457,6 +507,9 @@
   }
 
   $$('[data-add-block]').forEach(button => button.addEventListener('click',() => addBlock(button.dataset.addBlock)));
+  $$('[data-library-tab]').forEach(button => button.addEventListener('click',() => setLibraryTab(button.dataset.libraryTab)));
+  $$('[data-inspector-tab]').forEach(button => button.addEventListener('click',() => setInspectorTab(button.dataset.inspectorTab)));
+  $('#builderSaveAll')?.addEventListener('click',saveAll);
   $('#builderDesignForm')?.addEventListener('submit',saveDesign);
   $('#builderDesignForm')?.addEventListener('input',onDesignInput);
   $('#builderReload')?.addEventListener('click',() => {
@@ -474,8 +527,9 @@
   }
   if (frame) {
     frame.addEventListener('load',() => {
-      previewReady = true;
-      postPreviewState();
+      previewReady = false;
+      previewHandshakeAttempts = 0;
+      pingPreview();
     });
   }
   window.addEventListener('message',event => {
@@ -487,6 +541,22 @@
     } else if (message.type === 'milad-builder-select') {
       const block = blocks.find(item => blockKey(item) === String(message.key));
       if (block) selectBlock(Number(block.id));
+    } else if (message.type === 'milad-builder-inline-edit') {
+      const block = blocks.find(item => blockKey(item) === String(message.key));
+      const field = String(message.field || '');
+      const allowed = block && (fields[block.block_type] || []).some(([key]) => key === field);
+      if (!allowed) return;
+      block.content = Object.assign({},block.content || {});
+      block.content[field] = String(message.value ?? '');
+      const form = $('#builderBlockForm');
+      if (form && form.elements[field]) form.elements[field].value = block.content[field];
+      renderCanvas();
+      scheduleSave(block,{
+        label:form && form.elements.label ? form.elements.label.value : block.label,
+        content:block.content,
+        settings:block.settings || {},
+        is_visible:!!block.is_visible
+      });
     }
   });
 
@@ -494,6 +564,11 @@
     if (!loaded) load();
   }));
   setDevice('desktop');
+  setLibraryTab('elements');
+  setInspectorTab('content');
   load();
   pingPreview();
+  window.setTimeout(() => {
+    if (!previewReady) status('اتصال پیش‌نمایش برقرار نشد؛ index.php و نشست ورود مدیر را بررسی کن.','error');
+  },5000);
 })();
