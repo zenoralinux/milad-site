@@ -78,6 +78,16 @@ function public_href(string $url): string
     if (is_array($parts) && strtolower((string) ($parts['scheme'] ?? '')) === 'https' && !empty($parts['host'])) return $url;
     return '#';
 }
+function public_plain_text($value): string
+{
+    $text = html_entity_decode((string) ($value ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $text = preg_replace('~<\\?(?:php|=)?.*?\\?>~is', ' ', $text) ?? $text;
+    $text = preg_replace('~<(script|style|pre|code)\\b[^>]*>.*?</\\1>~is', ' ', $text) ?? $text;
+    $text = strip_tags($text);
+    $text = preg_replace('/\\s+/u', ' ', $text) ?? $text;
+    return trim($text);
+}
+
 function render_project_card(array $project, int $number): string
 {
     $categoryLabels = ['os' => 'سیستم‌عامل', 'apps' => 'اپلیکیشن', 'tools' => 'ابزارها'];
@@ -85,22 +95,25 @@ function render_project_card(array $project, int $number): string
     $category = (string) ($project['category'] ?? 'tools');
     $variant = (string) ($project['visual_variant'] ?? 'generic');
     $featured = !empty($project['is_featured']);
+    $title = public_plain_text($project['title'] ?? '');
+    $excerpt = public_plain_text($project['excerpt'] ?? '');
+    $kindLabel = public_plain_text($project['kind_label'] ?? '');
     $search = trim(implode(' ', [
-        $project['title'] ?? '', $project['slug'] ?? '', $project['excerpt'] ?? '',
-        $project['description'] ?? '', $project['kind_label'] ?? '',
-        implode(' ', $project['technologies'] ?? [])
+        $title, public_plain_text($project['slug'] ?? ''), $excerpt,
+        public_plain_text($project['description'] ?? ''), $kindLabel,
+        implode(' ', array_map('public_plain_text', $project['technologies'] ?? []))
     ]));
     $html = '<article class="project-card' . ($featured ? ' project-card--featured' : '') . ' reveal" data-category="' . h($category) . '" data-search="' . h($search) . '">';
-    $html .= '<div class="project-card-top"><span class="project-number">' . sprintf('%02d', $number) . '</span><span class="project-kind">' . h($project['kind_label']) . '</span></div>';
+    $html .= '<div class="project-card-top"><span class="project-number">' . sprintf('%02d', $number) . '</span><span class="project-kind">' . h($kindLabel) . '</span></div>';
     $html .= '<div class="project-visual project-visual--' . h($variant) . '">' . project_visual_markup($variant) . '</div>';
-    $html .= '<div class="project-card-content"><div class="project-title-row"><h3>' . h($project['title']) . '</h3><span class="project-status"><i></i>' . h($statusLabels[$project['status']] ?? 'پروژه') . '</span></div>';
-    $html .= '<p>' . h($project['excerpt']) . '</p><div class="tag-list">';
-    foreach ($project['technologies'] as $technology) $html .= '<span>' . h($technology) . '</span>';
+    $html .= '<div class="project-card-content"><div class="project-title-row"><h3>' . h($title) . '</h3><span class="project-status"><i></i>' . h($statusLabels[$project['status']] ?? 'پروژه') . '</span></div>';
+    $html .= '<p>' . h($excerpt) . '</p><div class="tag-list">';
+    foreach ($project['technologies'] as $technology) $html .= '<span>' . h(public_plain_text($technology)) . '</span>';
     $html .= '</div><div class="project-actions">';
     foreach ($project['links'] as $link) {
         $url = public_href((string) $link['url']);
         $external = str_starts_with($url, 'https://');
-        $html .= '<a href="' . h($url) . '"' . ($external ? ' target="_blank" rel="noopener noreferrer"' : '') . '>' . h($link['label']) . ' <span>↗</span></a>';
+        $html .= '<a href="' . h($url) . '"' . ($external ? ' target="_blank" rel="noopener noreferrer"' : '') . '>' . h(public_plain_text($link['label'] ?? '')) . ' <span>↗</span></a>';
     }
     $html .= '</div></div></article>';
     return $html;
@@ -143,8 +156,8 @@ $html = str_replace('ساختن مستقل، یادگیری مداوم، بهب�
 $intro = public_section('intro');
 $html = replace_inner($html, '<p>', '</p>', h($intro['text_before'] ?? 'تمرکز من روی ساخت محصولاتی است که') . ' <span>' . h($intro['text_emphasis'] ?? 'واقعاً به کار می‌آیند.') . '</span>');
 $projectIntro = public_section('projects');
-$html = str_replace('چیزهایی که <span class="type-gradient">می‌سازم.</span>', h($projectIntro['heading_before'] ?? 'چیزهایی که') . ' <span class="type-gradient">' . h($projectIntro['heading_emphasis'] ?? 'می‌سازم.') . '</span>', $html);
-$html = str_replace('مجموعه‌ای از پروژه‌ها و تجربه‌هایی که بخشی از مسیر من در توسعه نرم‌افزار هستند.', h($projectIntro['description'] ?? 'مجموعه‌ای از پروژه‌ها و تجربه‌هایی که بخشی از مسیر من در توسعه نرم‌افزار هستند.'), $html);
+$html = str_replace('چیزهایی که <span class="type-gradient">می‌سازم.</span>', h(public_plain_text($projectIntro['heading_before'] ?? 'چیزهایی که')) . ' <span class="type-gradient">' . h(public_plain_text($projectIntro['heading_emphasis'] ?? 'می‌سازم.')) . '</span>', $html);
+$html = str_replace('مجموعه‌ای از پروژه‌ها و تجربه‌هایی که بخشی از مسیر من در توسعه نرم‌افزار هستند.', h(public_plain_text($projectIntro['description'] ?? 'مجموعه‌ای از پروژه‌ها و تجربه‌هایی که بخشی از مسیر من در توسعه نرم‌افزار هستند.')), $html);
 $projectStart = '        <div class="projects-grid" id="projectsGrid">';
 $projectEnd = '        <p class="empty-filter" id="emptyFilter"';
 $cards = '<div class="projects-grid" id="projectsGrid">';
