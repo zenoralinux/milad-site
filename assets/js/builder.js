@@ -269,8 +269,12 @@
       if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = form.elements[key].value;
       else if (form.elements[key]) delete nextSettings[key];
     });
-    ['padding','radius','font_size','line_height','width','max_width','min_height','gap'].forEach(key => {
+    ['padding','radius','font_size'].forEach(key => {
       if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = Number(form.elements[key].value);
+      else if (form.elements[key]) delete nextSettings[key];
+    });
+    ['line_height','width','max_width','min_height','gap'].forEach(key => {
+      if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = form.elements[key].value.trim();
       else if (form.elements[key]) delete nextSettings[key];
     });
     if (form.elements.responsive) {
@@ -676,7 +680,7 @@
       }
     });
   }
-  $('#builderBlockForm')?.addEventListener('click',event => {
+  root.addEventListener('click',event => {
     if (event.target.closest('[data-open-media]')) openMediaPicker();
   });
   document.getElementById('builderMediaUpload')?.addEventListener('submit',async event => {
