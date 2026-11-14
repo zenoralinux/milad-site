@@ -457,6 +457,10 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   window.addEventListener('message',function(event){
     if (event.origin !== location.origin || event.source !== window.parent) return;
     var message = event.data || {};
+    if (message.type === 'milad-builder-ping') {
+      window.parent.postMessage({type:'milad-builder-ready'},location.origin);
+      return;
+    }
     if (message.type === 'milad-builder-state') applyState(message);
     if (message.type === 'milad-builder-select-outline') selectOutline(String(message.key || ''));
   });
