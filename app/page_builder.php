@@ -58,7 +58,7 @@ function builder_design_css(array $settings): string
     $spacing = max(32, min(180, (int) ($settings['section_spacing'] ?? 72)));
     $tokens = '';
     foreach ($palette as $key => $value) $tokens .= '--' . str_replace('_', '-', $key) . ':' . $value . ';';
-    return '<style id="builder-design-tokens">:root{' . $tokens . '--container:' . $width . 'px;--radius-lg:' . $radius .
+    return '<style id="builder-design-tokens">:root,html[data-theme="light"]{' . $tokens . '--container:' . $width . 'px;--radius-lg:' . $radius .
         'px;--radius-md:' . $radius . 'px;--radius-sm:' . max(0, (int) round($radius * 0.68)) .
         'px;--builder-font-scale:' . $scale . ';--builder-section-gap:' . $spacing . 'px}' .
         'body{font-size:calc(15px * var(--builder-font-scale,1));background-color:var(--bg)}' .
