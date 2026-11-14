@@ -293,3 +293,12 @@
 @media(max-width:1200px){.studio-editor .builder-workspace{grid-template-columns:220px minmax(300px,1fr)}.studio-editor .builder-inspector{grid-column:1/-1;max-height:none}.studio-editor .builder-inspector-inner{display:grid;grid-template-columns:1fr 1fr}}
 @media(max-width:900px){.studio-page{height:auto;overflow:auto}.studio-topbar{position:sticky;top:0;padding:0 10px}.studio-brand{min-width:0}.studio-document{display:none}.studio-top-actions .secondary-button{font-size:9px;padding:7px}.studio-editor{height:auto;max-height:none;overflow:visible;padding:8px}.studio-editor .builder-workspace{grid-template-columns:1fr}.studio-editor .builder-library,.studio-editor .builder-inspector{position:static;max-height:none}.studio-editor .builder-canvas-wrap{order:-1}.studio-editor .builder-preview-frame-shell{height:70vh;min-height:500px}.studio-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.studio-brand strong{font-size:11px}.studio-brand small{font-size:7px}.studio-top-actions{gap:4px}.studio-top-actions .secondary-button{font-size:8px;padding:6px}.studio-template-grid{grid-template-columns:1fr}.builder-widget-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Simultaneous Elements + Navigator panels and clear drop affordances */
+.studio-editor .builder-library-view{display:block!important;visibility:visible}
+.studio-editor .builder-library-view[hidden]{display:block!important}
+.studio-editor .builder-library-view+.builder-library-view{margin-top:18px;padding-top:16px;border-top:1px solid var(--builder-line)}
+.studio-editor .builder-layers-list{max-height:32vh}
+.studio-editor .builder-library-item[draggable="true"]{cursor:grab}
+.studio-editor .builder-library-item.is-dragging{opacity:.45}
+.studio-editor .is-library-drop-target{outline:2px dashed var(--accent)!important;outline-offset:3px;background:rgba(165,138,255,.06)!important}

@@ -83,6 +83,7 @@
   let selectedNodeId = null;
   let selectedLegacyField = null;
   let dragId = null;
+  let dragLibraryType = null;
   let activeInspectorTab = 'content';
   let activeLibraryTab = 'elements';
   let loaded = false;
@@ -708,8 +709,8 @@
     $$('[data-library-tab]').forEach(button => {
       button.classList.toggle('is-active',button.dataset.libraryTab === tab);
     });
-    $$('[data-library-panel]').forEach(panel => {
-      panel.hidden = panel.dataset.libraryPanel !== tab;
+    $('[data-library-panel]').forEach(panel => {
+      panel.hidden = false;
     });
   }
 
@@ -945,6 +946,26 @@
       status('بلوک جدید اضافه شد.','success');
     } catch (error) { status(error.message,'error'); }
   }
+  async function addBlockAtPosition(type,targetId) {
+    try {
+      const result = await request('builder-block-add','POST',{type});
+      await load(result.id);
+      const addedId = Number(result.id);
+      if (targetId) {
+        const from = blocks.findIndex(item => Number(item.id) === addedId);
+        const target = blocks.findIndex(item => Number(item.id) === Number(targetId));
+        if (from >= 0 && target >= 0) {
+          const moved = blocks.splice(from,1)[0];
+          const destination = blocks.findIndex(item => Number(item.id) === Number(targetId));
+          blocks.splice(destination < 0 ? blocks.length : destination,0,moved);
+          await request('builder-block-reorder','POST',{ids:blocks.map(item => Number(item.id))});
+          renderCanvas();
+          postPreviewState();
+        }
+      }
+      status('بلوک در موقعیت انتخاب‌شده اضافه شد.','success');
+    } catch (error) { status(error.message,'error'); }
+  }
   async function cloneBlock(id) {
     try {
       const result = await request('builder-block-duplicate','POST',{},id);
@@ -1171,6 +1192,30 @@
     if (!item || !nestedDragSource || nestedDragSource.list !== item.parentElement) return;
     event.preventDefault(); updateNestedChildren('move',nestedDragSource.index,Number(item.dataset.nestedIndex)); nestedDragSource = null;
   });
+  root.addEventListener('dragover',event => {
+    if (!dragLibraryType) return;
+    const target = event.target.closest('.builder-block,#builderCanvas,.builder-canvas-wrap');
+    if (!target) return;
+    event.preventDefault();
+    target.classList.add('is-library-drop-target');
+  });
+  root.addEventListener('dragleave',event => {
+    const target = event.target.closest('.is-library-drop-target');
+    if (target && !target.contains(event.relatedTarget)) target.classList.remove('is-library-drop-target');
+  });
+  root.addEventListener('drop',async event => {
+    if (!dragLibraryType) return;
+    const target = event.target.closest('.builder-block,#builderCanvas,.builder-canvas-wrap');
+    if (!target) return;
+    event.preventDefault();
+    const type = dragLibraryType;
+    const targetBlock = target.closest('.builder-block');
+    const targetId = targetBlock ? Number(targetBlock.dataset.blockId) : null;
+    dragLibraryType = null;
+    root.querySelectorAll('.is-library-drop-target').forEach(node => node.classList.remove('is-library-drop-target'));
+    await addBlockAtPosition(type,targetId);
+  });
+
   root.addEventListener('dragend',() => { nestedDragSource = null; });
   root.addEventListener('click',event => {
     const repeaterAction = event.target.closest('[data-repeater-add],[data-repeater-remove],[data-repeater-up],[data-repeater-down]');
@@ -1299,9 +1344,9 @@
     } catch (error) { status(error.message,'error'); }
   }
   $('#builderTemplates')?.addEventListener('click',() => { if (templateModal) templateModal.hidden = false; renderTemplateCatalog(); });
-  $('#builderTemplateSearch')?.addEventListener('input',renderTemplateCatalog);
-  $('[data-template-filter]').forEach(button => button.addEventListener('click',() => {
-    $('[data-template-filter]').forEach(item => item.classList.toggle('is-active',item === button));
+  document.getElementById('builderTemplateSearch')?.addEventListener('input',renderTemplateCatalog);
+  document.querySelectorAll('[data-template-filter]').forEach(button => button.addEventListener('click',() => {
+    document.querySelectorAll('[data-template-filter]').forEach(item => item.classList.toggle('is-active',item === button));
     renderTemplateCatalog();
   }));
   if (templateModal) templateModal.addEventListener('click',event => {
@@ -1311,7 +1356,23 @@
   });
 
 
-  $$('[data-add-block]').forEach(button => button.addEventListener('click',() => addBlock(button.dataset.addBlock)));
+  document.querySelectorAll('[data-add-block]').forEach(button => {
+    button.draggable = true;
+    button.addEventListener('dragstart',event => {
+      dragLibraryType = String(button.dataset.addBlock || '');
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'copy';
+        event.dataTransfer.setData('text/plain','milad-studio-block:' + dragLibraryType);
+      }
+      button.classList.add('is-dragging');
+    });
+    button.addEventListener('dragend',() => {
+      dragLibraryType = null;
+      button.classList.remove('is-dragging');
+      root.querySelectorAll('.is-library-drop-target').forEach(node => node.classList.remove('is-library-drop-target'));
+    });
+    button.addEventListener('click',() => addBlock(button.dataset.addBlock));
+  });
   $$('[data-library-tab]').forEach(button => button.addEventListener('click',() => setLibraryTab(button.dataset.libraryTab)));
   $$('[data-inspector-tab]').forEach(button => button.addEventListener('click',() => setInspectorTab(button.dataset.inspectorTab)));
   $('#builderSaveAll')?.addEventListener('click',saveAll);

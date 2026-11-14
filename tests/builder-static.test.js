@@ -4,6 +4,8 @@ assert(js.includes("$$('[data-delete]').forEach")&&js.includes("$$('[data-add-bl
 assert(!js.includes("$$$("),'no malformed triple-dollar selector');
 assert(js.includes("event.origin !== 'null'"),'opaque srcdoc origins are accepted only from the preview frame');
 assert(js.split("},'*');").length - 1 >= 3,'parent-to-srcdoc messages use wildcard target origin for opaque frames');
+assert(js.includes('function addBlockAtPosition(type,targetId)') && js.includes('dragLibraryType'),'library drag-drop insertion');
+assert(js.includes("document.querySelectorAll('[data-template-filter]')"),'template filter uses collection selector');
 assert(js.includes('function queueUndoOrder()')&&js.includes("snapshot.kind === 'order'"),'order undo/redo');
 assert(js.includes('flushAllPending()')&&js.includes('state.inFlight'),'autosave serialization');
 assert(js.includes("updateNestedChildren('move'")&&js.includes("updateNestedChildren('clone'"),'nested operations');
