@@ -1,0 +1,1 @@
+[14-Nov-2026 10:21:20 Europe/Berlin] [Milad CMS setup] stage=بررسی تنظیمات حساب مدیر | Type: RuntimeException | SQLSTATE: 0 | MySQL code: 0 | Message: در config.php برای admin.password یک رمز اختصاصی حداقل ۱۲ کاراکتری تعیین کن.
