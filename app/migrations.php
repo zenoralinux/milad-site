@@ -168,5 +168,26 @@ function run_app_migrations(PDO $pdo): void
         $version = 2;
     }
 
+    if ($version < 3) {
+        $aboutStmt = $pdo->prepare("SELECT content_json FROM page_blocks WHERE block_key='about' AND block_type='about' LIMIT 1");
+        $aboutStmt->execute();
+        $aboutJson = $aboutStmt->fetchColumn();
+        if ($aboutJson !== false) {
+            $about = json_decode((string) $aboutJson, true);
+            $about = is_array($about) ? $about : [];
+            if (!isset($about['link_url']) || trim((string) $about['link_url']) === '') {
+                $githubUrl = $pdo->query("SELECT setting_value FROM site_settings WHERE setting_key='github_url' LIMIT 1")->fetchColumn();
+                $about['link_url'] = $githubUrl ? (string) $githubUrl : 'https://github.com/miladalizadw';
+                $updatedAbout = json_encode($about, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                if ($updatedAbout !== false) {
+                    $saveAbout = $pdo->prepare("UPDATE page_blocks SET content_json=? WHERE block_key='about' AND block_type='about'");
+                    $saveAbout->execute([$updatedAbout]);
+                }
+            }
+        }
+        $pdo->exec("INSERT IGNORE INTO schema_migrations (version,migration_name) VALUES (3,'about_link_in_builder')");
+        $version = 3;
+    }
+
     $completed = true;
 }
