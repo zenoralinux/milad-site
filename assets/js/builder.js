@@ -19,7 +19,10 @@
     hero:'معرفی اصلی',intro:'نوار معرفی',projects:'پروژه‌ها',
     about:'درباره من و اصول کاری',now:'اکنون و تمرکز فعلی',
     contact:'راه‌های ارتباطی',footer:'پاورقی',
-    text:'متن ساده',cta:'دعوت به اقدام',stats:'آمار و اعداد',spacer:'فاصله عمودی'
+    text:'متن ساده',cta:'دعوت به اقدام',stats:'آمار و اعداد',spacer:'فاصله عمودی',
+    container:'کانتینر تو در تو',grid:'گرید واکنش‌گرا',heading:'عنوان',paragraph:'متن',
+    button:'دکمه',image:'تصویر',card:'کارت',divider:'خط جداکننده',icon:'آیکون',
+    counter:'شمارنده',list:'فهرست',video:'ویدیو'
   };
   const fields = {
     hero:[
@@ -45,7 +48,19 @@
     text:[['title','عنوان'],['body','متن']],
     cta:[['title','عنوان'],['body','توضیحات'],['button_text','متن دکمه'],['button_url','آدرس دکمه']],
     stats:[['title','عنوان بخش'],['items','کارت‌های آماری (JSON)']],
-    spacer:[['height','ارتفاع (px)']]
+    spacer:[['height','ارتفاع (px)']],
+    container:[['direction','جهت چیدمان (row/column)'],['children','عناصر داخلی (JSON)']],
+    grid:[['columns','تعداد ستون‌ها'],['children','عناصر گرید (JSON)']],
+    heading:[['text','متن عنوان'],['level','سطح عنوان (۱ تا ۶)']],
+    paragraph:[['text','متن پاراگراف']],
+    button:[['text','متن دکمه'],['url','لینک دکمه']],
+    image:[['src','آدرس تصویر'],['alt','متن جایگزین']],
+    card:[['title','عنوان کارت'],['body','توضیحات کارت'],['children','عناصر داخلی (JSON)']],
+    divider:[],
+    icon:[['symbol','نماد یا کاراکتر']],
+    counter:[['value','مقدار'],['label','عنوان']],
+    list:[['items','موارد فهرست (JSON)']],
+    video:[['url','لینک Embed ویدیو'],['title','عنوان ویدیو']]
   };
 
   let blocks = [];
@@ -213,7 +228,7 @@
     if (key === 'height') {
       return '<label>' + escapeHtml(label) + '<input type="number" name="' + key + '" min="8" max="240" value="' + escapeHtml(value ?? 48) + '"></label>';
     }
-    if (key === 'items' || key === 'principles_items') {
+    if (key === 'items' || key === 'principles_items' || key === 'children') {
       return '<label>' + escapeHtml(label) + '<textarea name="' + key + '" dir="ltr" spellcheck="false">' +
         escapeHtml(JSON.stringify(value || [],null,2)) + '</textarea><small>آیتم‌ها را به صورت آرایه JSON ویرایش کن.</small></label>';
     }
@@ -233,7 +248,7 @@
       if (!field) return;
       if (key === 'show_principles') {
         content[key] = field.checked;
-      } else if (key === 'items' || key === 'principles_items') {
+      } else if (key === 'items' || key === 'principles_items' || key === 'children') {
         try {
           const parsed = JSON.parse(field.value || '[]');
           if (!Array.isArray(parsed)) throw new Error('array required');
@@ -249,12 +264,20 @@
     return {
       label:form.elements.label.value,
       content,
-      settings:{
-        background:form.elements.background.value,
-        text_color:form.elements.text_color.value,
-        padding:Number(form.elements.padding.value),
-        radius:Number(form.elements.radius.value)
-      },
+      settings:(() => {
+        const next = Object.assign({},block.settings || {});
+        ['background','text_color','font_weight','text_align','border','shadow','display'].forEach(key => {
+          if (form.elements[key] && form.elements[key].value !== '') next[key] = form.elements[key].value;
+        });
+        ['padding','radius','font_size','line_height','width','max_width','min_height','gap'].forEach(key => {
+          if (form.elements[key] && form.elements[key].value !== '') next[key] = Number(form.elements[key].value);
+        });
+        if (form.elements.responsive) {
+          try { next.responsive = JSON.parse(form.elements.responsive.value || '{}'); }
+          catch (error) { validationFailed = true; }
+        }
+        return next;
+      })(),
       is_visible:form.elements.visible.checked
     };
   }
@@ -296,8 +319,19 @@
       '<section data-inspector-panel="style" hidden><div class="builder-panel-heading"><div><strong>استایل بلوک</strong><small>ظاهر مستقل این بخش</small></div></div>' +
       '<label class="color-field">رنگ پس‌زمینه<input type="color" name="background" value="' + escapeHtml(settings.background || '#080b12') + '"></label>' +
       '<label class="color-field">رنگ متن<input type="color" name="text_color" value="' + escapeHtml(settings.text_color || '#f3f5fb') + '"></label>' +
-      '<label>فاصله عمودی<input type="range" name="padding" min="0" max="180" value="' + escapeHtml(settings.padding ?? 0) + '"></label>' +
-      '<label>گردی گوشه‌ها<input type="range" name="radius" min="0" max="48" value="' + escapeHtml(settings.radius ?? 0) + '"></label></section>' +
+      '<label>فاصله داخلی<input type="range" name="padding" min="0" max="180" value="' + escapeHtml(settings.padding ?? 0) + '"></label>' +
+      '<label>گردی گوشه‌ها<input type="range" name="radius" min="0" max="48" value="' + escapeHtml(settings.radius ?? 0) + '"></label>' +
+      '<label>اندازه فونت (px)<input type="number" name="font_size" min="8" max="180" value="' + escapeHtml(settings.font_size ?? '') + '"></label>' +
+      '<label>وزن فونت<select name="font_weight"><option value="">پیش‌فرض</option>' + ['400','500','600','700','800','900'].map(v => '<option value="' + v + '"' + (String(settings.font_weight || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label>تراز متن<select name="text_align"><option value="">پیش‌فرض</option>' + ['right','center','left','justify'].map(v => '<option value="' + v + '"' + (String(settings.text_align || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label>عرض عنصر<input name="width" placeholder="مثلاً 100% یا 640px" value="' + escapeHtml(settings.width ?? '') + '"></label>' +
+      '<label>حداکثر عرض<input name="max_width" placeholder="مثلاً 900px" value="' + escapeHtml(settings.max_width ?? '') + '"></label>' +
+      '<label>حداقل ارتفاع<input name="min_height" placeholder="مثلاً 280px" value="' + escapeHtml(settings.min_height ?? '') + '"></label>' +
+      '<label>فاصله بین فرزندان<input name="gap" placeholder="مثلاً 24px" value="' + escapeHtml(settings.gap ?? '') + '"></label>' +
+      '<label>حاشیه<input name="border" placeholder="1px solid #333333" value="' + escapeHtml(settings.border ?? '') + '"></label>' +
+      '<label>سایه<input name="shadow" placeholder="0 12px 30px #000000" value="' + escapeHtml(settings.shadow ?? '') + '"></label>' +
+      '<label>نمایش<select name="display"><option value="">پیش‌فرض</option>' + ['block','flex','grid','inline-flex'].map(v => '<option value="' + v + '"' + (String(settings.display || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label>تنظیمات موبایل و تبلت (JSON)<textarea name="responsive" dir="ltr" spellcheck="false">' + escapeHtml(JSON.stringify(settings.responsive || {},null,2)) + '</textarea><small>نمونه: {"mobile":{"font_size":"28px","padding":"16px"},"tablet":{"font_size":"36px"}}</small></label></section>' +
       '<section data-inspector-panel="advanced" hidden><div class="builder-panel-heading"><div><strong>تنظیمات پیشرفته</strong><small>شناسه و وضعیت نمایش بلوک</small></div></div>' +
       '<label>نام در Navigator<input name="label" maxlength="140" value="' + escapeHtml(block.label || names[block.block_type]) + '"></label>' +
       '<label class="builder-check"><input type="checkbox" name="visible" ' + (block.is_visible ? 'checked' : '') + '> نمایش این بخش در سایت</label>' +
@@ -312,6 +346,7 @@
         status('ساختار JSON معتبر نیست؛ تغییرات این فیلد پیش‌نمایش داده نشد.','error');
         return;
       }
+      queueUndo(block);
       block.label = payload.label;
       block.content = payload.content;
       block.settings = payload.settings;
@@ -326,6 +361,7 @@
     $('#builderSaveNow').addEventListener('click',() => {
       const payload = currentBlockPayload(block,form);
       if (!payload) { status('ساختار JSON معتبر نیست.','error'); return; }
+      queueUndo(block);
       block.label = payload.label;
       block.content = payload.content;
       block.settings = payload.settings;
@@ -334,6 +370,83 @@
       flushSave(Number(block.id),true);
     });
     setInspectorTab(activeInspectorTab);
+  }
+
+  const undoStack = [];
+  const redoStack = [];
+  let pendingUndo = null;
+  let pendingUndoTimer = null;
+
+  function cloneData(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+  function queueUndo(block) {
+    if (!pendingUndo || Number(pendingUndo.id) !== Number(block.id)) {
+      if (pendingUndo) undoStack.push(pendingUndo);
+      pendingUndo = {
+        id:Number(block.id),
+        payload:{
+          label:block.label,
+          content:cloneData(block.content || {}),
+          settings:cloneData(block.settings || {}),
+          is_visible:!!block.is_visible
+        }
+      };
+    }
+    if (pendingUndoTimer) window.clearTimeout(pendingUndoTimer);
+    pendingUndoTimer = window.setTimeout(() => {
+      if (pendingUndo) undoStack.push(pendingUndo);
+      pendingUndo = null;
+      pendingUndoTimer = null;
+      updateHistoryButtons();
+    },700);
+    redoStack.length = 0;
+    updateHistoryButtons();
+  }
+  function updateHistoryButtons() {
+    const undo = document.getElementById('builderUndo');
+    const redo = document.getElementById('builderRedo');
+    if (undo) undo.disabled = !undoStack.length && !pendingUndo;
+    if (redo) redo.disabled = !redoStack.length;
+  }
+  async function applyHistorySnapshot(snapshot, destination) {
+    if (!snapshot) return;
+    const current = blocks.find(item => Number(item.id) === Number(snapshot.id));
+    if (!current) return;
+    destination.push({
+      id:Number(current.id),
+      payload:{
+        label:current.label,
+        content:cloneData(current.content || {}),
+        settings:cloneData(current.settings || {}),
+        is_visible:!!current.is_visible
+      }
+    });
+    await request('builder-block-save','PUT',snapshot.payload,snapshot.id);
+    current.label = snapshot.payload.label;
+    current.content = cloneData(snapshot.payload.content);
+    current.settings = cloneData(snapshot.payload.settings);
+    current.is_visible = !!snapshot.payload.is_visible;
+    selectedId = Number(current.id);
+    renderCanvas();
+    renderInspector();
+    postPreviewState();
+    updateHistoryButtons();
+    status('تغییر قبلی بازیابی شد.','success');
+  }
+  async function undoEdit() {
+    if (pendingUndoTimer) window.clearTimeout(pendingUndoTimer);
+    if (pendingUndo) { undoStack.push(pendingUndo); pendingUndo = null; pendingUndoTimer = null; }
+    const snapshot = undoStack.pop();
+    if (!snapshot) return;
+    try { await applyHistorySnapshot(snapshot,redoStack); }
+    catch (error) { undoStack.push(snapshot); status(error.message,'error'); }
+  }
+  async function redoEdit() {
+    const snapshot = redoStack.pop();
+    if (!snapshot) return;
+    try { await applyHistorySnapshot(snapshot,undoStack); }
+    catch (error) { redoStack.push(snapshot); status(error.message,'error'); }
   }
 
   function scheduleSave(block,payload) {
@@ -510,6 +623,15 @@
   $$('[data-library-tab]').forEach(button => button.addEventListener('click',() => setLibraryTab(button.dataset.libraryTab)));
   $$('[data-inspector-tab]').forEach(button => button.addEventListener('click',() => setInspectorTab(button.dataset.inspectorTab)));
   $('#builderSaveAll')?.addEventListener('click',saveAll);
+  $('#builderUndo')?.addEventListener('click',undoEdit);
+  $('#builderRedo')?.addEventListener('click',redoEdit);
+  document.addEventListener('keydown',event => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
+    const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
+    if (['input','textarea','select'].includes(tag)) return;
+    event.preventDefault();
+    if (event.shiftKey) redoEdit(); else undoEdit();
+  });
   $('#builderDesignForm')?.addEventListener('submit',saveDesign);
   $('#builderDesignForm')?.addEventListener('input',onDesignInput);
   $('#builderReload')?.addEventListener('click',() => {
