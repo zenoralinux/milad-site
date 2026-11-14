@@ -782,6 +782,9 @@ html[data-builder-preview="1"] body{padding-top:0!important}
         c.principles_items.slice(0,12).forEach(function(item){
           if (!item || typeof item !== 'object') return;
           var tile = card('article','principle-card reveal');
+          if (item.id) tile.setAttribute('data-widget-node',String(item.id));
+          var itemStyleMap = {background:'backgroundColor',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
+          Object.keys(itemStyleMap).forEach(function(key){ tile.style[itemStyleMap[key]] = item.styles && item.styles[key] !== undefined ? String(item.styles[key]) : ''; });
           tile.append(card('span','principle-icon',item.number || ''),card('h3','',item.title || ''),card('p','',item.description || ''));
           grid.appendChild(tile);
         });
@@ -817,6 +820,9 @@ html[data-builder-preview="1"] body{padding-top:0!important}
           (Array.isArray(c.items) ? c.items : []).slice(0,6).forEach(function(item){
             if (!item || typeof item !== 'object') return;
             var tile = card('article','principle-card');
+            if (item.id) tile.setAttribute('data-widget-node',String(item.id));
+            var itemStyleMap = {background:'backgroundColor',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
+            Object.keys(itemStyleMap).forEach(function(key){ tile.style[itemStyleMap[key]] = item.styles && item.styles[key] !== undefined ? String(item.styles[key]) : ''; });
             tile.append(card('span','principle-icon',item.value || ''),card('h3','',item.label || ''),card('p','',item.description || ''));
             g.appendChild(tile);
           });
@@ -903,6 +909,8 @@ html[data-builder-preview="1"] body{padding-top:0!important}
           if (declarations.length) rules += '[data-builder-key="' + key + '"] [data-widget-node="legacy-' + String(field).replace(/[^a-zA-Z0-9_-]/g,'') + '"]{' + declarations.join(';') + '}';
         });
         rules += widgetRules(block.content && block.content.children,device,0);
+        rules += widgetRules(block.content && block.content.principles_items,device,0);
+        rules += widgetRules(block.content && block.content.items,device,0);
       });
       if (rules) output += '@media ' + media[device] + '{' + rules + '}';
     });
