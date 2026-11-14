@@ -1252,7 +1252,12 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     var owner=event.target.closest('[data-builder-key]');if(!owner)return;
     event.preventDefault();
     var field=event.target.closest('[data-builder-edit-field]'),widget=event.target.closest('[data-widget-node]');
-    sendToParent({type:'milad-builder-node-select',key:owner.dataset.builderKey,nodeId:widget?widget.dataset.widgetNode:'',legacyField:field?field.dataset.builderEditField:''});
+    var widgetId=widget?String(widget.dataset.widgetNode||''):'';
+    var selection={type:'milad-builder-node-select',key:owner.dataset.builderKey};
+    if(widgetId.indexOf('legacy-')===0)selection.legacyField=widgetId.replace(/^legacy-/,'');
+    else if(widgetId)selection.nodeId=widgetId;
+    else if(field)selection.field=field.dataset.builderEditField;
+    sendToParent(selection);
     sendToParent({type:'milad-builder-context-action',action:'open',x:event.clientX,y:event.clientY});
   },true);
 
