@@ -1,4 +1,4 @@
-name: PHP validation
+name: Application validation
 
 on:
   push:
@@ -24,5 +24,9 @@ jobs:
           while IFS= read -r -d '' file; do
             php -l "$file"
           done < <(find . -type f -name '*.php' -not -path './.git/*' -print0)
+      - name: Check admin JavaScript syntax
+        run: node --check assets/js/admin.js
+      - name: Check public JavaScript syntax
+        run: node --check assets/js/site.js
       - name: Validate patch whitespace
         run: git diff --check
