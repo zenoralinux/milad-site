@@ -124,9 +124,9 @@ try {
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#080b12">
   <title>پنل مدیریت | میلاد</title><link rel="stylesheet" href="<?= h(app_url('assets/css/admin.css')) ?>">
-  <link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css?v=live-20261114-2')) ?>">
+  <link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css?v=elementor-20261114-3')) ?>">
   <script src="<?= h(app_url('assets/js/admin.js?v=live-20261114-2')) ?>" defer></script>
-  <script src="<?= h(app_url('assets/js/builder.js?v=live-20261114-2')) ?>" defer></script>
+  <script src="<?= h(app_url('assets/js/builder.js?v=elementor-20261114-3')) ?>" defer></script>
 </head>
 <body data-mode="<?= $setupError ? 'setup' : ($admin ? 'admin' : 'login') ?>" data-csrf="<?= h($csrf) ?>" data-base-path="<?= h(app_base_path()) ?>">
 <?php if ($setupError): ?>
@@ -208,37 +208,48 @@ try {
                 <button type="button" data-device="tablet">تبلت</button>
                 <button type="button" data-device="mobile">موبایل</button>
               </div>
+              <button class="primary-button compact" id="builderSaveAll" type="button">ذخیره تغییرات</button>
+              <a class="secondary-button" id="builderOpenPreview" href="<?= h(app_url('index.php?builder_preview=1')) ?>" target="_blank" rel="noopener">پیش‌نمایش مستقل ↗</a>
               <button class="secondary-button" id="builderReload" type="button">↻ تازه‌سازی</button>
             </div>
           </div>
           <div class="builder-workspace">
             <aside class="builder-library panel-card">
               <div class="builder-panel-heading"><div><strong>کتابخانه بلوک‌ها</strong><small>برای افزودن به صفحه انتخاب کن</small></div></div>
-              <div class="builder-library-list">
-                <button class="builder-library-item" type="button" data-add-block="text"><b>¶</b><span>بخش متنی<small>عنوان و توضیحات</small></span></button>
-                <button class="builder-library-item" type="button" data-add-block="cta"><b>↗</b><span>دعوت به اقدام<small>متن و دکمه لینک‌دار</small></span></button>
-                <button class="builder-library-item" type="button" data-add-block="stats"><b>▥</b><span>آمار و اعداد<small>کارت‌های آماری</small></span></button>
-                <button class="builder-library-item" type="button" data-add-block="spacer"><b>↕</b><span>فاصله عمودی<small>تنظیم ریتم صفحه</small></span></button>
+              <div class="builder-library-tabs" role="tablist" aria-label="ابزارهای صفحه‌ساز">
+                <button type="button" class="is-active" data-library-tab="elements">عناصر</button>
+                <button type="button" data-library-tab="structure">ساختار</button>
               </div>
-              <div class="builder-separator"></div>
-              <div class="builder-panel-heading"><div><strong>لایه‌های صفحه</strong><small>ترتیب، نمایش و مدیریت بخش‌ها</small></div></div>
-              <div class="builder-layers-list" id="builderCanvas"><div class="builder-empty">در حال دریافت ساختار صفحه…</div></div>
+              <div class="builder-library-view" data-library-panel="elements">
+                <div class="builder-library-list">
+                  <button class="builder-library-item" type="button" data-add-block="text"><b>¶</b><span>بخش متنی<small>عنوان و توضیحات</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="cta"><b>↗</b><span>دعوت به اقدام<small>متن و دکمه لینک‌دار</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="stats"><b>▥</b><span>آمار و اعداد<small>کارت‌های آماری</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="spacer"><b>↕</b><span>فاصله عمودی<small>تنظیم ریتم صفحه</small></span></button>
+                </div>
+              </div>
+              <div class="builder-library-view" data-library-panel="structure" hidden>
+                <div class="builder-panel-heading"><div><strong>لایه‌های صفحه</strong><small>ترتیب، نمایش و مدیریت بخش‌ها</small></div></div>
+                <div class="builder-layers-list" id="builderCanvas"><div class="builder-empty">در حال دریافت ساختار صفحه…</div></div>
+              </div>
             </aside>
             <section class="builder-canvas-wrap panel-card">
               <div class="builder-canvas-header"><strong>پیش‌نمایش زنده سایت</strong><small>روی هر بخش کلیک کن تا تنظیماتش باز شود؛ تغییرات در همین نما دیده می‌شوند</small></div>
               <div class="builder-preview-frame-shell" id="builderPreviewShell" data-device="desktop">
-                <iframe id="builderPreviewFrame" title="پیش‌نمایش زنده وب‌سایت" src="<?= h(app_url('/?builder_preview=1')) ?>" loading="eager"></iframe>
+                <iframe id="builderPreviewFrame" title="پیش‌نمایش زنده وب‌سایت" src="<?= h(app_url('index.php?builder_preview=1')) ?>" referrerpolicy="same-origin" loading="eager"></iframe>
               </div>
             </section>
             <aside class="builder-inspector panel-card">
               <div class="builder-inspector-inner">
-                <div>
-                  <div class="builder-panel-heading"><div><strong>تنظیمات بلوک</strong><small>محتوا و ظاهر انتخاب‌شده</small></div></div>
-                  <div id="builderInspectorForm"><div class="builder-empty">یک بلوک را انتخاب کن.</div></div>
-                </div>
-                <div>
-                  <div class="builder-separator"></div>
-                  <div class="builder-design-heading"><strong>ظاهر کلی سایت</strong></div>
+                <nav class="builder-inspector-tabs" role="tablist" aria-label="تنظیمات ویرایشگر">
+                  <button type="button" class="is-active" data-inspector-tab="content">محتوا</button>
+                  <button type="button" data-inspector-tab="style">استایل</button>
+                  <button type="button" data-inspector-tab="advanced">پیشرفته</button>
+                  <button type="button" data-inspector-tab="global">سایت</button>
+                </nav>
+                <div id="builderInspectorForm"><div class="builder-empty">یک بلوک را انتخاب کن.</div></div>
+                <section class="builder-site-settings" data-inspector-panel="global" hidden>
+                  <div class="builder-panel-heading"><div><strong>تنظیمات کلی سایت</strong><small>رنگ‌ها، عرض و فاصله‌بندی عمومی</small></div></div>
                   <form id="builderDesignForm" class="builder-form">
                     <label class="color-field">رنگ اصلی<input type="color" name="accent_color" value="#a58aff"></label>
                     <label class="color-field">پس‌زمینه صفحه<input type="color" name="page_background" value="#080b12"></label>
@@ -246,9 +257,9 @@ try {
                     <label>گردی گوشه‌ها<input type="range" name="corner_radius" min="0" max="48" value="22"></label>
                     <label>مقیاس فونت<input type="range" name="font_scale" min="0.85" max="1.2" step="0.05" value="1"></label>
                     <label>فاصله سکشن‌ها<input type="range" name="section_spacing" min="32" max="180" step="4" value="72"></label>
-                    <div class="builder-form-actions"><button class="primary-button compact" type="submit">ذخیره ظاهر</button></div>
+                    <div class="builder-form-actions"><button class="primary-button compact" type="submit">ذخیره ظاهر کلی</button></div>
                   </form>
-                </div>
+                </section>
               </div>
             </aside>
           </div>
