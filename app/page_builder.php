@@ -846,6 +846,15 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     });
   }
 
+  function studioPlainText(value){
+    var text=String(value===undefined||value===null?'':value);
+    text=text.replace(/<\\/?(?:script|style|iframe|object|embed|pre|code)\\b[^>]*>/gi,' ');
+    text=text.replace(/<[^>]+>/g,' ');
+    text=text.replace(/&lt;\\/?[a-z][^&]*?&gt;/gi,' ');
+    text=text.replace(/\\s+/g,' ').trim();
+    return text;
+  }
+
   function updateContent(node, block){
     var c = block.content || {};
     var type = block.block_type;
@@ -876,10 +885,10 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     } else if (type === 'projects') {
       var heading = node.querySelector('.section-heading h2');
       if (heading) {
-        heading.replaceChildren(document.createTextNode(String(c.heading_before || '') + ' '));
-        heading.appendChild(card('span','type-gradient',c.heading_emphasis || ''));
+        heading.replaceChildren(document.createTextNode(studioPlainText(c.heading_before) + ' '));
+        heading.appendChild(card('span','type-gradient',studioPlainText(c.heading_emphasis)));
       }
-      setText(node,'.section-heading > p',c.description);
+      setText(node,'.section-heading > p',studioPlainText(c.description));
     } else if (type === 'about') {
       setText(node,'.about-heading .section-index',c.section_index);
       setSplit(node,'.about-heading h2',c.title_line1,c.title_line2);
@@ -1129,7 +1138,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     event.preventDefault();
     var field=event.target.closest('[data-builder-edit-field]'),widget=event.target.closest('[data-widget-node]');
     sendToParent({type:'milad-builder-node-select',key:owner.dataset.builderKey,nodeId:widget?widget.dataset.widgetNode:'',legacyField:field?field.dataset.builderEditField:''});
-    sendToParent({type:'milad-builder-context-action',action:'open'});
+    sendToParent({type:'milad-builder-context-action',action:'open',x:event.clientX,y:event.clientY});
   },true);
 
   function selectOutline(key,nodeId,legacyField){
