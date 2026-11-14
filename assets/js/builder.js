@@ -559,7 +559,6 @@
     renderContextToolbar();
   }
 
-  function move(id,delta) {
   function setNestedNodeVisibility(blockId,nodeId) {
     const block=blocks.find(item=>Number(item.id)===Number(blockId));
     const record=block&&findNestedNode(block,nodeId);if(!record)return;
@@ -636,7 +635,7 @@
     });
   }
 
-
+  function move(id,delta) {
     const from = blocks.findIndex(item => Number(item.id) === id);
     const to = from + delta;
     if (from < 0 || to < 0 || to >= blocks.length) return;
@@ -2099,7 +2098,6 @@
     else block.settings={};
     renderCanvas();renderInspector();postPreviewState();scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
   }
-  function moveSelectedElement(delta) {
   function toggleLockSelectedElement() {
     const block=blocks.find(item=>Number(item.id)===Number(selectedId));
     if(!block){status('قفل کارت پروژه هنوز در ساختار دادهٔ پروژه تعریف نشده است.','error');return;}
@@ -2107,6 +2105,7 @@
     else toggleBlockLock(Number(block.id));
   }
 
+  function moveSelectedElement(delta) {
     const project=activeProject();
     const block=blocks.find(item=>Number(item.id)===Number(selectedId));
     if(project){

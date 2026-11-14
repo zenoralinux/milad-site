@@ -41,4 +41,8 @@ assert(previewBuilder.includes('milad-builder-context-menu') && previewBuilder.i
 assert((projectTemplate.match(/<!-- MILAD_PROJECT_CARDS -->/g)||[]).length === 1,'unique structured Selected Work render marker');
 assert(projectRenderer.includes('function render_project_card') && projectRenderer.includes('data-project-card="1"') && projectRenderer.includes("str_replace($projectMarker"),'escaped server-side project renderer');
 assert(!projectRenderer.includes('$projectStart') && !projectRenderer.includes('$projectEnd'),'fragile range-based Selected Work injection removed');
+
+assert(js.indexOf('function setNestedNodeVisibility') < js.indexOf('function move(id,delta)'), 'nested Navigator actions are in builder scope');
+assert(js.indexOf('function bindNestedNavigatorDrag') < js.indexOf('function move(id,delta)'), 'nested drag binding is in builder scope');
+assert(js.indexOf('function toggleLockSelectedElement') < js.indexOf('function moveSelectedElement(delta)'), 'context lock handler is in builder scope');
 console.log('Milad Studio Pro static invariants passed');
