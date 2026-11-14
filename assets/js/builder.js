@@ -490,7 +490,8 @@
       if(action==='delete')deleteSelectedNode();
       builderContextMenu.remove();builderContextMenu=null;
     }));
-    window.setTimeout(()=>document.addEventListener('pointerdown',function closeMenu(){if(builderContextMenu){builderContextMenu.remove();builderContextMenu=null;}document.removeEventListener('pointerdown',closeMenu);},{once:true}),0);
+    const closeMenu=function(event){if(builderContextMenu&&event.target.closest('.builder-canvas-context-menu'))return;if(builderContextMenu){builderContextMenu.remove();builderContextMenu=null;}document.removeEventListener('pointerdown',closeMenu,true);};
+    window.setTimeout(()=>document.addEventListener('pointerdown',closeMenu,true),0);
   }
 
   function directStyleUpdate(message) {
