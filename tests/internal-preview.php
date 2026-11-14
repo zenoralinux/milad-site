@@ -23,7 +23,7 @@ $output = builder_make_internal_preview($fixture);
 
 $checks = [
     'stylesheet is embedded' => strpos($output, 'id="builder-embedded-site-css"') !== false,
-    'site JavaScript is embedded' => strpos($output, 'id="builder-embedded-site-js"') !== false,
+    'site JavaScript is embedded and deferred' => strpos($output, '<script type="module" id="builder-embedded-site-js">') !== false,
     'profile image is embedded as data' => strpos($output, 'data:image/jpeg;base64,') !== false &&
         strpos($output, 'src="https://') === false && strpos($output, "src='https://") === false,
     'external metadata is removed' => strpos($output, 'https://example.test/') === false,
