@@ -157,6 +157,15 @@ $html = str_replace('02 — A LITTLE ABOUT ME', h($about['section_index'] ?? '02
 $html = str_replace('پشت هر محصول،<br><span class="type-gradient">یک طرز فکر است.</span>', h($about['title_line1'] ?? 'پشت هر محصول،') . '<br><span class="type-gradient">' . h($about['title_line2'] ?? 'یک طرز فکر است.') . '</span>', $html);
 $html = str_replace('برای من توسعه نرم‌افزار فقط کنار هم گذاشتن کدها نیست؛ فرایند فهم مسئله، طراحی راه‌حل و بهتر کردن تجربه آدم‌هاست.', h($about['description'] ?? ''), $html);
 $html = str_replace('بیشتر در گیت‌هاب', h($about['link_text'] ?? 'بیشتر در گیت‌هاب'), $html);
+$aboutLinkUrl = public_href((string) (($about['link_url'] ?? '') !== '' ? $about['link_url'] : $github));
+$html = preg_replace_callback(
+    '/(<a class="text-link" href=")[^"]*(" target="_blank" rel="noopener noreferrer">)/',
+    static function (array $match) use ($aboutLinkUrl): string {
+        return $match[1] . h($aboutLinkUrl) . $match[2];
+    },
+    $html,
+    1
+) ?? $html;
 $principles = public_section('principles');
 $principleHtml = '<div class="principles-grid">';
 foreach (($principles['items'] ?? []) as $item) {
