@@ -141,7 +141,8 @@ try {
     }
 
     echo "\nInstallation completed.\n";
-    echo "Admin URL: " . rtrim((string) cfg('app.base_url', ''), '/') . "/admin\n";
+    echo "Admin URL: " . app_absolute_url("admin") . PHP_EOL;
+    echo "Detected installation path: " . (app_base_path() !== "" ? app_base_path() : "/") . PHP_EOL;
     echo "The public page will use database content when served through PHP.\n";
 } catch (Throwable $e) {
     fwrite(STDERR, "Installation failed: " . $e->getMessage() . "\n");
