@@ -167,7 +167,7 @@ function builder_apply_fragment_attributes(string $fragment, array $block): stri
     }, $fragment, 1) ?? $fragment;
 }
 
-function builder_apply_to_html(string $html, array $blocks, array $design): string
+function builder_apply_to_html(string $html, array $blocks, array $design, bool $preview = false): string
 {
     $markers = [
         'hero' => '<section class="hero section-shell" id="home">',
@@ -189,13 +189,21 @@ function builder_apply_to_html(string $html, array $blocks, array $design): stri
             $footerBlock = $block;
             continue;
         }
-        if (empty($block['is_visible'])) continue;
+        if (empty($block['is_visible']) && !$preview) continue;
         $fragment = $fragments[$type] ?? '';
         if ($fragment !== '') {
-            $rendered .= builder_apply_fragment_attributes($fragment, $block) . "\n";
+            $fragment = builder_apply_fragment_attributes($fragment, $block);
+            if ($type === 'about' && isset($block['content']['show_principles']) &&
+                !$block['content']['show_principles']) {
+                $fragment = preg_replace('/<div class="principles-grid">/', '<div class="principles-grid" hidden>', $fragment, 1) ?? $fragment;
+            }
         } else {
-            $rendered .= builder_render_custom_block($block) . "\n";
+            $fragment = builder_render_custom_block($block);
         }
+        if ($preview && empty($block['is_visible'])) {
+            $fragment = preg_replace('/^<([a-z][a-z0-9:-]*)(\b[^>]*)>/i', '<$1$2 hidden>', $fragment, 1) ?? $fragment;
+        }
+        $rendered .= $fragment . "\n";
     }
 
     $main = strpos($html, '<main id="main">');
@@ -207,8 +215,11 @@ function builder_apply_to_html(string $html, array $blocks, array $design): stri
         }
     }
 
-    if ($footerFragment !== '' && ($footerBlock === null || !empty($footerBlock['is_visible']))) {
+    if ($footerFragment !== '' && ($footerBlock === null || !empty($footerBlock['is_visible']) || $preview)) {
         $footerHtml = $footerBlock === null ? $footerFragment : builder_apply_fragment_attributes($footerFragment, $footerBlock);
+        if ($preview && $footerBlock !== null && empty($footerBlock['is_visible'])) {
+            $footerHtml = preg_replace('/^<footer\b([^>]*)>/i', '<footer$1 hidden>', $footerHtml, 1) ?? $footerHtml;
+        }
         $bodyEnd = stripos($html, '</body>');
         if ($bodyEnd !== false) $html = substr($html, 0, $bodyEnd) . $footerHtml . "\n" . substr($html, $bodyEnd);
     }
