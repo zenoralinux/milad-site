@@ -366,7 +366,7 @@
         '<button type="button" data-delete="' + Number(block.id) + '" title="حذف">×</button></div></article>';
     }).join('');
 
-    $('[data-node-select]').forEach(button => {
+    $$('[data-node-select]').forEach(button => {
       button.addEventListener('click',event => {
         event.stopPropagation();
         selectNestedNode(Number(button.dataset.blockId),String(button.dataset.nodeSelect));
@@ -387,16 +387,16 @@
     });
     $('#builderLayerSearch')?.addEventListener('input',event => {
       const term=String(event.target.value || '').trim().toLowerCase();
-      $('[data-layer-node-wrap]').forEach(item => {
+      $$('[data-layer-node-wrap]').forEach(item => {
         const match=!term || item.textContent.toLowerCase().includes(term);
         item.hidden=!match;
         if (match && term) { let parent=item.parentElement.closest('[data-layer-node-wrap]'); while(parent){parent.hidden=false;parent.open=true;parent=parent.parentElement.closest('[data-layer-node-wrap]');} }
       });
-      $('.builder-block').forEach(item => { item.hidden=!!term && !item.textContent.toLowerCase().includes(term); });
+      $$('.builder-block').forEach(item => { item.hidden=!!term && !item.textContent.toLowerCase().includes(term); });
     });
-    $('#builderLayerExpandAll')?.addEventListener('click',() => $('[data-layer-node-wrap]').forEach(item => item.open=true));
-    $('#builderLayerCollapseAll')?.addEventListener('click',() => $('[data-layer-node-wrap]').forEach(item => item.open=false));
-    $$('.builder-block').forEach(node => {
+    $('#builderLayerExpandAll')?.addEventListener('click',() => $$('[data-layer-node-wrap]').forEach(item => item.open=true));
+    $('#builderLayerCollapseAll')?.addEventListener('click',() => $$('[data-layer-node-wrap]').forEach(item => item.open=false));
+    $$$('.builder-block').forEach(node => {
       node.addEventListener('click',event => {
         if (event.target.closest('button')) return;
         selectBlock(Number(node.dataset.blockId));
@@ -430,7 +430,7 @@
       node.addEventListener('dragend',() => {
         dragId = null;
         node.setAttribute('aria-grabbed','false');
-        $$('.builder-block').forEach(item => item.classList.remove('is-drop-target'));
+        $$$('.builder-block').forEach(item => item.classList.remove('is-drop-target'));
       });
     });
     $$('[data-up]').forEach(button => button.addEventListener('click',() => move(Number(button.dataset.up),-1)));
