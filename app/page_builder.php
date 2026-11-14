@@ -545,23 +545,23 @@ function builder_make_internal_preview(string $html): string
     }
 
     $styleTag = '<style id="builder-embedded-site-css">' . $css . '</style>';
-    $cssPattern = "#<link\\\\b(?=[^>]*href=[\\\"'](?:\\\\./)?assets/css/site\\\\.css[\\\"'])[^>]*>#i";
-    $html = preg_replace_callback(
-        $cssPattern,
-        static function () use ($styleTag): string { return $styleTag; },
-        $html,
-        1
-    ) ?? $html;
+    $html = str_replace(
+        '<link rel="stylesheet" href="./assets/css/site.css">',
+        $styleTag,
+        $html
+    );
 
-    $inlineJs = str_ireplace('</script', '<\\\\/script', $js);
+    $inlineJs = str_ireplace('</script', '<\\/script', $js);
     $scriptTag = '<script id="builder-embedded-site-js">' . $inlineJs . '</script>';
-    $jsPattern = "#<script\\\\b(?=[^>]*src=[\\\"'](?:\\\\./)?assets/js/site\\\\.js[\\\"'])[^>]*>\\\\s*</script>#i";
-    $html = preg_replace_callback(
-        $jsPattern,
-        static function () use ($scriptTag): string { return $scriptTag; },
-        $html,
-        1
-    ) ?? $html;
+    $html = str_replace(
+        '<script src="./assets/js/site.js" defer></script>',
+        $scriptTag,
+        $html
+    );
+
+    if (strpos($html, $styleTag) === false || strpos($html, $scriptTag) === false) {
+        throw new RuntimeException('فایل‌های استایل یا اسکریپت در قالب پیش‌نمایش پیدا نشدند.');
+    }
 
     $imageUri = 'data:image/jpeg;base64,' . base64_encode($avatar);
     $html = str_replace(['./milad_avatar.jpg', 'milad_avatar.jpg'], $imageUri, $html);
