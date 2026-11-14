@@ -201,6 +201,15 @@
     }
     return next;
   }
+  function bindElementStyleDefaults(form,sync) {
+    [['style_background_default','style_background'],['style_text_color_default','style_text_color']].forEach(([flagName,inputName]) => {
+      const flag = form.elements[flagName], input = form.elements[inputName];
+      if (!flag || !input) return;
+      const update = () => { input.disabled = flag.checked; };
+      flag.addEventListener('change',() => { update(); sync(); });
+      update();
+    });
+  }
   function legacyFieldGroup(field) {
     if (field === 'title_line1') return ['title_line1','title_line2'];
     if (field === 'text_before') return ['text_before','text_emphasis'];
@@ -420,6 +429,7 @@
       postPreviewState();
       scheduleSave(block,{label:block.label,content:block.content || {},settings:block.settings || {},is_visible:!!block.is_visible});
     };
+    bindElementStyleDefaults(form,sync);
     form.addEventListener('input',sync);
     form.addEventListener('change',sync);
     form.addEventListener('submit',event => event.preventDefault());
