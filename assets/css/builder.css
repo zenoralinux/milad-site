@@ -136,3 +136,9 @@
   #view-builder .builder-toolbar-end .primary-button,
   #view-builder .builder-toolbar-end .secondary-button{font-size:10px;padding:8px}
 }
+
+
+/* Internal srcdoc preview: no external frame navigation or address bar assumptions. */
+#view-builder #builderPreviewFrame{background:#080b12}
+#view-builder .builder-preview-frame-shell{isolation:isolate}
+#view-builder .builder-preview-hint{margin:10px 0 0;color:var(--red)}
