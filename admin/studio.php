@@ -128,7 +128,17 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
                 <section class="builder-site-settings" data-inspector-panel="global" hidden>
                   <div class="builder-panel-heading"><div><strong>تنظیمات کلی سایت</strong><small>رنگ‌ها، عرض و فاصله‌بندی عمومی</small></div></div>
                   <form id="builderDesignForm" class="builder-form">
-                    <label class="color-field">رنگ اصلی<input type="color" name="accent_color" value="#a58aff"></label>
+<label>پالت رنگ یکپارچه
+                      <select name="color_palette">
+                        <option value="violet">بنفش · کلاسیک</option>
+                        <option value="ocean">آبی اقیانوسی</option>
+                        <option value="emerald">سبز زمردی</option>
+                        <option value="sunset">نارنجی غروب</option>
+                        <option value="rose">رز و صورتی</option>
+                        <option value="graphite">خاکستری گرافیتی</option>
+                      </select>
+                    </label>
+                                        <label class="color-field">رنگ اصلی<input type="color" name="accent_color" value="#a58aff"></label>
                     <label class="color-field">پس‌زمینه صفحه<input type="color" name="page_background" value="#080b12"></label>
                     <label>عرض محتوا<input type="range" name="content_width" min="760" max="1600" step="20" value="1160"></label>
                     <label>گردی گوشه‌ها<input type="range" name="corner_radius" min="0" max="48" value="22"></label>
