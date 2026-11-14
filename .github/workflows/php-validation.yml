@@ -29,6 +29,7 @@ jobs:
           php tests/path-routing.php /index.php ''
           php tests/path-routing.php /portfolio/index.php /portfolio
           php tests/path-routing.php /portfolio/admin/index.php /portfolio
+          php tests/path-routing.php /portfolio/admin /portfolio
           php tests/path-routing.php /nested/site/v2/api/admin.php /nested/site/v2
       - name: Check admin JavaScript syntax
         run: node --check assets/js/admin.js
