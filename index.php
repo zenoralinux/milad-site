@@ -1,7 +1,16 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/app/bootstrap.php';
+// Keep the original static homepage available if the PHP configuration/bootstrap
+// cannot be loaded (for example, a malformed local config.php on shared hosting).
+try {
+    require __DIR__ . '/app/bootstrap.php';
+} catch (Throwable $e) {
+    error_log('Homepage bootstrap failed: ' . $e->getMessage());
+    http_response_code(200);
+    include __DIR__ . '/index.html';
+    exit;
+}
 
 try {
     $pdo = db();
