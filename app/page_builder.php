@@ -837,7 +837,8 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     }
     var properties = {font_size:'font-size',line_height:'line-height',width:'width',max_width:'max-width',min_height:'min-height',gap:'gap',padding:'padding',margin:'margin',text_align:'text-align',display:'display'};
     var media = {tablet:'(max-width: 1024px)',mobile:'(max-width: 767px)'};
-    function widgetRules(items,device) {
+    function widgetRules(items,device,depth) {
+      if (depth > 8) return '';
       var rules = '';
       (Array.isArray(items) ? items : []).slice(0,40).forEach(function(item){
         if (!item || typeof item !== 'object') return;
@@ -857,7 +858,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
           });
           if (declarations.length) rules += '[data-widget-node="' + id + '"]{' + declarations.join(';') + '}';
         }
-        rules += widgetRules(item.children || (item.content && item.content.children),device);
+        rules += widgetRules(item.children || (item.content && item.content.children),device,depth + 1);
       });
       return rules;
     }
@@ -898,7 +899,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
           });
           if (declarations.length) rules += '[data-builder-key="' + key + '"] [data-widget-node="legacy-' + String(field).replace(/[^a-zA-Z0-9_-]/g,'') + '"]{' + declarations.join(';') + '}';
         });
-        rules += widgetRules(block.content && block.content.children,device);
+        rules += widgetRules(block.content && block.content.children,device,0);
       });
       if (rules) output += '@media ' + media[device] + '{' + rules + '}';
     });
