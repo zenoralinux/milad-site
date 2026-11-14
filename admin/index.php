@@ -275,7 +275,7 @@ if ($admin && !$setupError) {
               </div>
             </aside>
             <section class="builder-canvas-wrap panel-card">
-              <div class="builder-canvas-header"><strong>پیش‌نمایش زنده سایت</strong><small>روی هر بخش کلیک کن تا تنظیماتش باز شود؛ تغییرات در همین نما دیده می‌شوند</small></div>
+              <div class="builder-canvas-header"><strong>پیش‌نمایش زنده سایت</strong><div class="builder-context-toolbar" id="builderContextToolbar" hidden><span id="builderContextLabel">عنصر انتخاب‌شده</span><button type="button" data-context-action="up" title="انتقال به بالا">↑</button><button type="button" data-context-action="down" title="انتقال به پایین">↓</button><button type="button" data-context-action="clone" title="تکثیر">＋</button><button type="button" data-context-action="toggle" title="نمایش یا مخفی‌کردن">◉</button><button type="button" data-context-action="delete" title="حذف">×</button></div><small>روی هر بخش کلیک کن تا انتخاب و ویرایش شود؛ تغییرات در همین نما دیده می‌شوند</small></div>
               <div class="builder-preview-frame-shell" id="builderPreviewShell" data-device="desktop">
                 <iframe id="builderPreviewFrame" title="پیش‌نمایش زنده وب‌سایت" srcdoc="<?= h($builderPreviewDocument) ?>" loading="eager"></iframe>
                 <?php if ($builderPreviewError !== ''): ?><p class="builder-preview-hint"><?= h($builderPreviewError) ?></p><?php endif; ?>
