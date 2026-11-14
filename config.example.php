@@ -9,18 +9,19 @@ declare(strict_types=1);
 return [
     'app' => [
         'name' => 'Milad Site',
-        'base_url' => 'https://miladalizadw.ir',
+        'base_url' => '',
+        'base_path' => '', // Empty means auto-detect the installation directory.
         'timezone' => 'Europe/Berlin',
         'debug' => false,
         'session_name' => 'milad_admin',
         'ip_hash_key' => 'REPLACE-WITH-A-LONG-RANDOM-SECRET',
     ],
     'database' => [
-        'host' => '127.0.0.1',
+        'host' => 'localhost',
         'port' => 3306,
-        'name' => 'milad_site',
-        'username' => 'milad_site_user',
-        'password' => 'CHANGE-ME',
+        'name' => 'zenorali_milad',
+        'username' => 'zenorali_milad',
+        'password' => getenv('MILAD_DB_PASSWORD') ?: '', // Keep the password out of Git.
         'charset' => 'utf8mb4',
     ],
 ];
