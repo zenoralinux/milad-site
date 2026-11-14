@@ -1,0 +1,100 @@
+CREATE TABLE IF NOT EXISTS admin_users (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(80) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  display_name VARCHAR(120) NOT NULL,
+  role VARCHAR(30) NOT NULL DEFAULT 'owner',
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  last_login_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admin_login_attempts (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  identity_hash CHAR(64) NOT NULL,
+  ip_hash CHAR(64) NOT NULL,
+  attempted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  was_successful TINYINT(1) NOT NULL DEFAULT 0,
+  INDEX idx_login_attempts_lookup (identity_hash, ip_hash, attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS site_settings (
+  setting_key VARCHAR(120) NOT NULL PRIMARY KEY,
+  setting_value LONGTEXT NOT NULL,
+  value_type VARCHAR(20) NOT NULL DEFAULT 'string',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  updated_by BIGINT UNSIGNED NULL,
+  CONSTRAINT fk_settings_admin FOREIGN KEY (updated_by) REFERENCES admin_users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS site_sections (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  section_key VARCHAR(60) NOT NULL UNIQUE,
+  content_json LONGTEXT NOT NULL,
+  is_visible TINYINT(1) NOT NULL DEFAULT 1,
+  sort_order INT NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  updated_by BIGINT UNSIGNED NULL,
+  CONSTRAINT fk_sections_admin FOREIGN KEY (updated_by) REFERENCES admin_users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS projects (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  slug VARCHAR(160) NOT NULL UNIQUE,
+  title VARCHAR(180) NOT NULL,
+  category VARCHAR(40) NOT NULL DEFAULT 'tools',
+  kind_label VARCHAR(100) NOT NULL DEFAULT '',
+  excerpt VARCHAR(500) NOT NULL DEFAULT '',
+  description LONGTEXT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'active',
+  visual_variant VARCHAR(40) NOT NULL DEFAULT 'generic',
+  is_featured TINYINT(1) NOT NULL DEFAULT 0,
+  is_published TINYINT(1) NOT NULL DEFAULT 1,
+  sort_order INT NOT NULL DEFAULT 0,
+  published_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_projects_public (is_published, sort_order, published_at),
+  INDEX idx_projects_category (category, is_published)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS project_links (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id BIGINT UNSIGNED NOT NULL,
+  label VARCHAR(100) NOT NULL,
+  url VARCHAR(2048) NOT NULL,
+  link_type VARCHAR(40) NOT NULL DEFAULT 'website',
+  sort_order INT NOT NULL DEFAULT 0,
+  CONSTRAINT fk_project_links_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  INDEX idx_project_links_order (project_id, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS project_technologies (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(80) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  CONSTRAINT fk_project_technologies_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  INDEX idx_project_tech_order (project_id, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admin_activity_logs (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  admin_user_id BIGINT UNSIGNED NULL,
+  action VARCHAR(80) NOT NULL,
+  entity_type VARCHAR(50) NOT NULL DEFAULT '',
+  entity_id BIGINT UNSIGNED NULL,
+  summary VARCHAR(255) NOT NULL DEFAULT '',
+  ip_hash CHAR(64) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_activity_admin FOREIGN KEY (admin_user_id) REFERENCES admin_users(id) ON DELETE SET NULL,
+  INDEX idx_activity_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS app_installation (
+  id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+  schema_version VARCHAR(20) NOT NULL DEFAULT '1',
+  installed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
