@@ -28,6 +28,12 @@ jobs:
           while IFS= read -r -d '' file; do
             php -l "$file"
           done < <(find . -type f -name '*.php' -not -path './.git/*' -print0)
+      - name: Verify one-file shared-hosting setup
+        run: |
+          test -f config.php
+          test -f app/installer.php
+          test ! -f config.example.php
+          test ! -f bin/install.php
       - name: Test installation path detection
         run: |
           php tests/path-routing.php /index.php ''
