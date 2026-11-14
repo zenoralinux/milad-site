@@ -22,7 +22,7 @@
     text:'متن ساده',cta:'دعوت به اقدام',stats:'آمار و اعداد',spacer:'فاصله عمودی',
     container:'کانتینر تو در تو',grid:'گرید واکنش‌گرا',heading:'عنوان',paragraph:'متن',
     button:'دکمه',image:'تصویر',card:'کارت',divider:'خط جداکننده',icon:'آیکون',
-    counter:'شمارنده',list:'فهرست',video:'ویدیو'
+    counter:'شمارنده',list:'فهرست',video:'ویدیو',principle_item:'کارت اصل کاری',stat_item:'کارت آماری'
   };
   const fields = {
     hero:[
@@ -60,12 +60,16 @@
     icon:[['symbol','نماد یا کاراکتر']],
     counter:[['value','مقدار'],['label','عنوان']],
     list:[['items','موارد فهرست (JSON)']],
-    video:[['url','لینک Embed ویدیو'],['title','عنوان ویدیو']]
+    video:[['url','لینک Embed ویدیو'],['title','عنوان ویدیو']],
+    principle_item:[['number','شماره / نشان'],['title','عنوان'],['description','توضیحات']],
+    stat_item:[['value','مقدار / نشان'],['label','عنوان'],['description','توضیحات']]
   };
 
   let blocks = [];
   let design = {};
   let selectedId = null;
+  let selectedNodeId = null;
+  let selectedLegacyField = null;
   let dragId = null;
   let activeInspectorTab = 'content';
   let activeLibraryTab = 'elements';
@@ -101,6 +105,138 @@
   }
 
   function blockKey(block) { return String(block.block_key || block.id); }
+  function makeNodeId() {
+    return 'node-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,9);
+  }
+  function normalizeNestedIds(block,usedIds) {
+    let changed = false;
+    usedIds = usedIds || new Set();
+    const visited = [];
+    function walk(items,depth) {
+      if (!Array.isArray(items) || depth > 8 || visited.indexOf(items) !== -1) return;
+      visited.push(items);
+      items.slice(0,40).forEach(item => {
+        if (!item || typeof item !== 'object') return;
+        let nodeId = String(item.id || '').trim();
+        if (!nodeId || usedIds.has(nodeId)) { nodeId = makeNodeId(); item.id = nodeId; changed = true; }
+        usedIds.add(nodeId);
+        const lists = [];
+        if (Array.isArray(item.children)) lists.push(item.children);
+        if (item.content && Array.isArray(item.content.children)) lists.push(item.content.children);
+        lists.forEach(list => walk(list,depth + 1));
+      });
+    }
+    const content = block && block.content || {};
+    if (Array.isArray(content.children)) walk(content.children,0);
+    if (block && block.block_type === 'about' && Array.isArray(content.principles_items)) {
+      content.principles_items.forEach(item => { if (item && typeof item === 'object' && !item.type) item.type = 'principle_item'; });
+      walk(content.principles_items,0);
+    }
+    if (block && block.block_type === 'stats' && Array.isArray(content.items)) {
+      content.items.forEach(item => { if (item && typeof item === 'object' && !item.type) item.type = 'stat_item'; });
+      walk(content.items,0);
+    }
+    return changed;
+  }
+  function nodeContent(node) {
+    if (node.content && typeof node.content === 'object' && !Array.isArray(node.content)) return node.content;
+    const content = {};
+    Object.keys(node || {}).forEach(key => {
+      if (!['id','type','styles','children','content'].includes(key)) content[key] = node[key];
+    });
+    node.content = content;
+    return node.content;
+  }
+  function findNestedNode(block,nodeId) {
+    if (!block || !nodeId) return null;
+    const visited = [];
+    function walk(items,parent,depth) {
+      if (!Array.isArray(items) || depth > 8 || visited.indexOf(items) !== -1) return null;
+      visited.push(items);
+      for (let index = 0; index < Math.min(items.length,40); index++) {
+        const node = items[index];
+        if (!node || typeof node !== 'object') continue;
+        if (String(node.id || '') === String(nodeId)) return {node,parent,collection:items,index};
+        const lists = [];
+        if (Array.isArray(node.children)) lists.push(node.children);
+        if (node.content && Array.isArray(node.content.children)) lists.push(node.content.children);
+        for (const list of lists) {
+          const found = walk(list,node,depth + 1);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+    const content = block.content || {};
+    const collections = [];
+    if (Array.isArray(content.children)) collections.push(content.children);
+    if (block.block_type === 'about' && Array.isArray(content.principles_items)) collections.push(content.principles_items);
+    if (block.block_type === 'stats' && Array.isArray(content.items)) collections.push(content.items);
+    for (const collection of collections) {
+      const found = walk(collection,block,0);
+      if (found) return found;
+    }
+    return null;
+  }
+  function renderElementStyleControls(settings) {
+    settings = settings || {};
+    return '<div class="builder-element-style-grid">' +
+      '<label class="color-field">رنگ پس‌زمینه<input type="color" name="style_background" value="' + escapeHtml(settings.background || '#080b12') + '"></label>' +
+      '<label class="builder-check builder-style-default"><input type="checkbox" name="style_background_default" ' + (!settings.background ? 'checked' : '') + '> استفاده از رنگ پیش‌فرض</label>' +
+      '<label class="color-field">رنگ متن<input type="color" name="style_text_color" value="' + escapeHtml(settings.text_color || '#f3f5fb') + '"></label>' +
+      '<label class="builder-check builder-style-default"><input type="checkbox" name="style_text_color_default" ' + (!settings.text_color ? 'checked' : '') + '> استفاده از رنگ پیش‌فرض</label>' +
+      '<label>اندازه فونت<input name="style_font_size" value="' + escapeHtml(settings.font_size ?? '') + '" placeholder="مثلاً 24px"></label>' +
+      '<label>وزن فونت<select name="style_font_weight"><option value="">پیش‌فرض</option>' + ['400','500','600','700','800','900'].map(v => '<option value="' + v + '"' + (String(settings.font_weight || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label>ارتفاع خط<input name="style_line_height" value="' + escapeHtml(settings.line_height ?? '') + '" placeholder="مثلاً 1.8"></label>' +
+      '<label>تراز متن<select name="style_text_align"><option value="">پیش‌فرض</option>' + ['right','center','left','justify'].map(v => '<option value="' + v + '"' + (String(settings.text_align || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label>عرض<input name="style_width" value="' + escapeHtml(settings.width ?? '') + '" placeholder="100%"></label>' +
+      '<label>حداکثر عرض<input name="style_max_width" value="' + escapeHtml(settings.max_width ?? '') + '" placeholder="640px"></label>' +
+      '<label>حداقل ارتفاع<input name="style_min_height" value="' + escapeHtml(settings.min_height ?? '') + '" placeholder="120px"></label>' +
+      '<label>فاصله بین عناصر<input name="style_gap" value="' + escapeHtml(settings.gap ?? '') + '" placeholder="16px"></label>' +
+      '<label>فاصله داخلی<input name="style_padding" value="' + escapeHtml(settings.padding ?? '') + '" placeholder="16px"></label>' +
+      '<label>حاشیه بیرونی<input name="style_margin" value="' + escapeHtml(settings.margin ?? '') + '" placeholder="0 0 16px"></label>' +
+      '<label>گردی گوشه‌ها<input name="style_radius" value="' + escapeHtml(settings.radius ?? '') + '" placeholder="12px"></label>' +
+      '<label>حاشیه<input name="style_border" value="' + escapeHtml(settings.border ?? '') + '" placeholder="1px solid #333333"></label>' +
+      '<label>سایه<input name="style_shadow" value="' + escapeHtml(settings.shadow ?? '') + '" placeholder="0 8px 24px #000000"></label>' +
+      '<label>نوع نمایش<select name="style_display"><option value="">پیش‌فرض</option>' + ['block','flex','grid','inline-flex','inline-block'].map(v => '<option value="' + v + '"' + (String(settings.display || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label class="builder-responsive-label">تنظیمات موبایل و تبلت (JSON)<textarea name="style_responsive" dir="ltr" spellcheck="false">' + escapeHtml(JSON.stringify(settings.responsive || {},null,2)) + '</textarea></label>' +
+      '</div>';
+  }
+  function readElementStyleControls(form,initial) {
+    const next = Object.assign({},initial || {});
+    ['background','text_color','font_weight','text_align','border','shadow','display'].forEach(key => {
+      const field = form.elements['style_' + key];
+      const useDefault = form.elements['style_' + key + '_default'];
+      if (useDefault && useDefault.checked) delete next[key];
+      else if (field && field.value !== '') next[key] = field.value;
+      else if (field) delete next[key];
+    });
+    ['font_size','line_height','width','max_width','min_height','gap','padding','margin','radius'].forEach(key => {
+      const field = form.elements['style_' + key];
+      if (field && field.value !== '') next[key] = field.value.trim();
+      else if (field) delete next[key];
+    });
+    if (form.elements.style_responsive) {
+      try { next.responsive = JSON.parse(form.elements.style_responsive.value || '{}'); }
+      catch (error) { return null; }
+    }
+    return next;
+  }
+  function bindElementStyleDefaults(form,sync) {
+    [['style_background_default','style_background'],['style_text_color_default','style_text_color']].forEach(([flagName,inputName]) => {
+      const flag = form.elements[flagName], input = form.elements[inputName];
+      if (!flag || !input) return;
+      const update = () => { input.disabled = flag.checked; };
+      flag.addEventListener('change',update);
+      update();
+    });
+  }
+  function legacyFieldGroup(field) {
+    if (['title_line1','title_line2'].includes(field)) return ['title_line1','title_line2'];
+    if (['text_before','text_emphasis'].includes(field)) return ['text_before','text_emphasis'];
+    if (['heading_before','heading_emphasis'].includes(field)) return ['heading_before','heading_emphasis'];
+    return [field];
+  }
   function summarize(block) {
     const content = block.content || {};
     return content.description || content.body || content.title || content.title_line1 ||
@@ -122,7 +258,7 @@
     if (selectedId !== null) {
       const selected = blocks.find(item => Number(item.id) === Number(selectedId));
       if (selected) frame.contentWindow.postMessage({
-        type:'milad-builder-select-outline',key:blockKey(selected)
+        type:'milad-builder-select-outline',key:blockKey(selected),nodeId:selectedNodeId || '',legacyField:selectedLegacyField || ''
       },window.location.origin);
     }
   }
@@ -229,10 +365,139 @@
 
   function selectBlock(id) {
     selectedId = id;
+    selectedNodeId = null;
+    selectedLegacyField = null;
     activeInspectorTab = 'content';
     renderCanvas();
     renderInspector();
     postPreviewState();
+  }
+
+  function selectNestedNode(blockId,nodeId) {
+    selectedId = Number(blockId);
+    selectedNodeId = String(nodeId || '');
+    selectedLegacyField = null;
+    activeInspectorTab = 'content';
+    renderCanvas();
+    renderInspector();
+    postPreviewState();
+  }
+  function selectLegacyElement(blockId,field) {
+    selectedId = Number(blockId);
+    selectedNodeId = null;
+    selectedLegacyField = String(field || '');
+    activeInspectorTab = 'content';
+    renderCanvas();
+    renderInspector();
+    postPreviewState();
+  }
+
+  function renderNodeInspector(block,host) {
+    const record = findNestedNode(block,selectedNodeId);
+    if (!record) {
+      selectedNodeId = null;
+      renderInspector();
+      return;
+    }
+    const node = record.node, type = String(node.type || 'paragraph');
+    const isArrayItem = type === 'principle_item' || type === 'stat_item';
+    const content = isArrayItem ? node : nodeContent(node);
+    const specs = (fields[type] || []).filter(([key]) => key !== 'children');
+    const controls = specs.map(([key,label]) => fieldControl(key,label,content[key])).join('');
+    const nested = ['container','grid','card'].includes(type);
+    const children = Array.isArray(node.children) ? node.children : (Array.isArray(content.children) ? content.children : []);
+    const nestedTools = nested
+      ? '<div class="builder-nested-editor"><div class="builder-panel-heading"><div><strong>فرزندان این المان</strong><small>برای ویرایش هر فرزند روی آن در پیش‌نمایش کلیک کن</small></div><span>' + children.length + '</span></div>' +
+        '<div class="builder-nested-add"><select id="builderNodeChildType"><option value="heading">عنوان</option><option value="paragraph">متن</option><option value="button">دکمه</option><option value="card">کارت</option><option value="image">تصویر</option><option value="icon">آیکون</option><option value="divider">جداکننده</option><option value="counter">شمارنده</option><option value="list">فهرست</option><option value="container">کانتینر</option><option value="grid">گرید</option></select><button type="button" class="secondary-button compact" data-node-child-add>＋ افزودن فرزند</button></div>' +
+        '<div class="builder-nested-list">' + children.map((child,index) => {
+          const c = child && (child.content || child) || {};
+          const childType = String(child.type || 'paragraph');
+          const childTitle = c.text || c.title || c.label || names[childType] || childType;
+          return '<div class="builder-nested-item"><span class="builder-nested-grip">⠿</span><span><strong>' + escapeHtml(names[childType] || childType) + '</strong><small>' + escapeHtml(String(childTitle).slice(0,70)) + '</small></span>' +
+            '<button type="button" data-node-child-up="' + index + '" title="بالا">↑</button><button type="button" data-node-child-down="' + index + '" title="پایین">↓</button><button type="button" data-node-child-delete="' + index + '" title="حذف">×</button></div>';
+        }).join('') + '</div></div>'
+      : '';
+    host.innerHTML = '<form id="builderNodeForm" class="builder-form">' +
+      '<section data-inspector-panel="content"><div class="builder-panel-heading"><div><strong>محتوای ' + escapeHtml(names[type] || type) + '</strong><small>فقط همین المان تغییر می‌کند</small></div></div>' +
+      controls + nestedTools + '</section>' +
+      '<section data-inspector-panel="style" hidden><div class="builder-panel-heading"><div><strong>استایل همین المان</strong><small>رنگ، تایپوگرافی، ابعاد و فاصله‌ها</small></div></div>' +
+      renderElementStyleControls(node.styles || {}) + '</section>' +
+      '<section data-inspector-panel="advanced" hidden><div class="builder-panel-heading"><div><strong>مشخصات المان</strong><small>شناسه پایدار و جایگاه در ساختار</small></div></div>' +
+      '<div class="builder-note">نوع: <code>' + escapeHtml(type) + '</code><br>شناسه: <code>' + escapeHtml(node.id || '') + '</code><br>بلوک والد: ' + escapeHtml(block.label || names[block.block_type]) + '</div>' +
+      '<div class="builder-form-actions"><button type="button" class="secondary-button compact" data-node-delete>حذف این المان</button><button class="primary-button compact" type="button" id="builderNodeSaveNow">ذخیره همین المان</button></div></section></form>';
+    const form = $('#builderNodeForm');
+    const sync = () => {
+      const nextContent = Object.assign({},nodeContent(node));
+      let invalid = false;
+      specs.forEach(([key]) => {
+        const field = form.elements[key];
+        if (!field) return;
+        if (['items','principles_items'].includes(key)) {
+          try {
+            const parsed = JSON.parse(field.value || '[]');
+            if (!Array.isArray(parsed)) throw new Error('array required');
+            nextContent[key] = parsed;
+          } catch (error) { invalid = true; }
+        } else if (key === 'show_principles') nextContent[key] = field.checked;
+        else nextContent[key] = field.value;
+      });
+      const nextStyles = readElementStyleControls(form,node.styles || {});
+      if (!nextStyles) invalid = true;
+      if (invalid) { status('مقدار JSON یا تنظیمات واکنش‌گرا معتبر نیست.','error'); return; }
+      queueUndo(block);
+      if (isArrayItem) {
+        specs.forEach(([key]) => { if (Object.prototype.hasOwnProperty.call(nextContent,key)) node[key] = nextContent[key]; });
+      } else {
+        node.content = nextContent;
+      }
+      node.styles = nextStyles;
+      renderCanvas();
+      postPreviewState();
+      scheduleSave(block,{label:block.label,content:block.content || {},settings:block.settings || {},is_visible:!!block.is_visible});
+    };
+    bindElementStyleDefaults(form,sync);
+    form.addEventListener('input',sync);
+    form.addEventListener('change',sync);
+    form.addEventListener('submit',event => event.preventDefault());
+    $('#builderNodeSaveNow').addEventListener('click',() => flushSave(Number(block.id),true));
+    setInspectorTab(activeInspectorTab);
+  }
+
+  function renderLegacyFieldInspector(block,host) {
+    const field = selectedLegacyField;
+    const keys = legacyFieldGroup(field);
+    const content = block.content || {};
+    const labels = {title_line1:'خط اول عنوان',title_line2:'خط دوم عنوان',text_before:'متن اصلی',text_emphasis:'متن تأکیدی',heading_before:'بخش اول عنوان',heading_emphasis:'بخش دوم عنوان'};
+    const values = keys.map(key => {
+      const spec = (fields[block.block_type] || []).find(item => item[0] === key);
+      return fieldControl(key,labels[key] || (spec ? spec[1] : key),content[key]);
+    }).join('');
+    const elementStyles = content.element_styles && content.element_styles[field] || {};
+    host.innerHTML = '<form id="builderLegacyForm" class="builder-form">' +
+      '<section data-inspector-panel="content"><div class="builder-panel-heading"><div><strong>محتوای المان انتخاب‌شده</strong><small>تغییر فقط روی همین قسمت از ' + escapeHtml(names[block.block_type] || block.block_type) + ' اعمال می‌شود</small></div></div>' + values + '</section>' +
+      '<section data-inspector-panel="style" hidden><div class="builder-panel-heading"><div><strong>استایل مستقل المان</strong><small>تنظیمات این قسمت از سایر عناصر جداست</small></div></div>' + renderElementStyleControls(elementStyles) + '</section>' +
+      '<section data-inspector-panel="advanced" hidden><div class="builder-note">کلید محتوا: <code>' + escapeHtml(field) + '</code><br>استایل این المان در کنار محتوای بلوک ذخیره می‌شود.</div><div class="builder-form-actions"><button class="primary-button compact" type="button" id="builderLegacySaveNow">ذخیره همین المان</button></div></section></form>';
+    const form = $('#builderLegacyForm');
+    const sync = () => {
+      queueUndo(block);
+      block.content = Object.assign({},block.content || {});
+      keys.forEach(key => {
+        const input = form.elements[key];
+        if (input) block.content[key] = input.value;
+      });
+      block.content.element_styles = Object.assign({},block.content.element_styles || {});
+      const nextStyles = readElementStyleControls(form,elementStyles);
+      if (!nextStyles) { status('تنظیمات واکنش‌گرا JSON معتبر نیست.','error'); return; }
+      block.content.element_styles[field] = nextStyles;
+      renderCanvas();
+      postPreviewState();
+      scheduleSave(block,{label:block.label,content:block.content,settings:block.settings || {},is_visible:!!block.is_visible});
+    };
+    form.addEventListener('input',sync);
+    form.addEventListener('change',sync);
+    form.addEventListener('submit',event => event.preventDefault());
+    $('#builderLegacySaveNow').addEventListener('click',() => flushSave(Number(block.id),true));
+    setInspectorTab(activeInspectorTab);
   }
 
   function fieldControl(key,label,value) {
@@ -357,6 +622,8 @@
       setInspectorTab(activeInspectorTab);
       return;
     }
+    if (selectedNodeId) { renderNodeInspector(block,host); return; }
+    if (selectedLegacyField) { renderLegacyFieldInspector(block,host); return; }
     const specs = fields[block.block_type] || [];
     const controls = specs.map(([key,label]) => fieldControl(key,label,(block.content || {})[key])).join('');
     const settings = block.settings || {};
@@ -668,12 +935,17 @@
     try {
       const data = await request('builder');
       blocks = data.blocks || [];
+      const normalizedBlocks = [];
+      const usedNodeIds = new Set();
+      blocks.forEach(block => { if (normalizeNestedIds(block,usedNodeIds)) normalizedBlocks.push(block); });
       design = data.design || {};
-      if (selectId !== null) selectedId = Number(selectId);
+      if (selectId !== null) { selectedId = Number(selectId); selectedNodeId = null; selectedLegacyField = null; }
       if (!blocks.some(item => Number(item.id) === Number(selectedId))) {
         selectedId = blocks.length ? Number(blocks[0].id) : null;
+        selectedNodeId = null; selectedLegacyField = null;
       }
       renderCanvas();
+      normalizedBlocks.forEach(block => scheduleSave(block,{label:block.label,content:block.content || {},settings:block.settings || {},is_visible:!!block.is_visible}));
       renderInspector();
       renderDesign();
       loaded = true;
@@ -725,7 +997,7 @@
       if (event.target === mediaModal || event.target.closest('[data-media-close]')) mediaModal.hidden = true;
       const select = event.target.closest('[data-media-select]');
       if (select) {
-        const form = $('#builderBlockForm');
+        const form = $('#builderNodeForm') || $('#builderLegacyForm') || $('#builderBlockForm');
         const input = form && form.elements.src;
         if (input) {
           input.value = select.dataset.mediaUrl || '';
@@ -745,6 +1017,16 @@
     if (upChild) updateNestedChildren('up',Number(upChild.dataset.childUp));
     const downChild = event.target.closest('[data-child-down]');
     if (downChild) updateNestedChildren('down',Number(downChild.dataset.childDown));
+    const nodeAdd = event.target.closest('[data-node-child-add]');
+    if (nodeAdd) updateNestedChildren('add',-1);
+    const nodeRemove = event.target.closest('[data-node-child-delete]');
+    if (nodeRemove) updateNestedChildren('delete',Number(nodeRemove.dataset.nodeChildDelete));
+    const nodeUp = event.target.closest('[data-node-child-up]');
+    if (nodeUp) updateNestedChildren('up',Number(nodeUp.dataset.nodeChildUp));
+    const nodeDown = event.target.closest('[data-node-child-down]');
+    if (nodeDown) updateNestedChildren('down',Number(nodeDown.dataset.nodeChildDown));
+    const nodeDelete = event.target.closest('[data-node-delete]');
+    if (nodeDelete) deleteSelectedNode();
     const loadHistory = event.target.closest('[data-load-revisions]');
     if (loadHistory && selectedId !== null) loadRevisionHistory(Number(selectedId));
     const restore = event.target.closest('[data-restore-revision]');
@@ -840,13 +1122,32 @@
     const item = defaults[type] || defaults.paragraph;
     return Object.assign({id,type},cloneData(item));
   }
+  function deleteSelectedNode() {
+    const block = blocks.find(item => Number(item.id) === Number(selectedId));
+    const record = block && findNestedNode(block,selectedNodeId);
+    if (!record) return;
+    if (!window.confirm('این المان و تمام فرزندان آن حذف شوند؟')) return;
+    queueUndo(block);
+    record.collection.splice(record.index,1);
+    selectedNodeId = null;
+    renderCanvas();
+    renderInspector();
+    postPreviewState();
+    scheduleSave(block,{label:block.label,content:block.content || {},settings:block.settings || {},is_visible:!!block.is_visible});
+  }
+
   function updateNestedChildren(action,index) {
     const block = blocks.find(item => Number(item.id) === Number(selectedId));
-    if (!block || !['container','grid','card'].includes(block.block_type)) return;
-    block.content = Object.assign({},block.content || {});
-    const children = Array.isArray(block.content.children) ? block.content.children.slice() : [];
+    if (!block) return;
+    const selectedRecord = selectedNodeId ? findNestedNode(block,selectedNodeId) : null;
+    const parentNode = selectedRecord && selectedRecord.node;
+    if (!selectedRecord && !['container','grid','card'].includes(block.block_type)) return;
+    const content = parentNode ? nodeContent(parentNode) : (block.content = Object.assign({},block.content || {}));
+    const children = parentNode
+      ? (Array.isArray(parentNode.children) ? parentNode.children.slice() : (Array.isArray(content.children) ? content.children.slice() : []))
+      : (Array.isArray(content.children) ? content.children.slice() : []);
     if (action === 'add') {
-      const select = $('#builderChildType');
+      const select = $('#builderNodeChildType') || $('#builderChildType');
       children.push(newChildNode(select ? select.value : 'paragraph'));
     } else if (action === 'delete') {
       if (index < 0 || index >= children.length) return;
@@ -857,13 +1158,9 @@
       const moved = children.splice(index,1)[0];
       children.splice(target,0,moved);
     }
-    block.content.children = children;
-    const payload = {
-      label:block.label,
-      content:block.content,
-      settings:block.settings || {},
-      is_visible:!!block.is_visible
-    };
+    if (parentNode) parentNode.children = children;
+    else block.content.children = children;
+    const payload = {label:block.label,content:block.content,settings:block.settings || {},is_visible:!!block.is_visible};
     renderCanvas();
     renderInspector();
     postPreviewState();
@@ -913,6 +1210,12 @@
     } else if (message.type === 'milad-builder-select') {
       const block = blocks.find(item => blockKey(item) === String(message.key));
       if (block) selectBlock(Number(block.id));
+    } else if (message.type === 'milad-builder-node-select') {
+      const block = blocks.find(item => blockKey(item) === String(message.key));
+      if (!block) return;
+      if (message.legacyField) selectLegacyElement(Number(block.id),String(message.legacyField));
+      else if (message.nodeId) selectNestedNode(Number(block.id),String(message.nodeId));
+      else selectBlock(Number(block.id));
     } else if (message.type === 'milad-builder-inline-edit') {
       const block = blocks.find(item => blockKey(item) === String(message.key));
       const field = String(message.field || '');
@@ -920,7 +1223,7 @@
       if (!allowed) return;
       block.content = Object.assign({},block.content || {});
       block.content[field] = String(message.value ?? '');
-      const form = $('#builderBlockForm');
+      const form = $('#builderLegacyForm') || $('#builderBlockForm');
       if (form && form.elements[field]) form.elements[field].value = block.content[field];
       renderCanvas();
       scheduleSave(block,{

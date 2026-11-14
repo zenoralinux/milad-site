@@ -166,6 +166,9 @@ function builder_widget_style(array $styles): string
             if (!preg_match('/^(0|[0-9]{1,2}px solid #[0-9a-fA-F]{6})$/', $value)) continue;
         } elseif ($key === 'shadow') {
             if (!preg_match('/^(?:none|(?:0|[0-9]{1,3}px)\\s+(?:0|[0-9]{1,3}px)\\s+(?:0|[0-9]{1,3}px)\\s*(?:#[0-9a-fA-F]{6}|rgba\\([0-9, .]+\\)))$/', $value)) continue;
+        } elseif (in_array($key, ['padding','margin'], true)) {
+            $length = '(?:-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw)?|auto)';
+            if (!preg_match('/^' . $length . '(?:\\s+' . $length . '){0,3}$/', $value)) continue;
         } else {
             if (!preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) continue;
         }
@@ -243,6 +246,126 @@ function builder_render_nested_widget(array $widget, int $depth = 0): string
     return '';
 }
 
+
+function builder_legacy_element_css(array $blocks): string
+{
+    $selectors = [
+        'hero' => [
+            'eyebrow' => '.hero-copy .eyebrow', 'title_line1' => '.hero-copy h1',
+            'title_line2' => '.hero-copy h1 .type-gradient', 'description' => '.hero-description',
+            'primary_cta_text' => '.hero-actions a:first-child',
+            'secondary_cta_text' => '.hero-actions a:nth-child(2)', 'footnote' => '.hero-footnote span:last-child'
+        ],
+        'intro' => ['text_before' => '.intro-strip-inner p', 'text_emphasis' => '.intro-strip-inner p span'],
+        'projects' => [
+            'heading_before' => '.section-heading h2', 'heading_emphasis' => '.section-heading h2 span',
+            'description' => '.section-heading > p'
+        ],
+        'about' => [
+            'section_index' => '.about-heading .section-index', 'title_line1' => '.about-heading h2',
+            'title_line2' => '.about-heading h2 .type-gradient', 'description' => '.about-heading > p',
+            'link_text' => '.about-heading .text-link'
+        ],
+        'now' => [
+            'section_index' => '.now-panel-copy .section-index', 'title_line1' => '.now-panel-copy h2',
+            'title_line2' => '.now-panel-copy h2 .type-gradient', 'description' => '.now-panel-copy > p',
+            'status_title' => '.now-note strong', 'status_subtitle' => '.now-note small'
+        ],
+        'contact' => [
+            'section_index' => '.contact-copy .section-index', 'title_line1' => '.contact-copy h2',
+            'title_line2' => '.contact-copy h2 .type-gradient', 'description' => '.contact-copy > p'
+        ],
+        'footer' => ['tagline' => '.footer-brand > span:last-child', 'copyright' => '.footer-copy'],
+        'text' => ['title' => '.section-heading h2', 'body' => '.section-heading > p'],
+        'cta' => ['title' => '.panel-card h2', 'body' => '.panel-card > p', 'button_text' => '.panel-card a.button'],
+        'stats' => ['title' => '.container > h2']
+    ];
+    $propertyMap = [
+        'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width',
+        'max_width' => 'max-width', 'min_height' => 'min-height', 'gap' => 'gap',
+        'padding' => 'padding', 'margin' => 'margin', 'text_align' => 'text-align',
+        'display' => 'display'
+    ];
+    $queries = ['tablet' => '(max-width: 1024px)', 'mobile' => '(max-width: 767px)'];
+    $output = '';
+    $responsiveOutput = ['tablet' => '', 'mobile' => ''];
+    foreach ($blocks as $block) {
+        $type = (string) ($block['block_type'] ?? '');
+        $key = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($block['block_key'] ?? ''));
+        $styles = $block['content']['element_styles'] ?? [];
+        if ($key === '' || !isset($selectors[$type]) || !is_array($styles)) continue;
+        foreach ($selectors[$type] as $field => $selector) {
+            if (!isset($styles[$field]) || !is_array($styles[$field])) continue;
+            $style = builder_widget_style($styles[$field]);
+            if ($style !== '') {
+                $declarations = substr($style, 8, -1);
+                if ($declarations !== '') $output .= '[data-builder-key="' . $key . '"] ' . $selector . '{' . $declarations . '}';
+            }
+            foreach ($queries as $device => $query) {
+                $responsive = $styles[$field]['responsive'][$device] ?? [];
+                if (!is_array($responsive)) continue;
+                $declarations = [];
+                foreach ($propertyMap as $propertyKey => $property) {
+                    if (!isset($responsive[$propertyKey]) || !is_scalar($responsive[$propertyKey])) continue;
+                    $value = trim((string) $responsive[$propertyKey]);
+                    if ($propertyKey === 'text_align') {
+                        if (!in_array($value, ['right','left','center','justify','start','end'], true)) continue;
+                    } elseif ($propertyKey === 'display') {
+                        if (!in_array($value, ['none','block','flex','grid','inline-flex'], true)) continue;
+                    } elseif (!preg_match('/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) {
+                        continue;
+                    }
+                    $declarations[] = $property . ':' . $value;
+                }
+                if ($declarations) {
+                    $responsiveOutput[$device] .= '[data-builder-key="' . $key . '"] ' . $selector .
+                        '{' . implode(';', $declarations) . '}';
+                }
+            }
+        }
+    }
+    foreach ($responsiveOutput as $device => $rules) {
+        if ($rules !== '') $output .= '@media ' . $queries[$device] . '{' . $rules . '}';
+    }
+    return $output !== '' ? '<style id="builder-element-styles">' . $output . '</style>' : '';
+}
+
+function builder_responsive_widget_css(array $widgets, string $device, int $depth = 0): string
+{
+    if ($depth > 8) return '';
+    $propertyMap = [
+        'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width',
+        'max_width' => 'max-width', 'min_height' => 'min-height', 'gap' => 'gap',
+        'padding' => 'padding', 'margin' => 'margin', 'text_align' => 'text-align', 'display' => 'display'
+    ];
+    $rules = '';
+    foreach (array_slice($widgets, 0, 40) as $widget) {
+        if (!is_array($widget)) continue;
+        $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($widget['id'] ?? ''));
+        $responsive = $widget['styles']['responsive'][$device] ?? [];
+        if ($id !== '' && is_array($responsive)) {
+            $declarations = [];
+            foreach ($propertyMap as $field => $property) {
+                if (!isset($responsive[$field]) || !is_scalar($responsive[$field])) continue;
+                $value = trim((string) $responsive[$field]);
+                if ($field === 'text_align') {
+                    if (!in_array($value, ['right','left','center','justify','start','end'], true)) continue;
+                } elseif ($field === 'display') {
+                    if (!in_array($value, ['none','block','flex','grid','inline-flex'], true)) continue;
+                } elseif (!preg_match('/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) {
+                    continue;
+                }
+                $declarations[] = $property . ':' . $value;
+            }
+            if ($declarations) $rules .= '[data-widget-node="' . $id . '"]{' . implode(';', $declarations) . '}';
+        }
+        $children = is_array($widget['children'] ?? null) ? $widget['children'] : [];
+        if (!$children && is_array($widget['content']['children'] ?? null)) $children = $widget['content']['children'];
+        if ($children) $rules .= builder_responsive_widget_css($children, $device, $depth + 1);
+    }
+    return $rules;
+}
+
 function builder_responsive_css(array $blocks): string
 {
     $propertyMap = [
@@ -272,6 +395,12 @@ function builder_responsive_css(array $blocks): string
                 $declarations[] = $property . ':' . $value;
             }
             if ($declarations) $rules .= '[data-builder-key="' . $key . '"]{' . implode(';', $declarations) . '}';
+            $children = is_array($block['content']['children'] ?? null) ? $block['content']['children'] : [];
+            if ($children) $rules .= builder_responsive_widget_css($children, $device);
+            $principles = is_array($block['content']['principles_items'] ?? null) ? $block['content']['principles_items'] : [];
+            $items = is_array($block['content']['items'] ?? null) ? $block['content']['items'] : [];
+            if ($principles) $rules .= builder_responsive_widget_css($principles, $device);
+            if ($items) $rules .= builder_responsive_widget_css($items, $device);
         }
         if ($rules !== '') $css .= '@media ' . $query . '{' . $rules . '}';
     }
@@ -309,7 +438,10 @@ function builder_render_custom_block(array $block): string
         $cards = '';
         foreach (array_slice($items, 0, 6) as $item) {
             if (!is_array($item)) continue;
-            $cards .= '<article class="principle-card"><span class="principle-icon">' . h($item['value'] ?? '') .
+            $itemId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($item['id'] ?? ''));
+            $itemAttr = $itemId !== '' ? ' data-widget-node="' . $itemId . '"' : '';
+            $itemStyle = builder_widget_style(is_array($item['styles'] ?? null) ? $item['styles'] : []);
+            $cards .= '<article class="principle-card"' . $itemAttr . $itemStyle . '><span class="principle-icon">' . h($item['value'] ?? '') .
                 '</span><h3>' . h($item['label'] ?? '') . '</h3><p>' . h($item['description'] ?? '') . '</p></article>';
         }
         return '<section class="section-shell builder-custom-block builder-stats-block" data-builder-key="' . $key . '" data-builder-id="' . (int) $block['id'] . '"' . $style .
@@ -368,6 +500,22 @@ function builder_apply_to_html(string $html, array $blocks, array $design, bool 
         $fragment = $fragments[$type] ?? '';
         if ($fragment !== '') {
             $fragment = builder_apply_fragment_attributes($fragment, $block);
+            if ($type === 'about' && isset($block['content']['principles_items']) && is_array($block['content']['principles_items'])) {
+                $principleCards = '';
+                foreach (array_slice($block['content']['principles_items'], 0, 12) as $item) {
+                    if (!is_array($item)) continue;
+                    $itemId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($item['id'] ?? ''));
+                    $itemAttr = $itemId !== '' ? ' data-widget-node="' . $itemId . '"' : '';
+                    $itemStyle = builder_widget_style(is_array($item['styles'] ?? null) ? $item['styles'] : []);
+                    $principleCards .= '<article class="principle-card reveal"' . $itemAttr . $itemStyle .
+                        '><span class="principle-icon">' . h($item['number'] ?? '') . '</span><h3>' . h($item['title'] ?? '') .
+                        '</h3><p>' . h($item['description'] ?? '') . '</p></article>';
+                }
+                $fragment = preg_replace_callback('/<div class="principles-grid"[^>]*>.*?<\\/div>/s', static function (array $match) use ($principleCards): string {
+                    if (!preg_match('/^<div\\b[^>]*>/', $match[0], $opening)) return $match[0];
+                    return $opening[0] . $principleCards . '</div>';
+                }, $fragment, 1) ?? $fragment;
+            }
             if ($type === 'about' && isset($block['content']['show_principles']) &&
                 !$block['content']['show_principles']) {
                 $fragment = preg_replace('/<div class="principles-grid">/', '<div class="principles-grid" hidden>', $fragment, 1) ?? $fragment;
@@ -399,7 +547,7 @@ function builder_apply_to_html(string $html, array $blocks, array $design, bool 
         if ($bodyEnd !== false) $html = substr($html, 0, $bodyEnd) . $footerHtml . "\n" . substr($html, $bodyEnd);
     }
 
-    $css = builder_design_css($design) . builder_responsive_css($blocks);
+    $css = builder_design_css($design) . builder_responsive_css($blocks) . builder_legacy_element_css($blocks);
     $headEnd = stripos($html, '</head>');
     if ($headEnd !== false) $html = substr($html, 0, $headEnd) . $css . substr($html, $headEnd);
     return $html;
@@ -409,7 +557,9 @@ function builder_preview_script(): string
 {
     return <<<'HTML'
 <style id="builder-live-preview-style">
-html[data-builder-preview="1"] [data-builder-key]{cursor:pointer;outline:1px dashed transparent;outline-offset:3px;transition:outline-color .12s,box-shadow .12s}
+html[data-builder-preview="1"] [data-builder-key],html[data-builder-preview="1"] [data-widget-node]{cursor:pointer;outline:1px dashed transparent;outline-offset:3px;transition:outline-color .12s,box-shadow .12s}
+html[data-builder-preview="1"] [data-widget-node]:hover{outline-color:rgba(139,120,255,.9);box-shadow:0 0 0 4px rgba(139,120,255,.08)}
+html[data-builder-preview="1"] [data-widget-node].builder-live-node-selected{outline:2px solid #59d5c9!important;outline-offset:3px!important;box-shadow:0 0 0 5px rgba(89,213,201,.14)!important}
 html[data-builder-preview="1"] [data-builder-key]:hover{outline-color:rgba(139,120,255,.9);box-shadow:0 0 0 4px rgba(139,120,255,.08)}
 html[data-builder-preview="1"] [data-builder-key].builder-live-selected{outline:2px solid #9c83ff!important;outline-offset:3px!important;box-shadow:0 0 0 5px rgba(156,131,255,.13)!important}
 html[data-builder-preview="1"] [data-builder-edit-field]{cursor:text}
@@ -422,7 +572,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   'use strict';
   if (window.parent === window) return;
   document.documentElement.dataset.builderPreview = '1';
-  var selectedKey = null;
+  var selectedKey = null, selectedNodeId = '', selectedLegacyField = '';
   function safeHref(value){
     var raw = String(value || '');
     if (/^#[a-zA-Z0-9_-]+$/.test(raw)) return raw;
@@ -506,6 +656,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
         node.appendChild(iframe);
       } else node = card('div','builder-widget-image-placeholder','آدرس ویدیو معتبر نیست');
     }
+    if (item.id) node.setAttribute('data-widget-node',String(item.id));
     var styles = item.styles || {};
     var styleMap = {background:'backgroundColor',color:'color',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
     Object.keys(styleMap).forEach(function(key){
@@ -559,29 +710,54 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   }
   function markEditable(node,type){
     var maps = {
-      hero:{description:'.hero-description',footnote:'.hero-footnote span:last-child'},
-      projects:{description:'.section-heading > p'},
-      about:{description:'.about-heading > p',link_text:'.about-heading .text-link'},
-      now:{description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
-      contact:{description:'.contact-copy > p'},
-      footer:{tagline:'.footer-brand > span:last-child'},
-      text:{title:'h2',body:'p'},
-      cta:{title:'h2',body:'p',button_text:'a.button'},
-      stats:{title:'h2'},
-      heading:{text:'h1,h2,h3,h4,h5,h6'},
-      paragraph:{text:'p'},
-      button:{text:'a.button'},
-      card:{title:'h3',body:'p'},
-      counter:{value:'strong',label:'span'},
-      image:{alt:'img'},
-      icon:{symbol:'.builder-widget-icon'}
+      hero:{eyebrow:'.hero-copy .eyebrow',title_line1:'.hero-copy h1',title_line2:'.hero-copy h1 .type-gradient',description:'.hero-description',
+        primary_cta_text:'.hero-actions a:first-child',secondary_cta_text:'.hero-actions a:nth-child(2)',footnote:'.hero-footnote span:last-child'},
+      intro:{text_before:'.intro-strip-inner p',text_emphasis:'.intro-strip-inner p span'},
+      projects:{heading_before:'.section-heading h2',heading_emphasis:'.section-heading h2 span',description:'.section-heading > p'},
+      about:{section_index:'.about-heading .section-index',title_line1:'.about-heading h2',title_line2:'.about-heading h2 .type-gradient',description:'.about-heading > p',link_text:'.about-heading .text-link'},
+      now:{section_index:'.now-panel-copy .section-index',title_line1:'.now-panel-copy h2',title_line2:'.now-panel-copy h2 .type-gradient',description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
+      contact:{section_index:'.contact-copy .section-index',title_line1:'.contact-copy h2',title_line2:'.contact-copy h2 .type-gradient',description:'.contact-copy > p'},
+      footer:{tagline:'.footer-brand > span:last-child',copyright:'.footer-copy'},
+      text:{title:'h2',body:'p'},cta:{title:'h2',body:'p',button_text:'a.button'},stats:{title:'h2'},
+      heading:{text:'h1,h2,h3,h4,h5,h6'},paragraph:{text:'p'},button:{text:'a.button'},
+      card:{title:'h3',body:'p'},counter:{value:'strong',label:'span'},image:{alt:'img'},icon:{symbol:'.builder-widget-icon'}
     };
     var fields = maps[type] || {};
     Object.keys(fields).forEach(function(field){
       var target = node.querySelector(fields[field]);
-      if (target) target.setAttribute('data-builder-edit-field',field);
+      if (target) {
+        target.setAttribute('data-builder-edit-field',field);
+        target.setAttribute('data-widget-node','legacy-' + field);
+      }
     });
   }
+  function applyLegacyElementStyles(node,block){
+    var maps = {
+      hero:{eyebrow:'.hero-copy .eyebrow',title_line1:'.hero-copy h1',title_line2:'.hero-copy h1 .type-gradient',description:'.hero-description',
+        primary_cta_text:'.hero-actions a:first-child',secondary_cta_text:'.hero-actions a:nth-child(2)',footnote:'.hero-footnote span:last-child'},
+      intro:{text_before:'.intro-strip-inner p',text_emphasis:'.intro-strip-inner p span'},
+      projects:{heading_before:'.section-heading h2',heading_emphasis:'.section-heading h2 span',description:'.section-heading > p'},
+      about:{section_index:'.about-heading .section-index',title_line1:'.about-heading h2',title_line2:'.about-heading h2 .type-gradient',description:'.about-heading > p',link_text:'.about-heading .text-link'},
+      now:{section_index:'.now-panel-copy .section-index',title_line1:'.now-panel-copy h2',title_line2:'.now-panel-copy h2 .type-gradient',description:'.now-panel-copy > p',status_title:'.now-note strong',status_subtitle:'.now-note small'},
+      contact:{section_index:'.contact-copy .section-index',title_line1:'.contact-copy h2',title_line2:'.contact-copy h2 .type-gradient',description:'.contact-copy > p'},
+      footer:{tagline:'.footer-brand > span:last-child',copyright:'.footer-copy'},
+      text:{title:'h2',body:'p'},cta:{title:'h2',body:'p',button_text:'a.button'},stats:{title:'h2'}
+    };
+    var elementStyles = block.content && block.content.element_styles || {};
+    var styleMap = {background:'backgroundColor',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',
+      line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',
+      gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
+    var fields = maps[block.block_type] || {};
+    Object.keys(fields).forEach(function(field){
+      var target = node.querySelector(fields[field]), styles = elementStyles[field] || {};
+      if (!target) return;
+      Object.keys(styleMap).forEach(function(key){
+        if (styles[key] !== undefined && styles[key] !== '') target.style[styleMap[key]] = String(styles[key]);
+        else target.style[styleMap[key]] = '';
+      });
+    });
+  }
+
   function updateContent(node, block){
     var c = block.content || {};
     var type = block.block_type;
@@ -629,6 +805,9 @@ html[data-builder-preview="1"] body{padding-top:0!important}
         c.principles_items.slice(0,12).forEach(function(item){
           if (!item || typeof item !== 'object') return;
           var tile = card('article','principle-card reveal');
+          if (item.id) tile.setAttribute('data-widget-node',String(item.id));
+          var itemStyleMap = {background:'backgroundColor',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
+          Object.keys(itemStyleMap).forEach(function(key){ tile.style[itemStyleMap[key]] = item.styles && item.styles[key] !== undefined ? String(item.styles[key]) : ''; });
           tile.append(card('span','principle-icon',item.number || ''),card('h3','',item.title || ''),card('p','',item.description || ''));
           grid.appendChild(tile);
         });
@@ -664,6 +843,9 @@ html[data-builder-preview="1"] body{padding-top:0!important}
           (Array.isArray(c.items) ? c.items : []).slice(0,6).forEach(function(item){
             if (!item || typeof item !== 'object') return;
             var tile = card('article','principle-card');
+            if (item.id) tile.setAttribute('data-widget-node',String(item.id));
+            var itemStyleMap = {background:'backgroundColor',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
+            Object.keys(itemStyleMap).forEach(function(key){ tile.style[itemStyleMap[key]] = item.styles && item.styles[key] !== undefined ? String(item.styles[key]) : ''; });
             tile.append(card('span','principle-icon',item.value || ''),card('h3','',item.label || ''),card('p','',item.description || ''));
             g.appendChild(tile);
           });
@@ -687,25 +869,71 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     }
     var properties = {font_size:'font-size',line_height:'line-height',width:'width',max_width:'max-width',min_height:'min-height',gap:'gap',padding:'padding',margin:'margin',text_align:'text-align',display:'display'};
     var media = {tablet:'(max-width: 1024px)',mobile:'(max-width: 767px)'};
+    function widgetRules(items,device,depth) {
+      if (depth > 8) return '';
+      var rules = '';
+      (Array.isArray(items) ? items : []).slice(0,40).forEach(function(item){
+        if (!item || typeof item !== 'object') return;
+        var id = String(item.id || '').replace(/[^a-zA-Z0-9_-]/g,'');
+        var responsive = item.styles && item.styles.responsive && item.styles.responsive[device];
+        if (id && responsive && typeof responsive === 'object') {
+          var declarations = [];
+          Object.keys(properties).forEach(function(field){
+            if (responsive[field] === undefined) return;
+            var value = String(responsive[field]).trim();
+            if (field === 'text_align') {
+              if (['right','left','center','justify','start','end'].indexOf(value) === -1) return;
+            } else if (field === 'display') {
+              if (['none','block','flex','grid','inline-flex'].indexOf(value) === -1) return;
+            } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
+            declarations.push(properties[field] + ':' + value);
+          });
+          if (declarations.length) rules += '[data-widget-node="' + id + '"]{' + declarations.join(';') + '}';
+        }
+        rules += widgetRules(item.children || (item.content && item.content.children),device,depth + 1);
+      });
+      return rules;
+    }
     var output = '';
     Object.keys(media).forEach(function(device){
       var rules = '';
       blocks.forEach(function(block){
         var key = String(block.block_key || '').replace(/[^a-zA-Z0-9_-]/g,'');
         var responsive = block.settings && block.settings.responsive && block.settings.responsive[device];
-        if (!key || !responsive || typeof responsive !== 'object') return;
-        var declarations = [];
-        Object.keys(properties).forEach(function(field){
-          if (responsive[field] === undefined) return;
-          var value = String(responsive[field]).trim();
-          if (field === 'text_align') {
-            if (['right','left','center','justify','start','end'].indexOf(value) === -1) return;
-          } else if (field === 'display') {
-            if (['none','block','flex','grid','inline-flex'].indexOf(value) === -1) return;
-          } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
-          declarations.push(properties[field] + ':' + value);
+        if (key && responsive && typeof responsive === 'object') {
+          var declarations = [];
+          Object.keys(properties).forEach(function(field){
+            if (responsive[field] === undefined) return;
+            var value = String(responsive[field]).trim();
+            if (field === 'text_align') {
+              if (['right','left','center','justify','start','end'].indexOf(value) === -1) return;
+            } else if (field === 'display') {
+              if (['none','block','flex','grid','inline-flex'].indexOf(value) === -1) return;
+            } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
+            declarations.push(properties[field] + ':' + value);
+          });
+          if (declarations.length) rules += '[data-builder-key="' + key + '"]{' + declarations.join(';') + '}';
+        }
+        var elementStyles = block.content && block.content.element_styles || {};
+        Object.keys(elementStyles).forEach(function(field){
+          var legacy = elementStyles[field] && elementStyles[field].responsive && elementStyles[field].responsive[device];
+          if (!legacy || typeof legacy !== 'object') return;
+          var declarations = [];
+          Object.keys(properties).forEach(function(property){
+            if (legacy[property] === undefined) return;
+            var value = String(legacy[property]).trim();
+            if (property === 'text_align') {
+              if (['right','left','center','justify','start','end'].indexOf(value) === -1) return;
+            } else if (property === 'display') {
+              if (['none','block','flex','grid','inline-flex'].indexOf(value) === -1) return;
+            } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
+            declarations.push(properties[property] + ':' + value);
+          });
+          if (declarations.length) rules += '[data-builder-key="' + key + '"] [data-widget-node="legacy-' + String(field).replace(/[^a-zA-Z0-9_-]/g,'') + '"]{' + declarations.join(';') + '}';
         });
-        if (declarations.length) rules += '[data-builder-key="' + key + '"]{' + declarations.join(';') + '}';
+        rules += widgetRules(block.content && block.content.children,device,0);
+        rules += widgetRules(block.content && block.content.principles_items,device,0);
+        rules += widgetRules(block.content && block.content.items,device,0);
       });
       if (rules) output += '@media ' + media[device] + '{' + rules + '}';
     });
@@ -742,6 +970,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       });
       updateContent(node,block);
       markEditable(node,block.block_type);
+      applyLegacyElementStyles(node,block);
       main.appendChild(node);
     });
     var footerBlock = data.blocks.find(function(block){ return block.block_type === 'footer'; });
@@ -751,6 +980,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       footerNode.hidden = !footerBlock.is_visible;
       updateContent(footerNode,footerBlock);
       markEditable(footerNode,'footer');
+      applyLegacyElementStyles(footerNode,footerBlock);
     } else if (footerNode) {
       footerNode.hidden = true;
     }
@@ -765,16 +995,35 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     document.documentElement.style.setProperty('--builder-font-scale',d.font_scale || '1');
     document.documentElement.style.setProperty('--builder-section-gap',Math.max(32,Math.min(180,Number(d.section_spacing) || 72)) + 'px');
     if (footerNode && footerBlock) main.after(footerNode);
-    if (selectedKey) selectOutline(selectedKey);
+    if (selectedKey) selectOutline(selectedKey,selectedNodeId,selectedLegacyField);
   }
-  function selectOutline(key){
+  function selectOutline(key,nodeId,legacyField){
     selectedKey = key;
-    document.querySelectorAll('.builder-live-selected').forEach(function(node){ node.classList.remove('builder-live-selected'); });
-    var selected = Array.prototype.find.call(document.querySelectorAll('[data-builder-key]'),function(el){ return el.dataset.builderKey === key; });
-    if (selected) selected.classList.add('builder-live-selected');
+    selectedNodeId = String(nodeId || '');
+    selectedLegacyField = String(legacyField || '');
+    document.querySelectorAll('.builder-live-selected,.builder-live-node-selected').forEach(function(node){
+      node.classList.remove('builder-live-selected','builder-live-node-selected');
+    });
+    var selected = null;
+    if (selectedLegacyField) {
+      selected = Array.prototype.find.call(document.querySelectorAll('[data-builder-edit-field]'),function(el){
+        var owner = el.closest('[data-builder-key]');
+        return owner && owner.dataset.builderKey === key && el.dataset.builderEditField === selectedLegacyField;
+      });
+    } else if (selectedNodeId) {
+      selected = Array.prototype.find.call(document.querySelectorAll('[data-widget-node]'),function(el){
+        var owner = el.closest('[data-builder-key]');
+        return owner && owner.dataset.builderKey === key && el.dataset.widgetNode === selectedNodeId;
+      });
+    }
+    if (selected) selected.classList.add('builder-live-node-selected');
+    else {
+      selected = Array.prototype.find.call(document.querySelectorAll('[data-builder-key]'),function(el){ return el.dataset.builderKey === key; });
+      if (selected) selected.classList.add('builder-live-selected');
+    }
   }
   document.addEventListener('dblclick',function(event){
-    var target = event.target.closest('[data-builder-key][data-builder-edit-field]');
+    var target = event.target.closest('[data-builder-edit-field]');
     if (!target) return;
     event.preventDefault();
     event.stopPropagation();
@@ -787,9 +1036,11 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   document.addEventListener('input',function(event){
     var target = event.target.closest('[contenteditable="true"][data-builder-edit-field]');
     if (!target) return;
+    var owner = target.closest('[data-builder-key]');
+    if (!owner) return;
     window.parent.postMessage({
       type:'milad-builder-inline-edit',
-      key:target.dataset.builderKey,
+      key:owner.dataset.builderKey,
       field:target.dataset.builderEditField,
       value:target.textContent
     },location.origin);
@@ -797,21 +1048,39 @@ html[data-builder-preview="1"] body{padding-top:0!important}
   document.addEventListener('focusout',function(event){
     var target = event.target.closest('[contenteditable="true"][data-builder-edit-field]');
     if (!target) return;
+    var owner = target.closest('[data-builder-key]');
     target.removeAttribute('contenteditable');
     target.classList.remove('builder-inline-editing');
+    if (!owner) return;
     window.parent.postMessage({
       type:'milad-builder-inline-edit',
-      key:target.dataset.builderKey,
+      key:owner.dataset.builderKey,
       field:target.dataset.builderEditField,
       value:target.textContent
     },location.origin);
   },true);
   document.addEventListener('click',function(event){
-    var target = event.target.closest('[data-builder-key]');
-    if (!target) return;
+    var block = event.target.closest('[data-builder-key]');
+    if (!block) return;
     if (event.target.closest('a')) event.preventDefault();
     event.stopPropagation();
-    window.parent.postMessage({type:'milad-builder-select',key:target.dataset.builderKey},location.origin);
+    var fieldNode = event.target.closest('[data-builder-edit-field]');
+    if (fieldNode && block.contains(fieldNode)) {
+      window.parent.postMessage({
+        type:'milad-builder-node-select',key:block.dataset.builderKey,
+        legacyField:fieldNode.dataset.builderEditField
+      },location.origin);
+      return;
+    }
+    var widgetNode = event.target.closest('[data-widget-node]');
+    if (widgetNode && block.contains(widgetNode)) {
+      window.parent.postMessage({
+        type:'milad-builder-node-select',key:block.dataset.builderKey,
+        nodeId:widgetNode.dataset.widgetNode
+      },location.origin);
+      return;
+    }
+    window.parent.postMessage({type:'milad-builder-select',key:block.dataset.builderKey},location.origin);
   },true);
   window.addEventListener('message',function(event){
     if (event.origin !== location.origin || event.source !== window.parent) return;
@@ -821,7 +1090,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       return;
     }
     if (message.type === 'milad-builder-state') applyState(message);
-    if (message.type === 'milad-builder-select-outline') selectOutline(String(message.key || ''));
+    if (message.type === 'milad-builder-select-outline') selectOutline(String(message.key || ''),String(message.nodeId || ''),String(message.legacyField || ''));
   });
   window.parent.postMessage({type:'milad-builder-ready'},location.origin);
 })();
