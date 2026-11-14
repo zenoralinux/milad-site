@@ -140,6 +140,10 @@ function run_app_migrations(PDO $pdo): void
         $principles = isset($sectionMap['principles']) ? json_decode((string) $sectionMap['principles']['content_json'], true) : [];
         $about['principles_items'] = is_array($principles) && isset($principles['items']) && is_array($principles['items']) ? $principles['items'] : [];
         $about['show_principles'] = !isset($sectionMap['principles']) || (int) $sectionMap['principles']['is_visible'] === 1;
+        if (!isset($about['link_url']) || trim((string) $about['link_url']) === '') {
+            $githubUrl = $pdo->query("SELECT setting_value FROM site_settings WHERE setting_key='github_url' LIMIT 1")->fetchColumn();
+            $about['link_url'] = $githubUrl ? (string) $githubUrl : 'https://github.com/miladalizadw';
+        }
         $aboutJson = json_encode($about, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($aboutJson !== false) {
             $updateAbout = $pdo->prepare("UPDATE page_blocks SET content_json=? WHERE page_id=? AND block_key='about' AND block_type='about'");
