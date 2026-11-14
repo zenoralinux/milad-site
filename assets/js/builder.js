@@ -553,8 +553,10 @@
     builderContextMenu=document.createElement('div');
     builderContextMenu.className='builder-canvas-context-menu';
     builderContextMenu.innerHTML='<button data-context-cmd="copy">کپی عنصر</button><button data-context-cmd="paste">چسباندن عنصر</button><button data-context-cmd="duplicate">تکثیر عنصر</button><button data-context-cmd="delete">حذف عنصر</button>';
-    builderContextMenu.style.left=Math.max(8,Math.min(window.innerWidth-190,Number(message.x)||40))+'px';
-    builderContextMenu.style.top=Math.max(8,Math.min(window.innerHeight-180,Number(message.y)||40))+'px';
+    const frameRect=frame?frame.getBoundingClientRect():{left:0,top:0};
+    const menuX=frameRect.left+(Number(message.x)||40),menuY=frameRect.top+(Number(message.y)||40);
+    builderContextMenu.style.left=Math.max(8,Math.min(window.innerWidth-198,menuX))+'px';
+    builderContextMenu.style.top=Math.max(8,Math.min(window.innerHeight-190,menuY))+'px';
     document.body.appendChild(builderContextMenu);
     builderContextMenu.querySelectorAll('[data-context-cmd]').forEach(button=>button.addEventListener('click',()=>{
       const action=button.dataset.contextCmd;
@@ -1196,7 +1198,7 @@
   function renderDesign() {
     const form = $('#builderDesignForm');
     const values = Object.assign({
-      accent_color:'#a58aff',page_background:'#080b12',
+      color_palette:'violet',accent_color:'#a58aff',page_background:'#080b12',
       content_width:'1160',corner_radius:'22',font_scale:'1',section_spacing:'72'
     },design);
     Object.entries(values).forEach(([key,value]) => {
@@ -1206,7 +1208,7 @@
   function readDesignForm() {
     const form = $('#builderDesignForm');
     const payload = {};
-    ['accent_color','page_background','content_width','corner_radius','font_scale','section_spacing'].forEach(key => {
+    ['color_palette','accent_color','page_background','content_width','corner_radius','font_scale','section_spacing'].forEach(key => {
       payload[key] = form.elements[key].value;
     });
     return payload;
@@ -1243,6 +1245,25 @@
       persistDesign();
     },650);
     status('ظاهر سایت در پیش‌نمایش تغییر کرد؛ ذخیره خودکار در صف است.','');
+  }
+  async function applyPaletteSelection(name){
+    const palette=studioPalettes[name];
+    const form=$('#builderDesignForm');
+    if(!palette||!form)return;
+    form.elements.accent_color.value=palette.accent;
+    form.elements.page_background.value=palette.pageBg;
+    design=readDesignForm();
+    blocks.forEach(block=>{
+      queueUndo(block);
+      applyPaletteToBlock(block,name);
+      scheduleSave(block,{label:block.label,content:block.content||{},settings:block.settings||{},is_visible:!!block.is_visible});
+    });
+    renderCanvas();renderInspector();postPreviewState();
+    if(designSaveTimer){window.clearTimeout(designSaveTimer);designSaveTimer=null;}
+    const saved=await flushAllPending();
+    if(!saved){status('پالت انتخاب شد اما ذخیره همه بلوک‌ها موفق نبود؛ دوباره ذخیره را اجرا کن.','error');return;}
+    const designSaved=await persistDesign();
+    if(designSaved!==false)status('پالت رنگی به تمام بلوک‌ها و عناصر تو‌در‌تو اعمال شد.','success');
   }
 
   async function saveDesign(event) {
@@ -1583,20 +1604,33 @@
     if (templateButton) templateButton.disabled = true;
     status('در حال افزودن ' + sections.length + ' بخش قالب…');
     try {
+      if(await flushAllPending()===false)throw new Error('ابتدا تغییرات معلق را ذخیره کن و دوباره قالب را اعمال کن.');
+      const usedNodeIds=new Set();
+      const paletteName=String(($('#builderDesignForm')?.elements.color_palette?.value)||'violet');
       for (const section of sections) {
         const created = await request('builder-block-add','POST',{type:section.type});
-        createdIds.push(Number(created.id));
-        await request('builder-block-save','PUT',{
-          label:section.label,content:section.content || {},settings:section.settings || {},is_visible:true
-        },created.id);
+        const createdId=Number(created&&created.id||0);
+        if(!createdId)throw new Error('شناسه یکی از بخش‌های قالب از سرور دریافت نشد.');
+        createdIds.push(createdId);
+        const payloadBlock={content:cloneData(section.content||{}),settings:cloneData(section.settings||{})};
+        normalizeNestedIds({block_type:section.type,content:payloadBlock.content},usedNodeIds);
+        applyPaletteToBlock(payloadBlock,paletteName);
+        const saved=await request('builder-block-save','PUT',{
+          label:section.label,content:payloadBlock.content,settings:payloadBlock.settings,is_visible:true
+        },createdId);
+        if(!saved||Number(saved.id)!==createdId)throw new Error('ذخیره کامل یکی از بخش‌های قالب تأیید نشد.');
       }
       if (templateModal) templateModal.hidden = true;
       await load(createdIds[createdIds.length - 1] || null);
-      status(Array.isArray(template.blocks) ? 'قالب کامل به صفحه اضافه شد؛ همه بخش‌ها قابل ویرایش هستند.' : 'سکشن آماده به صفحه اضافه شد.','success');
+      const missing=createdIds.filter(id=>!blocks.some(block=>Number(block.id)===id));
+      if(missing.length)throw new Error('بعضی بخش‌های قالب پس از بارگذاری مجدد در پیش‌نمایش پیدا نشدند: '+missing.join(', '));
+      if(await flushAllPending()===false)throw new Error('ذخیره نهایی بخش‌های قالب کامل نشد.');
+      postPreviewState();
+      status(Array.isArray(template.blocks) ? 'تمام بخش‌های قالب کامل اضافه و ذخیره شدند.' : 'سکشن آماده اضافه و ذخیره شد.','success');
     } catch (error) {
       await Promise.all(createdIds.map(id => request('builder-block-delete','DELETE',{},id).catch(() => null)));
       await load();
-      status(error.message,'error');
+      status('اعمال قالب لغو شد: '+error.message,'error');
     } finally {
       if (templateButton) templateButton.disabled = false;
     }
@@ -1677,7 +1711,7 @@
   function deleteSelectedNode() {
     const block = blocks.find(item => Number(item.id) === Number(selectedId));
     const record = block && findNestedNode(block,selectedNodeId);
-    if (!record) return;
+    if (!record) { if (block) deleteBlock(Number(block.id)); return; }
     if (!window.confirm('این المان و تمام فرزندان آن حذف شوند؟')) return;
     queueUndo(block);
     record.collection.splice(record.index,1);
@@ -1744,6 +1778,9 @@
 
   $('#builderDesignForm')?.addEventListener('submit',saveDesign);
   $('#builderDesignForm')?.addEventListener('input',onDesignInput);
+  $('#builderDesignForm')?.addEventListener('change',event=>{
+    if(event.target&&event.target.name==='color_palette')applyPaletteSelection(String(event.target.value||'violet'));
+  });
   $('#builderReload')?.addEventListener('click',() => {
     if (frame) {
       const internalDocument = frame.getAttribute('srcdoc');
@@ -1786,24 +1823,39 @@
       directStyleUpdate(message);
     } else if (message.type === 'milad-builder-context-action') {
       if(message.action==='open')showBuilderContextMenu(message);
-      if(message.action==='copy')copySelectedNode();
+      else if(message.action==='copy')copySelectedNode();
       else if(message.action==='paste')pasteSelectedNode();
       else if(message.action==='duplicate')duplicateSelectedNode();
       else if(message.action==='delete')deleteSelectedNode();
     } else if (message.type === 'milad-builder-inline-edit') {
-      const block = blocks.find(item => blockKey(item) === String(message.key));
-      const field = String(message.field || '');
-      const allowed = block && (fields[block.block_type] || []).some(([key]) => key === field);
-      if (!allowed) return;
-      block.content = Object.assign({},block.content || {});
-      block.content[field] = String(message.value ?? '');
-      const form = $('#builderLegacyForm') || $('#builderBlockForm');
-      if (form && form.elements[field]) form.elements[field].value = block.content[field];
+      const block=blocks.find(item=>blockKey(item)===String(message.key));
+      if(!block)return;
+      const path=String(message.field||'');
+      let target=block.content||(block.content={});
+      if(message.legacyField) {
+        const legacyField=String(message.legacyField);
+        if(!(fields[block.block_type]||[]).some(([key])=>key===legacyField))return;
+        if(!setObjectPath(target,legacyField,message.value))return;
+      } else if(message.nodeId) {
+        const record=findNestedNode(block,String(message.nodeId));
+        if(!record)return;
+        const type=String(record.node.type||'paragraph');
+        target=nodeContent(record.node);
+        const rootField=path.split('.')[0];
+        const allowed=(fields[type]||[]).some(([key])=>key===rootField)||Object.prototype.hasOwnProperty.call(target,rootField);
+        if(!allowed||!setObjectPath(target,path,message.value))return;
+      } else {
+        const rootField=path.split('.')[0];
+        const allowed=(fields[block.block_type]||[]).some(([key])=>key===rootField)||Object.prototype.hasOwnProperty.call(target,rootField);
+        if(!allowed||!setObjectPath(target,path,message.value))return;
+      }
+      const form=$('#builderLegacyForm')||$('#builderBlockForm')||$('#builderNodeForm');
+      if(form&&form.elements[path]&&!path.includes('.'))form.elements[path].value=String(message.value??'');
       renderCanvas();
       scheduleSave(block,{
-        label:form && form.elements.label ? form.elements.label.value : block.label,
-        content:block.content,
-        settings:block.settings || {},
+        label:form&&form.elements.label?form.elements.label.value:block.label,
+        content:block.content||{},
+        settings:block.settings||{},
         is_visible:!!block.is_visible
       });
     }
