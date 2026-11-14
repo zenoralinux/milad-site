@@ -318,3 +318,25 @@
 .builder-canvas-header small{display:block;margin-top:4px;opacity:.72}
 .builder-preview-frame-shell{position:relative;overflow:auto}
 @media(max-width:1100px){.builder-layers-tools{grid-template-columns:minmax(0,1fr) auto auto}}
+
+/* Independent project-card editing and compact hierarchical Navigator rows */
+.builder-project-tree{margin:0 0 16px;padding:10px;border:1px solid rgba(165,138,255,.24);border-radius:14px;background:rgba(165,138,255,.045)}
+.builder-project-tree-heading{display:grid;gap:4px;margin:2px 0 9px;padding:0 4px;color:var(--text)}
+.builder-project-tree-heading strong{font-size:10px;letter-spacing:.08em}
+.builder-project-tree-heading small{font-size:9px;color:var(--muted)}
+.builder-project-layer{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px;margin:4px 0;padding:3px;border:1px solid transparent;border-radius:10px}
+.builder-project-layer.is-selected{border-color:rgba(165,138,255,.55);background:rgba(165,138,255,.1)}
+.builder-project-layer.is-hidden{opacity:.55}
+.builder-project-layer .builder-layer-node{min-width:0;display:flex;align-items:center;gap:8px;padding:8px;border:0;background:transparent;color:var(--text);text-align:right;cursor:pointer}
+.builder-layer-icon{width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:rgba(165,138,255,.14);color:#c4b5fd}
+.builder-project-layer-copy{min-width:0;display:grid;gap:2px}
+.builder-project-layer-copy strong{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.builder-project-layer-copy small{font-size:8px;color:var(--muted)}
+.builder-layer-state{margin-right:auto;color:#9be6be;font-size:9px}
+.builder-project-layer-actions{display:flex;align-items:center;gap:2px}
+.builder-project-layer-actions button{width:25px;height:27px;border:0;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer}
+.builder-project-layer-actions button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.builder-project-layer.is-drop-target{outline:2px dashed #a58aff;outline-offset:2px}
+.builder-project-form textarea{min-height:76px}
+.builder-project-form label small{display:block;color:var(--muted);font-size:9px}
+.builder-project-form [data-inspector-panel="advanced"]{display:grid;gap:12px}

@@ -77,6 +77,10 @@
     stat_item:[['value','مقدار / نشان'],['label','عنوان'],['description','توضیحات']]
   };
 
+  let projects = [];
+  let selectedProjectId = null;
+  let projectDragId = null;
+  const projectSaveStates = new Map();
   let blocks = [];
   let design = {};
   let selectedId = null;
@@ -302,6 +306,7 @@
       blocks:blocks,
       design:design
     },'*');
+    frame.contentWindow.postMessage({type:'milad-builder-project-state',projects:projects},'*');
     if (selectedId !== null) {
       const selected = blocks.find(item => Number(item.id) === Number(selectedId));
       if (selected) frame.contentWindow.postMessage({
@@ -342,11 +347,22 @@
   }
   function renderCanvas() {
     const canvas = $('#builderCanvas');
-    if (!blocks.length) {
-      canvas.innerHTML = '<div class="builder-empty">صفحه خالی است.<br>از کتابخانه بلوک‌ها اولین بخش را اضافه کن.</div>';
-      return;
-    }
-    canvas.innerHTML = blocks.map(block => {
+    if (!canvas) return;
+    const projectRows = projects.map(project => {
+      const id = Number(project.id);
+      const active = Number(selectedProjectId) === id;
+      const hidden = !project.is_published;
+      return '<div class="builder-project-layer' + (active ? ' is-selected' : '') + (hidden ? ' is-hidden' : '') + '" draggable="true" data-project-layer="' + id + '">' +
+        '<button type="button" class="builder-layer-node" data-project-select="' + id + '" aria-pressed="' + (active ? 'true' : 'false') + '">' +
+        '<span class="builder-layer-icon" aria-hidden="true">▣</span><span class="builder-project-layer-copy"><strong>' + escapeHtml(project.title || 'پروژه بدون عنوان') +
+        '</strong><small>' + escapeHtml(project.category || 'tools') + ' · ' + escapeHtml(project.status || 'project') + '</small></span>' +
+        '<span class="builder-layer-state" title="' + (hidden ? 'پیش‌نویس' : 'منتشر شده') + '">' + (hidden ? '◌' : '●') + '</span></button>' +
+        '<div class="builder-project-layer-actions"><button type="button" data-project-clone="' + id + '" title="تکثیر">＋</button><button type="button" data-project-delete="' + id + '" title="حذف">×</button></div></div>';
+    }).join('');
+    const projectTree = projects.length
+      ? '<section class="builder-project-tree"><div class="builder-project-tree-heading"><strong>01 — SELECTED WORK</strong><small>' + projects.length + ' کارت مستقل · کشیدن برای جابه‌جایی</small></div>' + projectRows + '</section>'
+      : '';
+    const blockMarkup = blocks.length ? blocks.map(block => {
       const selected = Number(block.id) === Number(selectedId);
       const hidden = !Number(block.is_visible);
       const cloneable = !['hero','intro','projects','about','now','contact','footer'].includes(block.block_type);
@@ -363,7 +379,52 @@
         '<button type="button" data-down="' + Number(block.id) + '" title="پایین">↓</button>' +
         (cloneable ? '<button type="button" data-clone="' + Number(block.id) + '" title="تکثیر">＋</button>' : '') +
         '<button type="button" data-delete="' + Number(block.id) + '" title="حذف">×</button></div></article>';
-    }).join('');
+    }).join('') : '<div class="builder-empty">بخشی برای ویرایش وجود ندارد. از کتابخانه بلوک‌ها استفاده کن.</div>';
+    canvas.innerHTML = projectTree + blockMarkup;
+
+    $$('[data-project-select]').forEach(button => button.addEventListener('click',event => {
+      event.stopPropagation();
+      selectProject(Number(button.dataset.projectSelect));
+    }));
+    $$('[data-project-clone]').forEach(button => button.addEventListener('click',event => {
+      event.stopPropagation();
+      duplicateProject(Number(button.dataset.projectClone));
+    }));
+    $$('[data-project-delete]').forEach(button => button.addEventListener('click',event => {
+      event.stopPropagation();
+      deleteProject(Number(button.dataset.projectDelete));
+    }));
+    $$('.builder-project-layer').forEach(node => {
+      node.addEventListener('dragstart',event => {
+        projectDragId = Number(node.dataset.projectLayer);
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain','milad-studio-project:' + projectDragId);
+      });
+      node.addEventListener('dragover',event => {
+        if (!projectDragId || projectDragId === Number(node.dataset.projectLayer)) return;
+        event.preventDefault();
+        node.classList.add('is-drop-target');
+      });
+      node.addEventListener('dragleave',() => node.classList.remove('is-drop-target'));
+      node.addEventListener('drop',async event => {
+        event.preventDefault();
+        node.classList.remove('is-drop-target');
+        const targetId = Number(node.dataset.projectLayer);
+        if (!projectDragId || !targetId || projectDragId === targetId) return;
+        const from = projects.findIndex(item => Number(item.id) === projectDragId);
+        if (from < 0) return;
+        const targetAfterRemoval = projects.findIndex(item => Number(item.id) === targetId);
+        if (targetAfterRemoval < 0) return;
+        const moved = projects.splice(from,1)[0];
+        const destination = projects.findIndex(item => Number(item.id) === targetId);
+        projects.splice(destination,0,moved);
+        await saveProjectOrder();
+      });
+      node.addEventListener('dragend',() => {
+        projectDragId = null;
+        $$('.builder-project-layer').forEach(item => item.classList.remove('is-drop-target'));
+      });
+    });
 
     $$('[data-node-select]').forEach(button => button.addEventListener('click',event => {
       event.stopPropagation();
@@ -392,12 +453,12 @@
         const targetId = Number(node.dataset.blockId);
         if (!dragId || !targetId || dragId === targetId) return;
         const from = blocks.findIndex(item => Number(item.id) === dragId);
-        const to = blocks.findIndex(item => Number(item.id) === targetId);
-        if (from < 0 || to < 0) return;
-        queueUndoOrder();
+        if (from < 0) return;
         const moved = blocks.splice(from,1)[0];
         const targetAfterRemoval = blocks.findIndex(item => Number(item.id) === targetId);
-        blocks.splice(targetAfterRemoval < 0 ? blocks.length : targetAfterRemoval,0,moved);
+        if (targetAfterRemoval < 0) return;
+        blocks.splice(targetAfterRemoval,0,moved);
+        queueUndoOrder();
         await saveOrder();
       });
       node.addEventListener('dragend',() => {
@@ -436,6 +497,7 @@
   }
 
   function selectBlock(id) {
+    selectedProjectId = null;
     selectedId = id;
     selectedNodeId = null;
     selectedLegacyField = null;
@@ -446,6 +508,7 @@
   }
 
   function selectNestedNode(blockId,nodeId) {
+    selectedProjectId = null;
     selectedId = Number(blockId);
     selectedNodeId = String(nodeId || '');
     selectedLegacyField = null;
@@ -455,6 +518,7 @@
     postPreviewState();
   }
   function selectLegacyElement(blockId,field) {
+    selectedProjectId = null;
     selectedId = Number(blockId);
     selectedNodeId = null;
     selectedLegacyField = String(field || '');
@@ -573,6 +637,170 @@
     form.addEventListener('submit',event => event.preventDefault());
     $('#builderLegacySaveNow').addEventListener('click',() => flushSave(Number(block.id),true));
     setInspectorTab(activeInspectorTab);
+  }
+
+
+  function selectProject(id) {
+    const project = projects.find(item => Number(item.id) === Number(id));
+    if (!project) return;
+    selectedProjectId = Number(id);
+    selectedId = null;
+    selectedNodeId = null;
+    selectedLegacyField = null;
+    activeInspectorTab = 'content';
+    renderCanvas();
+    renderInspector();
+    postPreviewState();
+  }
+
+  function projectFormPayload(project,form) {
+    let links;
+    try { links = JSON.parse(form.elements.links.value || '[]'); }
+    catch (error) { return null; }
+    if (!Array.isArray(links)) return null;
+    const technologies = String(form.elements.technologies.value || '').split(/[\\n,]/).map(value => value.trim()).filter(Boolean);
+    return {
+      slug:String(form.elements.slug.value || '').trim(),
+      title:String(form.elements.title.value || '').trim(),
+      category:form.elements.category.value,
+      kind_label:String(form.elements.kind_label.value || '').trim(),
+      excerpt:String(form.elements.excerpt.value || '').trim(),
+      description:String(form.elements.description.value || '').trim(),
+      status:form.elements.status.value,
+      visual_variant:form.elements.visual_variant.value,
+      is_featured:form.elements.is_featured.checked,
+      is_published:form.elements.is_published.checked,
+      sort_order:Number(form.elements.sort_order.value || 0),
+      technologies:technologies,
+      links:links
+    };
+  }
+
+  function renderProjectInspector(project,host) {
+    const statusOptions = [['active','فعال'],['in_progress','در توسعه'],['paused','متوقف'],['project','پروژه'],['archived','بایگانی']];
+    const categoryOptions = [['os','سیستم‌عامل'],['apps','اپلیکیشن'],['tools','ابزارها']];
+    const variantOptions = [['zenora','Zenora'],['chat','Chat'],['android','Android'],['arm','ARM'],['wsl','WSL'],['generic','Generic']];
+    const optionMarkup = (list,current) => list.map(([value,label]) => '<option value="' + value + '"' + (String(current) === value ? ' selected' : '') + '>' + label + '</option>').join('');
+    host.innerHTML = '<form id="builderProjectForm" class="builder-form builder-project-form">' +
+      '<section data-inspector-panel="content"><div class="builder-panel-heading"><div><strong>کارت پروژه</strong><small>ویرایش مستقل محتوای رکورد دیتابیس · #' + Number(project.id) + '</small></div></div>' +
+      '<label>عنوان پروژه<input name="title" maxlength="180" value="' + escapeHtml(project.title || '') + '" required></label>' +
+      '<label>Slug<input name="slug" maxlength="160" dir="ltr" value="' + escapeHtml(project.slug || '') + '" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*"></label>' +
+      '<label>برچسب نوع پروژه<input name="kind_label" maxlength="100" value="' + escapeHtml(project.kind_label || '') + '"></label>' +
+      '<label>توضیح کوتاه<textarea name="excerpt" maxlength="500">' + escapeHtml(project.excerpt || '') + '</textarea></label>' +
+      '<label>توضیحات کامل<textarea name="description" maxlength="20000">' + escapeHtml(project.description || '') + '</textarea></label>' +
+      '<label>فناوری‌ها <small>هر خط یا ویرگول یک مورد</small><textarea name="technologies">' + escapeHtml((project.technologies || []).join('\\n')) + '</textarea></label>' +
+      '<label>لینک‌ها (JSON)<textarea name="links" dir="ltr" spellcheck="false">' + escapeHtml(JSON.stringify(project.links || [],null,2)) + '</textarea></label></section>' +
+      '<section data-inspector-panel="style" hidden><div class="builder-panel-heading"><div><strong>ظاهر کارت</strong><small>دسته‌بندی، وضعیت و طرح تصویر</small></div></div>' +
+      '<label>دسته‌بندی<select name="category">' + optionMarkup(categoryOptions,project.category) + '</select></label>' +
+      '<label>وضعیت<select name="status">' + optionMarkup(statusOptions,project.status) + '</select></label>' +
+      '<label>طرح گرافیکی<select name="visual_variant">' + optionMarkup(variantOptions,project.visual_variant) + '</select></label>' +
+      '<label>ترتیب نمایش<input type="number" min="0" max="100000" name="sort_order" value="' + escapeHtml(project.sort_order || 0) + '"></label></section>' +
+      '<section data-inspector-panel="advanced" hidden><div class="builder-panel-heading"><div><strong>وضعیت انتشار</strong><small>مدیریت نمایش در سایت عمومی</small></div></div>' +
+      '<label class="builder-check"><input type="checkbox" name="is_featured" ' + (project.is_featured ? 'checked' : '') + '> کارت برجسته</label>' +
+      '<label class="builder-check"><input type="checkbox" name="is_published" ' + (project.is_published ? 'checked' : '') + '> انتشار کارت در سایت</label>' +
+      '<div class="builder-note">ویرایش کارت مستقیماً روی جدول projects و جداول وابسته لینک‌ها و فناوری‌ها اعمال می‌شود. ورودی‌های متنی به‌عنوان HTML اجرا نمی‌شوند.</div>' +
+      '<div class="builder-form-actions"><button type="button" class="secondary-button compact" id="builderProjectDuplicate">تکثیر کارت</button><button type="button" class="secondary-button compact" id="builderProjectDelete">حذف کارت</button><button type="button" class="primary-button compact" id="builderProjectSaveNow">ذخیره همین حالا</button></div></section></form>';
+    const form = $('#builderProjectForm');
+    const sync = () => {
+      const payload = projectFormPayload(project,form);
+      if (!payload || !payload.title || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(payload.slug)) {
+        status('عنوان، Slug یا ساختار JSON لینک‌ها معتبر نیست.','error');
+        return;
+      }
+      Object.assign(project,payload);
+      renderCanvas();
+      postPreviewState();
+      scheduleProjectSave(project,payload);
+    };
+    form.addEventListener('input',sync);
+    form.addEventListener('change',sync);
+    form.addEventListener('submit',event => event.preventDefault());
+    $('#builderProjectSaveNow').addEventListener('click',() => flushProjectSave(Number(project.id)));
+    $('#builderProjectDuplicate').addEventListener('click',() => duplicateProject(Number(project.id)));
+    $('#builderProjectDelete').addEventListener('click',() => deleteProject(Number(project.id)));
+    setInspectorTab(activeInspectorTab);
+  }
+
+  function scheduleProjectSave(project,payload) {
+    const id = Number(project.id);
+    let state = projectSaveStates.get(id);
+    if (!state) {
+      state = {timer:null,payload:null,inFlight:null};
+      projectSaveStates.set(id,state);
+    }
+    state.payload = payload;
+    if (state.timer) window.clearTimeout(state.timer);
+    state.timer = window.setTimeout(() => flushProjectSave(id),700);
+    status('کارت پروژه در پیش‌نمایش تغییر کرد؛ ذخیره خودکار در صف است.','');
+  }
+  async function flushProjectSave(id) {
+    const state = projectSaveStates.get(Number(id));
+    if (!state || !state.payload) return true;
+    if (state.timer) { window.clearTimeout(state.timer); state.timer = null; }
+    if (state.inFlight) {
+      const prior = await state.inFlight;
+      if (prior === false) return false;
+      return state.payload ? flushProjectSave(id) : true;
+    }
+    const payload = state.payload;
+    state.inFlight = (async () => {
+      try {
+        await request('project-save','PUT',payload,Number(id));
+        if (state.payload === payload) state.payload = null;
+        status('کارت پروژه ذخیره شد.','success');
+        return true;
+      } catch (error) {
+        status(error.message,'error');
+        return false;
+      } finally {
+        state.inFlight = null;
+      }
+    })();
+    const result = await state.inFlight;
+    if (result === false) return false;
+    if (state.payload && state.payload !== payload) return flushProjectSave(id);
+    return true;
+  }
+  async function flushAllProjectSaves() {
+    const results = await Promise.all(Array.from(projectSaveStates.keys()).map(id => flushProjectSave(id)));
+    return results.every(result => result !== false);
+  }
+  async function saveProjectOrder() {
+    renderCanvas();
+    postPreviewState();
+    try {
+      await request('project-reorder','POST',{ids:projects.map(item => Number(item.id))});
+      status('ترتیب کارت‌های پروژه ذخیره شد.','success');
+    } catch (error) {
+      status(error.message,'error');
+      await load();
+    }
+  }
+  async function duplicateProject(id) {
+    const source = projects.find(item => Number(item.id) === Number(id));
+    if (!source || !(await flushProjectSave(id))) return;
+    const copy = cloneData(source);
+    copy.slug = String(source.slug || 'project') + '-copy-' + Date.now().toString(36);
+    copy.title = String(source.title || 'پروژه') + ' (کپی)';
+    copy.sort_order = projects.length + 1;
+    try {
+      const created = await request('projects','POST',copy);
+      await load();
+      selectProject(Number(created.id));
+      status('کارت پروژه تکثیر شد.','success');
+    } catch (error) { status(error.message,'error'); }
+  }
+  async function deleteProject(id) {
+    const project = projects.find(item => Number(item.id) === Number(id));
+    if (!project || !window.confirm('کارت «' + (project.title || 'پروژه') + '» حذف شود؟')) return;
+    if (!(await flushProjectSave(id))) return;
+    try {
+      await request('project-delete','DELETE',{},Number(id));
+      projectSaveStates.delete(Number(id));
+      selectedProjectId = null;
+      await load();
+      status('کارت پروژه حذف شد.','success');
+    } catch (error) { status(error.message,'error'); }
   }
 
   function renderRepeaterControl(key,label,value) {
@@ -714,6 +942,11 @@
     });
   }
 
+    if (selectedProjectId !== null) {
+      const project = projects.find(item => Number(item.id) === Number(selectedProjectId));
+      if (project) { renderProjectInspector(project,host); return; }
+      selectedProjectId = null;
+    }
   function renderInspector() {
     const block = blocks.find(item => Number(item.id) === Number(selectedId));
     const host = $('#builderInspectorForm');
@@ -1074,18 +1307,21 @@
   async function load(selectId = null) {
     status('در حال دریافت ساختار و محتوای صفحه…');
     try {
-      if (loaded && !(await flushAllPending())) {
+      if (loaded && (!(await flushAllPending()) || !(await flushAllProjectSaves()))) {
         status('ذخیره برخی تغییرات ناموفق بود؛ تازه‌سازی لغو شد.','error');
         return;
       }
-      const data = await request('builder');
+      const results = await Promise.all([request('builder'),request('projects')]);
+      const data = results[0];
       blocks = data.blocks || [];
+      projects = Array.isArray(results[1]) ? results[1] : [];
+      if (selectedProjectId !== null && !projects.some(item => Number(item.id) === Number(selectedProjectId))) selectedProjectId = null;
       const normalizedBlocks = [];
       const usedNodeIds = new Set();
       blocks.forEach(block => { if (normalizeNestedIds(block,usedNodeIds)) normalizedBlocks.push(block); });
       design = data.design || {};
       if (selectId !== null) { selectedId = Number(selectId); selectedNodeId = null; selectedLegacyField = null; }
-      if (!blocks.some(item => Number(item.id) === Number(selectedId))) {
+      if (selectedProjectId === null && !blocks.some(item => Number(item.id) === Number(selectedId))) {
         selectedId = blocks.length ? Number(blocks[0].id) : null;
         selectedNodeId = null; selectedLegacyField = null;
       }
@@ -1621,6 +1857,10 @@
   $('#builderLayerSearch')?.addEventListener('input',event => {
     const term = String(event.target.value || '').trim().toLowerCase();
     $('.builder-block').forEach(item => {
+      const text = String(item.textContent || '').toLowerCase();
+      item.hidden = term !== '' && text.indexOf(term) === -1;
+    });
+    $('.builder-project-layer').forEach(item => {
       const text = String(item.textContent || '').toLowerCase();
       item.hidden = term !== '' && text.indexOf(term) === -1;
     });
