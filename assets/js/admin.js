@@ -254,13 +254,13 @@
     finally { button.disabled = false; }
   });
   async function deleteProject(id) {
-    const project = projects.find(p => p.id === id);
+    const project = projects.find(p => Number(p.id) === id);
     if (!project || !window.confirm('پروژه «' + project.title + '» حذف شود؟ این عملیات قابل بازگشت نیست.')) return;
     try { await request('project-delete','DELETE',{},id); toast('پروژه حذف شد.'); await loadProjects(); await loadDashboard(); }
     catch(e) { toast(e.message,true); }
   }
   async function moveProject(id, direction) {
-    const index = projects.findIndex(p => p.id === id);
+    const index = projects.findIndex(p => Number(p.id) === id);
     const next = index + direction;
     if (index < 0 || next < 0 || next >= projects.length) return;
     [projects[index],projects[next]] = [projects[next],projects[index]];
