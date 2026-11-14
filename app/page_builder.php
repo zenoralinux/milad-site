@@ -243,6 +243,92 @@ function builder_render_nested_widget(array $widget, int $depth = 0): string
     return '';
 }
 
+
+function builder_legacy_element_css(array $blocks): string
+{
+    $selectors = [
+        'hero' => [
+            'eyebrow' => '.hero-copy .eyebrow', 'title_line1' => '.hero-copy h1',
+            'description' => '.hero-description', 'primary_cta_text' => '.hero-actions a:first-child',
+            'secondary_cta_text' => '.hero-actions a:nth-child(2)', 'footnote' => '.hero-footnote span:last-child'
+        ],
+        'intro' => ['text_before' => '.intro-strip-inner p', 'text_emphasis' => '.intro-strip-inner p span'],
+        'projects' => [
+            'heading_before' => '.section-heading h2', 'heading_emphasis' => '.section-heading h2 span',
+            'description' => '.section-heading > p'
+        ],
+        'about' => [
+            'section_index' => '.about-heading .section-index', 'title_line1' => '.about-heading h2',
+            'description' => '.about-heading > p', 'link_text' => '.about-heading .text-link'
+        ],
+        'now' => [
+            'section_index' => '.now-panel-copy .section-index', 'title_line1' => '.now-panel-copy h2',
+            'description' => '.now-panel-copy > p', 'status_title' => '.now-note strong',
+            'status_subtitle' => '.now-note small'
+        ],
+        'contact' => [
+            'section_index' => '.contact-copy .section-index', 'title_line1' => '.contact-copy h2',
+            'description' => '.contact-copy > p'
+        ],
+        'footer' => ['tagline' => '.footer-brand > span:last-child', 'copyright' => '.footer-copy'],
+        'text' => ['title' => '.section-heading h2', 'body' => '.section-heading > p'],
+        'cta' => ['title' => '.panel-card h2', 'body' => '.panel-card > p', 'button_text' => '.panel-card a.button'],
+        'stats' => ['title' => '.container > h2']
+    ];
+    $output = '';
+    foreach ($blocks as $block) {
+        $type = (string) ($block['block_type'] ?? '');
+        $key = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($block['block_key'] ?? ''));
+        $styles = $block['content']['element_styles'] ?? [];
+        if ($key === '' || !isset($selectors[$type]) || !is_array($styles)) continue;
+        foreach ($selectors[$type] as $field => $selector) {
+            if (!isset($styles[$field]) || !is_array($styles[$field])) continue;
+            $style = builder_widget_style($styles[$field]);
+            if ($style === '') continue;
+            $declarations = substr($style, 8, -1);
+            if ($declarations !== '') {
+                $output .= '[data-builder-key="' . $key . '"] ' . $selector . '{' . $declarations . '}';
+            }
+        }
+    }
+    return $output !== '' ? '<style id="builder-element-styles">' . $output . '</style>' : '';
+}
+
+function builder_responsive_widget_css(array $widgets, string $device): string
+{
+    $propertyMap = [
+        'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width',
+        'max_width' => 'max-width', 'min_height' => 'min-height', 'gap' => 'gap',
+        'padding' => 'padding', 'margin' => 'margin', 'text_align' => 'text-align', 'display' => 'display'
+    ];
+    $rules = '';
+    foreach (array_slice($widgets, 0, 40) as $widget) {
+        if (!is_array($widget)) continue;
+        $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($widget['id'] ?? ''));
+        $responsive = $widget['styles']['responsive'][$device] ?? [];
+        if ($id !== '' && is_array($responsive)) {
+            $declarations = [];
+            foreach ($propertyMap as $field => $property) {
+                if (!isset($responsive[$field]) || !is_scalar($responsive[$field])) continue;
+                $value = trim((string) $responsive[$field]);
+                if ($field === 'text_align') {
+                    if (!in_array($value, ['right','left','center','justify','start','end'], true)) continue;
+                } elseif ($field === 'display') {
+                    if (!in_array($value, ['none','block','flex','grid','inline-flex'], true)) continue;
+                } elseif (!preg_match('/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) {
+                    continue;
+                }
+                $declarations[] = $property . ':' . $value;
+            }
+            if ($declarations) $rules .= '[data-widget-node="' . $id . '"]{' . implode(';', $declarations) . '}';
+        }
+        $children = is_array($widget['children'] ?? null) ? $widget['children'] : [];
+        if (!$children && is_array($widget['content']['children'] ?? null)) $children = $widget['content']['children'];
+        if ($children) $rules .= builder_responsive_widget_css($children, $device);
+    }
+    return $rules;
+}
+
 function builder_responsive_css(array $blocks): string
 {
     $propertyMap = [
@@ -272,6 +358,8 @@ function builder_responsive_css(array $blocks): string
                 $declarations[] = $property . ':' . $value;
             }
             if ($declarations) $rules .= '[data-builder-key="' . $key . '"]{' . implode(';', $declarations) . '}';
+            $children = is_array($block['content']['children'] ?? null) ? $block['content']['children'] : [];
+            if ($children) $rules .= builder_responsive_widget_css($children, $device);
         }
         if ($rules !== '') $css .= '@media ' . $query . '{' . $rules . '}';
     }
@@ -399,7 +487,7 @@ function builder_apply_to_html(string $html, array $blocks, array $design, bool 
         if ($bodyEnd !== false) $html = substr($html, 0, $bodyEnd) . $footerHtml . "\n" . substr($html, $bodyEnd);
     }
 
-    $css = builder_design_css($design) . builder_responsive_css($blocks);
+    $css = builder_design_css($design) . builder_responsive_css($blocks) . builder_legacy_element_css($blocks);
     $headEnd = stripos($html, '</head>');
     if ($headEnd !== false) $html = substr($html, 0, $headEnd) . $css . substr($html, $headEnd);
     return $html;
