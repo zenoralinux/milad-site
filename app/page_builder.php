@@ -57,6 +57,7 @@ function builder_design_css(array $settings): string
         '.builder-custom-block .panel-card{padding:clamp(20px,4vw,44px);border:1px solid var(--line);border-radius:var(--radius-lg)}' .
         '.builder-custom-block h2{margin:0 0 12px;font-size:clamp(24px,4vw,42px)}' .
         '.builder-custom-block p{color:var(--muted);line-height:2.1}' .
+        '.builder-layout-container{display:flex;gap:var(--builder-layout-gap,20px);min-width:0}.builder-layout-container.is-row{flex-direction:row}.builder-layout-container.is-column{flex-direction:column}.builder-layout-grid{display:grid;grid-template-columns:repeat(var(--builder-grid-columns,2),minmax(0,1fr));gap:18px}.builder-widget-card{border:1px solid var(--line);border-radius:var(--radius-lg);padding:22px;background:rgba(255,255,255,.035)}.builder-widget-image img{display:block;width:100%;height:auto;border-radius:inherit}.builder-widget-video iframe{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:var(--radius-lg)}.builder-widget-image-placeholder{padding:36px;border:1px dashed var(--line);border-radius:14px;text-align:center;color:var(--muted)}.builder-widget-counter{display:grid;gap:5px}.builder-widget-counter strong{font-size:clamp(28px,4vw,44px)}.builder-widget-list{padding-inline-start:24px;line-height:2}.builder-widget-divider{border:0;border-top:1px solid var(--line);width:100%}' .
         '[data-builder-key][hidden],.principles-grid[hidden]{display:none!important}' .
         '</style>';
 }
@@ -113,6 +114,159 @@ function builder_block_style(array $settings): string
     return $styles ? ' style="' . h(implode(';', $styles)) . '"' : '';
 }
 
+
+function builder_widget_safe_url($value, bool $image = false): string
+{
+    $url = trim((string) $value);
+    if ($url === '') return '';
+    if (preg_match('/^#[a-zA-Z0-9_-]+$/', $url)) return $url;
+    if (strpos($url, '/') === 0 && strpos($url, '//') !== 0) return $url;
+    if ($image && preg_match('#^data:image/(?:png|jpe?g|webp|gif);base64,[a-zA-Z0-9+/=]+$#i', $url)) return $url;
+    if (preg_match('#^https://[a-z0-9.-]+(?::[0-9]{1,5})?(?:/[^\\s]*)?$#i', $url)) return $url;
+    return '';
+}
+
+function builder_widget_style(array $styles): string
+{
+    $map = [
+        'background' => 'background-color', 'color' => 'color', 'font_size' => 'font-size',
+        'font_weight' => 'font-weight', 'line_height' => 'line-height', 'text_align' => 'text-align',
+        'width' => 'width', 'max_width' => 'max-width', 'min_height' => 'min-height',
+        'gap' => 'gap', 'padding' => 'padding', 'margin' => 'margin', 'radius' => 'border-radius',
+        'border' => 'border', 'shadow' => 'box-shadow', 'display' => 'display'
+    ];
+    $out = [];
+    foreach ($map as $key => $property) {
+        if (!isset($styles[$key]) || !is_scalar($styles[$key])) continue;
+        $value = trim((string) $styles[$key]);
+        if ($value === '') continue;
+        if (in_array($key, ['background','color'], true)) {
+            if (!preg_match('/^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/', $value)) continue;
+        } elseif ($key === 'text_align') {
+            if (!in_array($value, ['right','left','center','justify','start','end'], true)) continue;
+        } elseif ($key === 'font_weight') {
+            if (!preg_match('/^(100|200|300|400|500|600|700|800|900|normal|bold)$/', $value)) continue;
+        } elseif ($key === 'display') {
+            if (!in_array($value, ['block','flex','grid','inline-flex','inline-block'], true)) continue;
+        } elseif ($key === 'border') {
+            if (!preg_match('/^(0|[0-9]{1,2}px solid #[0-9a-fA-F]{6})$/', $value)) continue;
+        } elseif ($key === 'shadow') {
+            if (!preg_match('/^(?:none|(?:0|[0-9]{1,3}px)\\s+(?:0|[0-9]{1,3}px)\\s+(?:0|[0-9]{1,3}px)\\s*(?:#[0-9a-fA-F]{6}|rgba\\([0-9, .]+\\)))$/', $value)) continue;
+        } else {
+            if (!preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) continue;
+        }
+        $out[] = $property . ':' . $value;
+    }
+    return $out ? ' style="' . h(implode(';', $out)) . '"' : '';
+}
+
+function builder_render_nested_widget(array $widget, int $depth = 0): string
+{
+    if ($depth > 8) return '';
+    $type = (string) ($widget['type'] ?? 'paragraph');
+    $content = is_array($widget['content'] ?? null) ? $widget['content'] : $widget;
+    $styles = is_array($widget['styles'] ?? null) ? $widget['styles'] : [];
+    $children = is_array($widget['children'] ?? null) ? $widget['children'] : [];
+    $style = builder_widget_style($styles);
+    $nodeId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($widget['id'] ?? ''));
+    $nodeAttr = $nodeId !== '' ? ' data-widget-node="' . h($nodeId) . '"' : '';
+    $inner = '';
+    foreach (array_slice($children, 0, 40) as $child) {
+        if (is_array($child)) $inner .= builder_render_nested_widget($child, $depth + 1);
+    }
+    if ($type === 'container') {
+        $direction = (($content['direction'] ?? 'column') === 'row') ? 'row' : 'column';
+        return '<div class="builder-layout-container is-' . $direction . '"' . $nodeAttr . $style . '>' . $inner . '</div>';
+    }
+    if ($type === 'grid') {
+        $columns = max(1, min(6, (int) ($content['columns'] ?? 2)));
+        return '<div class="builder-layout-grid" style="--builder-grid-columns:' . $columns . '"' . $nodeAttr . $style . '>' . $inner . '</div>';
+    }
+    if ($type === 'card') {
+        return '<article class="builder-widget-card"' . $nodeAttr . $style .
+            '><div class="builder-widget-card-content"><h3>' . h($content['title'] ?? 'عنوان کارت') .
+            '</h3><p>' . nl2br(h($content['body'] ?? 'توضیحات کارت')) . '</p>' . $inner . '</div></article>';
+    }
+    if ($type === 'heading') {
+        $level = max(1, min(6, (int) ($content['level'] ?? 2)));
+        return '<h' . $level . ' class="builder-widget-heading"' . $nodeAttr . $style . '>' . h($content['text'] ?? 'عنوان جدید') . '</h' . $level . '>';
+    }
+    if ($type === 'paragraph') {
+        return '<p class="builder-widget-paragraph"' . $nodeAttr . $style . '>' . nl2br(h($content['text'] ?? 'متن جدید')) . '</p>';
+    }
+    if ($type === 'button') {
+        $url = builder_widget_safe_url($content['url'] ?? '#contact');
+        return '<a class="button button-primary builder-widget-button"' . $nodeAttr . $style .
+            ' href="' . h($url !== '' ? $url : '#') . '">' . h($content['text'] ?? 'دکمه جدید') . '</a>';
+    }
+    if ($type === 'image') {
+        $src = builder_widget_safe_url($content['src'] ?? '', true);
+        if ($src === '') return '<div class="builder-widget-image-placeholder"' . $nodeAttr . '>تصویر انتخاب نشده است</div>';
+        return '<figure class="builder-widget-image"' . $nodeAttr . $style . '><img src="' . h($src) .
+            '" alt="' . h($content['alt'] ?? '') . '" loading="lazy"></figure>';
+    }
+    if ($type === 'divider') return '<hr class="builder-widget-divider"' . $nodeAttr . $style . '>';
+    if ($type === 'icon') return '<span class="builder-widget-icon"' . $nodeAttr . $style . ' aria-hidden="true">' . h($content['symbol'] ?? '✦') . '</span>';
+    if ($type === 'counter') {
+        return '<div class="builder-widget-counter"' . $nodeAttr . $style . '><strong>' . h($content['value'] ?? '0') .
+            '</strong><span>' . h($content['label'] ?? 'عنوان آمار') . '</span></div>';
+    }
+    if ($type === 'list') {
+        $items = is_array($content['items'] ?? null) ? $content['items'] : [];
+        $list = '';
+        foreach (array_slice($items, 0, 30) as $item) {
+            $list .= '<li>' . h(is_array($item) ? ($item['text'] ?? '') : $item) . '</li>';
+        }
+        return '<ul class="builder-widget-list"' . $nodeAttr . $style . '>' . $list . '</ul>';
+    }
+    if ($type === 'video') {
+        $url = (string) ($content['url'] ?? '');
+        if (preg_match('#^https://www\\.youtube\\.com/embed/[a-zA-Z0-9_-]+(?:\\?[a-zA-Z0-9_=&-]+)?$#', $url) ||
+            preg_match('#^https://player\\.vimeo\\.com/video/[0-9]+(?:\\?[a-zA-Z0-9_=&-]+)?$#', $url)) {
+            return '<div class="builder-widget-video"' . $nodeAttr . $style . '><iframe src="' . h($url) .
+                '" title="' . h($content['title'] ?? 'ویدیو') . '" loading="lazy" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+        }
+        return '<div class="builder-widget-image-placeholder"' . $nodeAttr . '>آدرس ویدیو معتبر نیست</div>';
+    }
+    return '';
+}
+
+function builder_responsive_css(array $blocks): string
+{
+    $propertyMap = [
+        'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width',
+        'max_width' => 'max-width', 'min_height' => 'min-height', 'gap' => 'gap',
+        'padding' => 'padding', 'margin' => 'margin', 'text_align' => 'text-align',
+        'display' => 'display'
+    ];
+    $queries = ['tablet' => '(max-width: 1024px)', 'mobile' => '(max-width: 767px)'];
+    $css = '';
+    foreach ($queries as $device => $query) {
+        $rules = '';
+        foreach ($blocks as $block) {
+            $key = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($block['block_key'] ?? ''));
+            $responsive = $block['settings']['responsive'][$device] ?? [];
+            if ($key === '' || !is_array($responsive)) continue;
+            $declarations = [];
+            foreach ($propertyMap as $field => $property) {
+                if (!isset($responsive[$field]) || !is_scalar($responsive[$field])) continue;
+                $value = trim((string) $responsive[$field]);
+                if ($field === 'text_align') {
+                    if (!in_array($value, ['right','left','center','justify','start','end'], true)) continue;
+                } elseif ($field === 'display') {
+                    if (!in_array($value, ['none','block','flex','grid','inline-flex'], true)) continue;
+                } elseif (!preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) {
+                    continue;
+                }
+                $declarations[] = $property . ':' . $value;
+            }
+            if ($declarations) $rules .= '[data-builder-key="' . $key . '"]{' . implode(';', $declarations) . '}';
+        }
+        if ($rules !== '') $css .= '@media ' . $query . '{' . $rules . '}';
+    }
+    return $css !== '' ? '<style id="builder-responsive-styles">' . $css . '</style>' : '';
+}
+
 function builder_render_custom_block(array $block): string
 {
     $type = (string) ($block['block_type'] ?? '');
@@ -154,6 +308,15 @@ function builder_render_custom_block(array $block): string
     if ($type === 'spacer') {
         $height = max(8, min(240, (int) ($content['height'] ?? 48)));
         return '<div class="builder-spacer" data-builder-key="' . $key . '" data-builder-id="' . (int) $block['id'] . '" aria-hidden="true" style="height:' . $height . 'px"></div>';
+    }
+    $widgetTypes = ['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video'];
+    if (in_array($type, $widgetTypes, true)) {
+        $widget = ['type' => $type, 'content' => $content, 'styles' => $settings,
+            'children' => is_array($content['children'] ?? null) ? $content['children'] : []];
+        $inner = builder_render_nested_widget($widget);
+        $wrapperClass = $type === 'container' || $type === 'grid' ? 'builder-layout-root' : 'builder-widget-root';
+        return '<section class="section-shell builder-custom-block ' . $wrapperClass . '" data-builder-key="' . $key .
+            '" data-builder-id="' . (int) $block['id'] . '"' . $style . '><div class="container">' . $inner . '</div></section>';
     }
     return '';
 }
@@ -225,7 +388,7 @@ function builder_apply_to_html(string $html, array $blocks, array $design, bool 
         if ($bodyEnd !== false) $html = substr($html, 0, $bodyEnd) . $footerHtml . "\n" . substr($html, $bodyEnd);
     }
 
-    $css = builder_design_css($design);
+    $css = builder_design_css($design) . builder_responsive_css($blocks);
     $headEnd = stripos($html, '</head>');
     if ($headEnd !== false) $html = substr($html, 0, $headEnd) . $css . substr($html, $headEnd);
     return $html;
