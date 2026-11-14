@@ -66,4 +66,10 @@ const inlineClickHandler=preview.slice(inlineClickStart,inlineClickEnd);
 assert(inlineClickHandler.includes("if(event.target.closest('a'))event.preventDefault();") && !inlineClickHandler.includes("event.preventDefault();event.stopPropagation();"),'inline editor preserves click caret placement');
 assert(preview.includes("tile.setAttribute('data-widget-type','principle_item')") && preview.includes("tile.setAttribute('data-widget-type','stat_item')"),'About principle and Stats cards support inline editing');
 
+
+assert(js.includes("target=(type==='principle_item'||type==='stat_item')?record.node:nodeContent(record.node)"),'About and Stats inline edits update their actual array records');
+const siteCss=fs.readFileSync('assets/css/site.css','utf8');
+assert(siteCss.includes('background: linear-gradient(105deg, var(--accent), var(--accent-strong))') && siteCss.includes('background: var(--accent);'),'major brand and button accents use palette tokens');
+assert(renderer.includes("html[data-theme=\"light\"]") && renderer.includes("'--surface-raised'"),'palette tokens also apply to light-theme root and site surfaces');
+
 console.log('Milad Studio Pro static invariants passed');
