@@ -545,7 +545,7 @@ function builder_make_internal_preview(string $html): string
     }
 
     $styleTag = '<style id="builder-embedded-site-css">' . $css . '</style>';
-    $html = preg_replace(
+    $html = preg_replace_callback(
         '#<link\\b(?=[^>]*href=["\\'](?:\\./)?assets/css/site\\.css["\\'])[^>]*>#i',
         static function () use ($styleTag): string { return $styleTag; },
         $html,
@@ -554,7 +554,7 @@ function builder_make_internal_preview(string $html): string
 
     $inlineJs = str_ireplace('</script', '<\\/script', $js);
     $scriptTag = '<script id="builder-embedded-site-js">' . $inlineJs . '</script>';
-    $html = preg_replace(
+    $html = preg_replace_callback(
         '#<script\\b(?=[^>]*src=["\\'](?:\\./)?assets/js/site\\.js["'])[^>]*>\\s*</script>#i',
         static function () use ($scriptTag): string { return $scriptTag; },
         $html,
