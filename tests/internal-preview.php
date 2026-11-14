@@ -147,6 +147,16 @@ $checks = array_merge($checks, [
         strpos($previewScript, 'milad-builder-node-select') !== false &&
         strpos($previewScript, 'data-widget-node') !== false &&
         strpos($previewScript, 'selectOutline(key,nodeId,legacyField)') !== false,
+    'preview supports project-card selection and structured updates' =>
+        strpos($previewScript, 'milad-builder-project-select') !== false &&
+        strpos($previewScript, 'function applyProjectState(projects)') !== false,
+    'preview exposes all eight resize handles and safe context messages' =>
+        substr_count($previewScript, 'data-resize-handle=') === 8 &&
+        strpos($previewScript, 'milad-builder-context-menu') !== false &&
+        strpos($previewScript, 'event.source !== window.parent') !== false,
+    'preview blocks edits on locked blocks and widgets' =>
+        strpos($previewScript, 'data-builder-locked') !== false &&
+        strpos($previewScript, 'function selectResizeTarget(target)') !== false,
     'unsafe element styles are rejected' => $unsafeStyle === '',
     'safe multi-value margin and padding are accepted' =>
         strpos($multiValueStyle, 'margin:0 auto 16px') !== false &&

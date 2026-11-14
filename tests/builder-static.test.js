@@ -24,4 +24,21 @@ assert(js.includes('Array.isArray(template.blocks)') && js.includes('const creat
   assert(api.includes("'" + type + "' =>"),'API default for ' + type);
   assert(renderer.includes("'" + type + "'"),'server renderer registry for ' + type);
 });
+
+const previewBuilder = fs.readFileSync('app/page_builder.php','utf8');
+const projectTemplate = fs.readFileSync('index.html','utf8');
+const projectRenderer = fs.readFileSync('index.php','utf8');
+assert(js.includes('function renderProjectInspector') && js.includes('scheduleProjectSave'),'database-backed project inspector and autosave');
+assert(js.includes('function saveProjectOrder') && js.includes('function duplicateProject') && js.includes('function deleteProject'),'project ordering, duplicate and delete actions');
+assert(js.includes("type:'milad-builder-project-state'") && previewBuilder.includes('function applyProjectState(projects)'),'project card live preview synchronization');
+assert(js.includes('function queueUndoProject') && js.includes("snapshot.kind === 'project-order'"),'project content and ordering undo history');
+assert(js.includes('function renderBoxModelControl') && js.includes('data-spacing-link'),'four-sided linked margin and padding editor');
+assert(js.includes('<details class="builder-layer-node-wrap"') && js.includes('function bindNestedNavigatorDrag'),'collapsible nested Navigator with child drag and drop');
+assert(js.includes('function toggleBlockLock') && js.includes('function toggleNestedNodeLock'),'layer lock controls');
+assert(js.includes('const acceptedPreviewMessages = new Set') && js.includes('event.source !== frame.contentWindow'),'validated iframe message allow-list and source check');
+assert(previewBuilder.includes('data-resize-handle="tl"') && (previewBuilder.match(/data-resize-handle="/g)||[]).length === 8,'eight canvas resize handles');
+assert(previewBuilder.includes('milad-builder-context-menu') && previewBuilder.includes('document.addEventListener(\'contextmenu\''),'canvas-only context menu routing');
+assert((projectTemplate.match(/<!-- MILAD_PROJECT_CARDS -->/g)||[]).length === 1,'unique structured Selected Work render marker');
+assert(projectRenderer.includes('function render_project_card') && projectRenderer.includes('data-project-card="1"') && projectRenderer.includes("str_replace($projectMarker"),'escaped server-side project renderer');
+assert(!projectRenderer.includes('$projectStart') && !projectRenderer.includes('$projectEnd'),'fragile range-based Selected Work injection removed');
 console.log('Milad Studio Pro static invariants passed');

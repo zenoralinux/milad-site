@@ -37,5 +37,7 @@ jobs:
           node-version: 20
       - name: Check JavaScript syntax
         run: for file in $(find assets/js -type f -name '*.js'); do node --check "$file"; done
+      - name: Check embedded preview JavaScript syntax
+        run: php tests/preview-script-source.php > "$RUNNER_TEMP/builder-preview.js" && node --check "$RUNNER_TEMP/builder-preview.js"
       - name: Check builder interaction invariants
         run: node tests/builder-static.test.js
