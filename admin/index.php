@@ -149,9 +149,9 @@ if ($admin && !$setupError) {
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#080b12">
   <title>پنل مدیریت | میلاد</title><link rel="stylesheet" href="<?= h(app_url('assets/css/admin.css')) ?>">
-  <link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css?v=elementor-20261114-3')) ?>">
+  <link rel="stylesheet" href="<?= h(app_url('assets/css/builder.css?v=milad-studio-pro-20261114-2')) ?>">
   <script src="<?= h(app_url('assets/js/admin.js?v=live-20261114-2')) ?>" defer></script>
-  <script src="<?= h(app_url('assets/js/builder.js?v=elementor-20261114-3')) ?>" defer></script>
+  <script src="<?= h(app_url('assets/js/builder.js?v=milad-studio-pro-20261114-2')) ?>" defer></script>
 </head>
 <body data-mode="<?= $setupError ? 'setup' : ($admin ? 'admin' : 'login') ?>" data-csrf="<?= h($csrf) ?>" data-base-path="<?= h(app_base_path()) ?>">
 <?php if ($setupError): ?>
@@ -233,6 +233,9 @@ if ($admin && !$setupError) {
                 <button type="button" data-device="tablet">تبلت</button>
                 <button type="button" data-device="mobile">موبایل</button>
               </div>
+              <button class="secondary-button" id="builderUndo" type="button" title="بازگشت (Ctrl+Z)" disabled>↶ بازگشت</button>
+              <button class="secondary-button" id="builderRedo" type="button" title="انجام دوباره (Ctrl+Shift+Z)" disabled>↷ دوباره</button>
+              <button class="secondary-button" id="builderTemplates" type="button">قالب‌های آماده</button>
               <button class="primary-button compact" id="builderSaveAll" type="button">ذخیره تغییرات</button>
               <button class="secondary-button" id="builderReload" type="button">↻ تازه‌سازی</button>
             </div>
@@ -246,7 +249,21 @@ if ($admin && !$setupError) {
               </div>
               <div class="builder-library-view" data-library-panel="elements">
                 <div class="builder-library-list">
-                  <button class="builder-library-item" type="button" data-add-block="text"><b>¶</b><span>بخش متنی<small>عنوان و توضیحات</small></span></button>
+                  <div class="builder-library-group"><strong>چیدمان</strong><small>ساختار و ستون‌بندی</small></div>
+                  <button class="builder-library-item" type="button" data-add-block="container"><b>▱</b><span>کانتینر<small>چیدمان تو در تو</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="grid"><b>▦</b><span>گرید<small>شبکه واکنش‌گرا</small></span></button>
+                  <div class="builder-library-group"><strong>عناصر پایه</strong><small>متن و رسانه</small></div>
+                  <button class="builder-library-item" type="button" data-add-block="heading"><b>H</b><span>عنوان<small>Heading</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="paragraph"><b>¶</b><span>متن<small>Paragraph</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="button"><b>↗</b><span>دکمه<small>پیوند و دعوت به اقدام</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="image"><b>▧</b><span>تصویر<small>از کتابخانه رسانه</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="card"><b>▣</b><span>کارت<small>محتوای مستقل</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="divider"><b>―</b><span>جداکننده<small>خط افقی</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="icon"><b>✦</b><span>آیکون<small>نماد متنی</small></span></button>
+                  <div class="builder-library-group"><strong>عناصر پیشرفته</strong><small>اطلاعات و تعامل</small></div>
+                  <button class="builder-library-item" type="button" data-add-block="counter"><b>＋</b><span>شمارنده<small>عدد و برچسب</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="list"><b>☷</b><span>فهرست<small>موارد متنی</small></span></button>
+                  <button class="builder-library-item" type="button" data-add-block="video"><b>▷</b><span>ویدیو<small>YouTube / Vimeo Embed</small></span></button>
                   <button class="builder-library-item" type="button" data-add-block="cta"><b>↗</b><span>دعوت به اقدام<small>متن و دکمه لینک‌دار</small></span></button>
                   <button class="builder-library-item" type="button" data-add-block="stats"><b>▥</b><span>آمار و اعداد<small>کارت‌های آماری</small></span></button>
                   <button class="builder-library-item" type="button" data-add-block="spacer"><b>↕</b><span>فاصله عمودی<small>تنظیم ریتم صفحه</small></span></button>
@@ -258,7 +275,7 @@ if ($admin && !$setupError) {
               </div>
             </aside>
             <section class="builder-canvas-wrap panel-card">
-              <div class="builder-canvas-header"><strong>پیش‌نمایش زنده سایت</strong><small>روی هر بخش کلیک کن تا تنظیماتش باز شود؛ تغییرات در همین نما دیده می‌شوند</small></div>
+              <div class="builder-canvas-header"><strong>پیش‌نمایش زنده سایت</strong><div class="builder-context-toolbar" id="builderContextToolbar" hidden><span id="builderContextLabel">عنصر انتخاب‌شده</span><button type="button" data-context-action="up" title="انتقال به بالا">↑</button><button type="button" data-context-action="down" title="انتقال به پایین">↓</button><button type="button" data-context-action="clone" title="تکثیر">＋</button><button type="button" data-context-action="toggle" title="نمایش یا مخفی‌کردن">◉</button><button type="button" data-context-action="delete" title="حذف">×</button></div><small>روی هر بخش کلیک کن تا انتخاب و ویرایش شود؛ تغییرات در همین نما دیده می‌شوند</small></div>
               <div class="builder-preview-frame-shell" id="builderPreviewShell" data-device="desktop">
                 <iframe id="builderPreviewFrame" title="پیش‌نمایش زنده وب‌سایت" srcdoc="<?= h($builderPreviewDocument) ?>" loading="eager"></iframe>
                 <?php if ($builderPreviewError !== ''): ?><p class="builder-preview-hint"><?= h($builderPreviewError) ?></p><?php endif; ?>
@@ -320,6 +337,24 @@ if ($admin && !$setupError) {
       <label class="check-field"><input name="is_published" type="checkbox" checked> انتشار در سایت</label>
     </div><div class="form-actions"><span class="form-hint" id="projectFormHint"></span><button class="secondary-button" type="button" data-close-modal>انصراف</button><button class="primary-button compact" type="submit">ذخیره پروژه <b>↙</b></button></div></form>
   </section></div>
+  <div class="builder-media-modal" id="builderMediaModal" hidden>
+    <section class="builder-media-dialog" role="dialog" aria-modal="true" aria-labelledby="builderMediaTitle">
+      <header><div><span class="section-kicker">MEDIA LIBRARY</span><h3 id="builderMediaTitle">کتابخانه رسانه</h3></div><button type="button" data-media-close aria-label="بستن">×</button></header>
+      <form id="builderMediaUpload"><label class="builder-media-upload">بارگذاری تصویر یا ویدیو<input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" required></label><button class="primary-button compact" type="submit">بارگذاری</button><span id="builderMediaStatus"></span></form>
+      <div class="builder-media-grid" id="builderMediaGrid"><p class="builder-empty">در حال دریافت فایل‌ها…</p></div>
+    </section>
+  </div>
+  <div class="builder-template-modal" id="builderTemplateModal" hidden>
+    <section class="builder-template-dialog" role="dialog" aria-modal="true" aria-labelledby="builderTemplateTitle">
+      <header><div><span class="section-kicker">STARTER TEMPLATES</span><h3 id="builderTemplateTitle">قالب‌های آماده</h3><p>یک ساختار آماده اضافه کن و سپس تمام متن‌ها و استایل‌ها را تغییر بده.</p></div><button type="button" data-template-close aria-label="بستن">×</button></header>
+      <div class="builder-template-grid">
+        <button type="button" data-template="feature-grid"><strong>گرید ویژگی‌ها</strong><small>سه کارت در چیدمان شبکه‌ای</small></button>
+        <button type="button" data-template="callout"><strong>دعوت به اقدام</strong><small>متن، توضیح و دکمه</small></button>
+        <button type="button" data-template="profile-intro"><strong>معرفی شخصی</strong><small>عنوان و توضیح در کانتینر</small></button>
+      </div>
+    </section>
+  </div>
+
   <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 <?php endif; ?>
 </body></html>

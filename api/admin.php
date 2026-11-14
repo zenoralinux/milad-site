@@ -241,7 +241,26 @@ try {
                     ['value' => '۰۵+', 'label' => 'پروژه', 'description' => 'ایده‌هایی که ساخته شده‌اند'],
                     ['value' => '۱۰+', 'label' => 'فناوری', 'description' => 'ابزارهای مورد استفاده']
                 ]]],
-                'spacer' => ['label' => 'فاصله عمودی', 'content' => ['height' => 48]]
+                'spacer' => ['label' => 'فاصله عمودی', 'content' => ['height' => 48]],
+                'container' => ['label' => 'کانتینر تو در تو', 'content' => ['direction' => 'column', 'children' => [
+                    ['id' => 'node-' . bin2hex(random_bytes(4)), 'type' => 'heading', 'content' => ['text' => 'عنوان داخل کانتینر', 'level' => 2]],
+                    ['id' => 'node-' . bin2hex(random_bytes(4)), 'type' => 'paragraph', 'content' => ['text' => 'این یک چیدمان تو در تو است؛ عناصر را از پنل تنظیمات مدیریت کن.']]
+                ]]],
+                'grid' => ['label' => 'گرید واکنش‌گرا', 'content' => ['columns' => 3, 'children' => [
+                    ['id' => 'node-' . bin2hex(random_bytes(4)), 'type' => 'card', 'content' => ['title' => 'کارت اول', 'body' => 'توضیحات کارت']],
+                    ['id' => 'node-' . bin2hex(random_bytes(4)), 'type' => 'card', 'content' => ['title' => 'کارت دوم', 'body' => 'توضیحات کارت']],
+                    ['id' => 'node-' . bin2hex(random_bytes(4)), 'type' => 'card', 'content' => ['title' => 'کارت سوم', 'body' => 'توضیحات کارت']]
+                ]]],
+                'heading' => ['label' => 'عنوان', 'content' => ['text' => 'عنوان جدید', 'level' => 2]],
+                'paragraph' => ['label' => 'متن', 'content' => ['text' => 'متن خود را اینجا بنویسید.']],
+                'button' => ['label' => 'دکمه', 'content' => ['text' => 'شروع کنید', 'url' => '#contact']],
+                'image' => ['label' => 'تصویر', 'content' => ['src' => '', 'alt' => '']],
+                'card' => ['label' => 'کارت', 'content' => ['title' => 'عنوان کارت', 'body' => 'توضیحات کارت']],
+                'divider' => ['label' => 'خط جداکننده', 'content' => []],
+                'icon' => ['label' => 'آیکون', 'content' => ['symbol' => '✦']],
+                'counter' => ['label' => 'شمارنده', 'content' => ['value' => '۱۲+', 'label' => 'عنوان آمار']],
+                'list' => ['label' => 'فهرست', 'content' => ['items' => [['text' => 'مورد اول'], ['text' => 'مورد دوم']]]],
+                'video' => ['label' => 'ویدیو', 'content' => ['url' => '', 'title' => 'ویدیو']]
             ];
             if (!isset($defaults[$type])) api_fail('INVALID_BLOCK_TYPE', 'نوع بلوک قابل افزودن نیست.', 422);
             $pageId = builder_home_page_id();
@@ -275,23 +294,58 @@ try {
                 }
                 if (is_string($value) && mb_strlen($value) > 5000) api_fail('VALIDATION_ERROR', 'یکی از فیلدهای بلوک بیش از حد طولانی است.', 422);
             }
-            $allowedStyles = ['background','text_color','padding','radius'];
+            $allowedStyles = ['background','text_color','padding','radius','font_size','font_weight','line_height','text_align','width','max_width','min_height','gap','border','shadow','display','responsive'];
             $cleanSettings = [];
             foreach ($allowedStyles as $key) {
                 if (!array_key_exists($key, $settings)) continue;
+                $value = $settings[$key];
                 if (in_array($key, ['background','text_color'], true)) {
-                    if (!is_string($settings[$key]) || !preg_match('/^#[0-9a-fA-F]{6}$/', $settings[$key])) {
-                        api_fail('VALIDATION_ERROR', 'رنگ بلوک معتبر نیست.', 422);
+                    if (!is_string($value) || !preg_match('/^#[0-9a-fA-F]{6}$/', $value)) api_fail('VALIDATION_ERROR', 'رنگ بلوک معتبر نیست.', 422);
+                    $cleanSettings[$key] = $value;
+                } elseif ($key === 'responsive') {
+                    if (!is_array($value)) api_fail('VALIDATION_ERROR', 'تنظیمات واکنش‌گرا معتبر نیست.', 422);
+                    $responsive = [];
+                    $responsiveFields = ['font_size','line_height','width','max_width','min_height','gap','padding','margin','text_align','display'];
+                    foreach (['tablet','mobile'] as $device) {
+                        if (!isset($value[$device])) continue;
+                        if (!is_array($value[$device])) api_fail('VALIDATION_ERROR', 'تنظیمات دستگاه معتبر نیست.', 422);
+                        foreach ($value[$device] as $field => $setting) {
+                            if (!in_array($field, $responsiveFields, true) || !is_scalar($setting)) continue;
+                            $setting = trim((string) $setting);
+                            if ($field === 'text_align' && !in_array($setting, ['right','left','center','justify','start','end'], true)) continue;
+                            if ($field === 'display' && !in_array($setting, ['none','block','flex','grid','inline-flex'], true)) continue;
+                            if (!in_array($field, ['text_align','display'], true) && !preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $setting)) continue;
+                            $responsive[$device][$field] = $setting;
+                        }
                     }
-                    $cleanSettings[$key] = $settings[$key];
+                    $cleanSettings['responsive'] = $responsive;
+                } elseif (in_array($key, ['text_align','display','font_weight'], true)) {
+                    $allowedValues = [
+                        'text_align' => ['right','left','center','justify','start','end'],
+                        'display' => ['block','flex','grid','inline-flex','inline-block'],
+                        'font_weight' => ['100','200','300','400','500','600','700','800','900','normal','bold']
+                    ];
+                    $value = (string) $value;
+                    if (!in_array($value, $allowedValues[$key], true)) api_fail('VALIDATION_ERROR', 'مقدار ظاهری بلوک معتبر نیست.', 422);
+                    $cleanSettings[$key] = $value;
+                } elseif ($key === 'border') {
+                    if (!is_string($value) || !preg_match('/^(0|[0-9]{1,2}px solid #[0-9a-fA-F]{6})$/', $value)) api_fail('VALIDATION_ERROR', 'حاشیه بلوک معتبر نیست.', 422);
+                    $cleanSettings[$key] = $value;
+                } elseif ($key === 'shadow') {
+                    if (!is_string($value) || !preg_match('/^(none|[0-9]{1,3}px [0-9]{1,3}px [0-9]{1,3}px #[0-9a-fA-F]{6})$/', $value)) api_fail('VALIDATION_ERROR', 'سایه بلوک معتبر نیست.', 422);
+                    $cleanSettings[$key] = $value;
                 } else {
-                    if (!is_numeric($settings[$key])) api_fail('VALIDATION_ERROR', 'مقدار ظاهری بلوک معتبر نیست.', 422);
-                    $cleanSettings[$key] = max(0, min($key === 'padding' ? 180 : 48, (int) $settings[$key]));
+                    if (!is_numeric($value)) {
+                        if (!is_string($value) || !preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)$/', trim($value))) api_fail('VALIDATION_ERROR', 'مقدار ظاهری بلوک معتبر نیست.', 422);
+                        $cleanSettings[$key] = trim($value);
+                    } else {
+                        $cleanSettings[$key] = max(0, min($key === 'padding' ? 180 : ($key === 'font_size' ? 180 : 1600), (float) $value));
+                    }
                 }
             }
             $contentJson = json_encode($content, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $settingsJson = json_encode($cleanSettings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            if ($contentJson === false || $settingsJson === false || strlen($contentJson) > 50000) {
+            if ($contentJson === false || $settingsJson === false || strlen($contentJson) > 200000) {
                 api_fail('VALIDATION_ERROR', 'حجم محتوای بلوک بیش از حد مجاز است.', 422);
             }
             $snapshot = json_encode([
@@ -414,6 +468,67 @@ try {
             $newId = (int) $pdo->lastInsertId();
             log_activity((int) $admin['id'], 'duplicate', 'page_block', $newId, 'تکثیر بلوک');
             json_response(['ok' => true, 'data' => ['id' => $newId], 'message' => 'بلوک تکثیر شد.'], 201);
+
+        case 'builder-revisions':
+            if ($method !== 'GET') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $blockId = (int) ($_GET['id'] ?? 0);
+            if ($blockId < 1) api_fail('INVALID_ID', 'شناسه بلوک معتبر نیست.', 422);
+            $blockCheck = $pdo->prepare('SELECT id FROM page_blocks WHERE id=? AND page_id=? LIMIT 1');
+            $blockCheck->execute([$blockId,builder_home_page_id()]);
+            if (!$blockCheck->fetchColumn()) api_fail('NOT_FOUND', 'بلوک پیدا نشد.', 404);
+            $history = $pdo->prepare("SELECT id,created_at,created_by FROM content_revisions WHERE entity_type='block' AND entity_id=? ORDER BY created_at DESC,id DESC LIMIT 30");
+            $history->execute([$blockId]);
+            json_response(['ok' => true, 'data' => ['revisions' => $history->fetchAll(PDO::FETCH_ASSOC)]]);
+
+        case 'builder-revision-restore':
+            if ($method !== 'POST') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $restoreData = json_body();
+            $blockId = (int) ($restoreData['block_id'] ?? 0);
+            $revisionId = (int) ($restoreData['revision_id'] ?? 0);
+            if ($blockId < 1 || $revisionId < 1) api_fail('INVALID_ID', 'شناسه نسخه معتبر نیست.', 422);
+            $blockCheck = $pdo->prepare('SELECT * FROM page_blocks WHERE id=? AND page_id=? LIMIT 1');
+            $blockCheck->execute([$blockId,builder_home_page_id()]);
+            $currentBlock = $blockCheck->fetch(PDO::FETCH_ASSOC);
+            if (!$currentBlock) api_fail('NOT_FOUND', 'بلوک پیدا نشد.', 404);
+            $revisionStmt = $pdo->prepare("SELECT snapshot_json FROM content_revisions WHERE id=? AND entity_type='block' AND entity_id=? LIMIT 1");
+            $revisionStmt->execute([$revisionId,$blockId]);
+            $revisionJson = $revisionStmt->fetchColumn();
+            if (!$revisionJson) api_fail('REVISION_NOT_FOUND', 'نسخه انتخاب‌شده پیدا نشد.', 404);
+            $snapshot = json_decode((string) $revisionJson, true);
+            if (!is_array($snapshot) || !isset($snapshot['content_json'],$snapshot['settings_json'])) api_fail('INVALID_REVISION', 'ساختار نسخه ذخیره‌شده معتبر نیست.', 409);
+            $currentSnapshot = json_encode([
+                'label' => $currentBlock['label'],
+                'content_json' => $currentBlock['content_json'],
+                'settings_json' => $currentBlock['settings_json'],
+                'is_visible' => (int) $currentBlock['is_visible']
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $saveCurrent = $pdo->prepare("INSERT INTO content_revisions (entity_type,entity_id,snapshot_json,created_by) VALUES ('block',?,?,?)");
+            $saveCurrent->execute([$blockId,$currentSnapshot,(int) $admin['id']]);
+            $restoredContent = json_decode((string) $snapshot['content_json'], true);
+            $restoredSettings = json_decode((string) $snapshot['settings_json'], true);
+            if (!is_array($restoredContent) || !is_array($restoredSettings)) api_fail('INVALID_REVISION', 'محتوا یا استایل نسخه معتبر نیست.', 409);
+            $restoredLabel = trim((string) ($snapshot['label'] ?? $currentBlock['label']));
+            if ($restoredLabel === '') $restoredLabel = (string) $currentBlock['label'];
+            $restore = $pdo->prepare('UPDATE page_blocks SET label=?,content_json=?,settings_json=?,is_visible=? WHERE id=?');
+            $restore->execute([$restoredLabel,(string) $snapshot['content_json'],(string) $snapshot['settings_json'],!empty($snapshot['is_visible']) ? 1 : 0,$blockId]);
+            $legacyTypes = ['hero','intro','projects','about','now','contact'];
+            if (in_array($currentBlock['block_type'], $legacyTypes, true) && $currentBlock['block_key'] === $currentBlock['block_type']) {
+                $sync = $pdo->prepare('UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key=?');
+                $sync->execute([(string) $snapshot['content_json'],!empty($snapshot['is_visible']) ? 1 : 0,$currentBlock['block_type']]);
+            }
+            if ($currentBlock['block_type'] === 'about') {
+                $restoredContentArray = is_array($restoredContent) ? $restoredContent : [];
+                if (isset($restoredContentArray['principles_items']) && is_array($restoredContentArray['principles_items'])) {
+                    $principlesJson = json_encode(['items' => array_slice($restoredContentArray['principles_items'], 0, 12)], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    $showPrinciples = !isset($restoredContentArray['show_principles']) || !empty($restoredContentArray['show_principles']) ? 1 : 0;
+                    $pdo->prepare("UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key='principles'")->execute([$principlesJson,$showPrinciples]);
+                }
+            }
+            if ($currentBlock['block_type'] === 'footer' && $currentBlock['block_key'] === 'footer') {
+                $pdo->prepare("UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key='footer'")->execute([(string) $snapshot['content_json'],!empty($snapshot['is_visible']) ? 1 : 0]);
+            }
+            log_activity((int) $admin['id'], 'restore', 'page_block', $blockId, 'بازیابی نسخه قبلی بلوک');
+            json_response(['ok' => true, 'data' => ['id' => $blockId], 'message' => 'نسخه قبلی بازیابی شد.']);
 
         case 'builder-design':
             if ($method === 'GET') {

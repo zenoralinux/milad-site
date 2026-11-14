@@ -19,7 +19,10 @@
     hero:'معرفی اصلی',intro:'نوار معرفی',projects:'پروژه‌ها',
     about:'درباره من و اصول کاری',now:'اکنون و تمرکز فعلی',
     contact:'راه‌های ارتباطی',footer:'پاورقی',
-    text:'متن ساده',cta:'دعوت به اقدام',stats:'آمار و اعداد',spacer:'فاصله عمودی'
+    text:'متن ساده',cta:'دعوت به اقدام',stats:'آمار و اعداد',spacer:'فاصله عمودی',
+    container:'کانتینر تو در تو',grid:'گرید واکنش‌گرا',heading:'عنوان',paragraph:'متن',
+    button:'دکمه',image:'تصویر',card:'کارت',divider:'خط جداکننده',icon:'آیکون',
+    counter:'شمارنده',list:'فهرست',video:'ویدیو'
   };
   const fields = {
     hero:[
@@ -45,7 +48,19 @@
     text:[['title','عنوان'],['body','متن']],
     cta:[['title','عنوان'],['body','توضیحات'],['button_text','متن دکمه'],['button_url','آدرس دکمه']],
     stats:[['title','عنوان بخش'],['items','کارت‌های آماری (JSON)']],
-    spacer:[['height','ارتفاع (px)']]
+    spacer:[['height','ارتفاع (px)']],
+    container:[['direction','جهت چیدمان (row/column)'],['children','عناصر داخلی (JSON)']],
+    grid:[['columns','تعداد ستون‌ها'],['children','عناصر گرید (JSON)']],
+    heading:[['text','متن عنوان'],['level','سطح عنوان (۱ تا ۶)']],
+    paragraph:[['text','متن پاراگراف']],
+    button:[['text','متن دکمه'],['url','لینک دکمه']],
+    image:[['src','آدرس تصویر'],['alt','متن جایگزین']],
+    card:[['title','عنوان کارت'],['body','توضیحات کارت'],['children','عناصر داخلی (JSON)']],
+    divider:[],
+    icon:[['symbol','نماد یا کاراکتر']],
+    counter:[['value','مقدار'],['label','عنوان']],
+    list:[['items','موارد فهرست (JSON)']],
+    video:[['url','لینک Embed ویدیو'],['title','عنوان ویدیو']]
   };
 
   let blocks = [];
@@ -112,6 +127,20 @@
     }
   }
 
+  function renderContextToolbar() {
+    const toolbar = $('#builderContextToolbar');
+    if (!toolbar) return;
+    const block = blocks.find(item => Number(item.id) === Number(selectedId));
+    toolbar.hidden = !block;
+    if (!block) return;
+    const label = $('#builderContextLabel');
+    if (label) label.textContent = block.label || names[block.block_type] || block.block_type;
+    const clone = toolbar.querySelector('[data-context-action="clone"]');
+    if (clone) clone.hidden = ['hero','intro','projects','about','now','contact','footer'].includes(block.block_type);
+    const toggle = toolbar.querySelector('[data-context-action="toggle"]');
+    if (toggle) toggle.textContent = block.is_visible ? '◉' : '○';
+  }
+
   function renderCanvas() {
     const canvas = $('#builderCanvas');
     if (!blocks.length) {
@@ -173,7 +202,8 @@
     $$('[data-up]').forEach(button => button.addEventListener('click',() => move(Number(button.dataset.up),-1)));
     $$('[data-down]').forEach(button => button.addEventListener('click',() => move(Number(button.dataset.down),1)));
     $$('[data-clone]').forEach(button => button.addEventListener('click',() => cloneBlock(Number(button.dataset.clone))));
-    $$('[data-delete]').forEach(button => button.addEventListener('click',() => deleteBlock(Number(button.dataset.delete))));
+    $('[data-delete]').forEach(button => button.addEventListener('click',() => deleteBlock(Number(button.dataset.delete))));
+    renderContextToolbar();
   }
 
   function move(id,delta) {
@@ -213,7 +243,11 @@
     if (key === 'height') {
       return '<label>' + escapeHtml(label) + '<input type="number" name="' + key + '" min="8" max="240" value="' + escapeHtml(value ?? 48) + '"></label>';
     }
-    if (key === 'items' || key === 'principles_items') {
+    if (key === 'src') {
+      return '<label>' + escapeHtml(label) + '<input name="src" value="' + escapeHtml(value || '') + '" dir="ltr" placeholder="https://…">' +
+        '<button type="button" class="secondary-button compact builder-open-media" data-open-media>انتخاب از کتابخانه رسانه</button></label>';
+    }
+    if (key === 'items' || key === 'principles_items' || key === 'children') {
       return '<label>' + escapeHtml(label) + '<textarea name="' + key + '" dir="ltr" spellcheck="false">' +
         escapeHtml(JSON.stringify(value || [],null,2)) + '</textarea><small>آیتم‌ها را به صورت آرایه JSON ویرایش کن.</small></label>';
     }
@@ -233,7 +267,7 @@
       if (!field) return;
       if (key === 'show_principles') {
         content[key] = field.checked;
-      } else if (key === 'items' || key === 'principles_items') {
+      } else if (key === 'items' || key === 'principles_items' || key === 'children') {
         try {
           const parsed = JSON.parse(field.value || '[]');
           if (!Array.isArray(parsed)) throw new Error('array required');
@@ -245,18 +279,54 @@
         content[key] = field.value;
       }
     });
+    const nextSettings = Object.assign({},block.settings || {});
+    ['background','text_color','font_weight','text_align','border','shadow','display'].forEach(key => {
+      if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = form.elements[key].value;
+      else if (form.elements[key]) delete nextSettings[key];
+    });
+    ['padding','radius','font_size'].forEach(key => {
+      if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = Number(form.elements[key].value);
+      else if (form.elements[key]) delete nextSettings[key];
+    });
+    ['line_height','width','max_width','min_height','gap'].forEach(key => {
+      if (form.elements[key] && form.elements[key].value !== '') nextSettings[key] = form.elements[key].value.trim();
+      else if (form.elements[key]) delete nextSettings[key];
+    });
+    if (form.elements.responsive) {
+      try { nextSettings.responsive = JSON.parse(form.elements.responsive.value || '{}'); }
+      catch (error) { validationFailed = true; }
+    }
     if (validationFailed) return null;
     return {
       label:form.elements.label.value,
       content,
-      settings:{
-        background:form.elements.background.value,
-        text_color:form.elements.text_color.value,
-        padding:Number(form.elements.padding.value),
-        radius:Number(form.elements.radius.value)
-      },
+      settings:nextSettings,
       is_visible:form.elements.visible.checked
     };
+  }
+
+  async function loadRevisionHistory(blockId) {
+    const list = $('#builderRevisionList');
+    if (!list) return;
+    list.innerHTML = '<small>در حال دریافت نسخه‌ها…</small>';
+    try {
+      const data = await request('builder-revisions','GET',null,blockId);
+      const revisions = data.revisions || [];
+      list.innerHTML = revisions.length ? revisions.map(revision => {
+        const date = new Date(String(revision.created_at).replace(' ','T') + 'Z');
+        const label = Number.isNaN(date.getTime()) ? revision.created_at : date.toLocaleString('fa-IR');
+        return '<div class="builder-revision-item"><span>' + escapeHtml(label) + '</span><button type="button" data-restore-revision="' + Number(revision.id) + '">بازیابی</button></div>';
+      }).join('') : '<small>هنوز نسخه‌ای ثبت نشده است.</small>';
+    } catch (error) { list.innerHTML = '<small>' + escapeHtml(error.message) + '</small>'; }
+  }
+  async function restoreRevision(revisionId) {
+    const block = blocks.find(item => Number(item.id) === Number(selectedId));
+    if (!block || !window.confirm('نسخه انتخاب‌شده جایگزین محتوای فعلی این بلوک شود؟')) return;
+    try {
+      await request('builder-revision-restore','POST',{block_id:Number(block.id),revision_id:Number(revisionId)});
+      await load(Number(block.id));
+      status('نسخه انتخاب‌شده بازیابی شد.','success');
+    } catch (error) { status(error.message,'error'); }
   }
 
   function setInspectorTab(tab) {
@@ -290,18 +360,44 @@
     const specs = fields[block.block_type] || [];
     const controls = specs.map(([key,label]) => fieldControl(key,label,(block.content || {})[key])).join('');
     const settings = block.settings || {};
+    const nestedChildren = Array.isArray(block.content?.children) ? block.content.children : [];
+    const supportsChildren = ['container','grid','card'].includes(block.block_type);
+    const nestedTools = supportsChildren
+      ? '<div class="builder-nested-editor"><div class="builder-panel-heading"><div><strong>عناصر داخلی</strong><small>ساختار تو در تو را همین‌جا مدیریت کن</small></div><span>' + nestedChildren.length + '</span></div>' +
+        '<div class="builder-nested-add"><select id="builderChildType"><option value="heading">عنوان</option><option value="paragraph">متن</option><option value="button">دکمه</option><option value="card">کارت</option><option value="image">تصویر</option><option value="icon">آیکون</option><option value="divider">جداکننده</option><option value="counter">شمارنده</option><option value="list">فهرست</option><option value="container">کانتینر</option><option value="grid">گرید</option></select><button type="button" class="secondary-button compact" data-child-add>＋ افزودن</button></div>' +
+        '<div class="builder-nested-list">' + nestedChildren.map((child,index) => {
+          const childType = String(child.type || 'paragraph');
+          const childContent = child.content || child;
+          const childTitle = childContent.text || childContent.title || childContent.label || names[childType] || childType;
+          return '<div class="builder-nested-item"><span class="builder-nested-grip">⠿</span><span><strong>' + escapeHtml(names[childType] || childType) + '</strong><small>' + escapeHtml(String(childTitle).slice(0,70)) + '</small></span>' +
+            '<button type="button" data-child-up="' + index + '" title="بالا">↑</button><button type="button" data-child-down="' + index + '" title="پایین">↓</button><button type="button" data-child-delete="' + index + '" title="حذف">×</button></div>';
+        }).join('') + '</div><small class="builder-nested-hint">برای ویرایش دقیق متن و داده‌های هر فرزند، ساختار JSON در بخش محتوا نیز قابل ویرایش است.</small></div>'
+      : '';
+
     host.innerHTML = '<form id="builderBlockForm" class="builder-form">' +
       '<section data-inspector-panel="content"><div class="builder-panel-heading"><div><strong>محتوای بلوک</strong><small>متن‌ها و داده‌های این بخش</small></div></div>' +
-      controls + '</section>' +
+      controls + nestedTools + '</section>' +
       '<section data-inspector-panel="style" hidden><div class="builder-panel-heading"><div><strong>استایل بلوک</strong><small>ظاهر مستقل این بخش</small></div></div>' +
       '<label class="color-field">رنگ پس‌زمینه<input type="color" name="background" value="' + escapeHtml(settings.background || '#080b12') + '"></label>' +
       '<label class="color-field">رنگ متن<input type="color" name="text_color" value="' + escapeHtml(settings.text_color || '#f3f5fb') + '"></label>' +
-      '<label>فاصله عمودی<input type="range" name="padding" min="0" max="180" value="' + escapeHtml(settings.padding ?? 0) + '"></label>' +
-      '<label>گردی گوشه‌ها<input type="range" name="radius" min="0" max="48" value="' + escapeHtml(settings.radius ?? 0) + '"></label></section>' +
+      '<label>فاصله داخلی<input type="range" name="padding" min="0" max="180" value="' + escapeHtml(settings.padding ?? 0) + '"></label>' +
+      '<label>گردی گوشه‌ها<input type="range" name="radius" min="0" max="48" value="' + escapeHtml(settings.radius ?? 0) + '"></label>' +
+      '<label>اندازه فونت (px)<input type="number" name="font_size" min="8" max="180" value="' + escapeHtml(settings.font_size ?? '') + '"></label>' +
+      '<label>وزن فونت<select name="font_weight"><option value="">پیش‌فرض</option>' + ['400','500','600','700','800','900'].map(v => '<option value="' + v + '"' + (String(settings.font_weight || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label>تراز متن<select name="text_align"><option value="">پیش‌فرض</option>' + ['right','center','left','justify'].map(v => '<option value="' + v + '"' + (String(settings.text_align || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label>عرض عنصر<input name="width" placeholder="مثلاً 100% یا 640px" value="' + escapeHtml(settings.width ?? '') + '"></label>' +
+      '<label>حداکثر عرض<input name="max_width" placeholder="مثلاً 900px" value="' + escapeHtml(settings.max_width ?? '') + '"></label>' +
+      '<label>حداقل ارتفاع<input name="min_height" placeholder="مثلاً 280px" value="' + escapeHtml(settings.min_height ?? '') + '"></label>' +
+      '<label>فاصله بین فرزندان<input name="gap" placeholder="مثلاً 24px" value="' + escapeHtml(settings.gap ?? '') + '"></label>' +
+      '<label>حاشیه<input name="border" placeholder="1px solid #333333" value="' + escapeHtml(settings.border ?? '') + '"></label>' +
+      '<label>سایه<input name="shadow" placeholder="0 12px 30px #000000" value="' + escapeHtml(settings.shadow ?? '') + '"></label>' +
+      '<label>نمایش<select name="display"><option value="">پیش‌فرض</option>' + ['block','flex','grid','inline-flex'].map(v => '<option value="' + v + '"' + (String(settings.display || '') === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+      '<label>تنظیمات موبایل و تبلت (JSON)<textarea name="responsive" dir="ltr" spellcheck="false">' + escapeHtml(JSON.stringify(settings.responsive || {},null,2)) + '</textarea><small>نمونه: {"mobile":{"font_size":"28px","padding":"16px"},"tablet":{"font_size":"36px"}}</small></label></section>' +
       '<section data-inspector-panel="advanced" hidden><div class="builder-panel-heading"><div><strong>تنظیمات پیشرفته</strong><small>شناسه و وضعیت نمایش بلوک</small></div></div>' +
       '<label>نام در Navigator<input name="label" maxlength="140" value="' + escapeHtml(block.label || names[block.block_type]) + '"></label>' +
       '<label class="builder-check"><input type="checkbox" name="visible" ' + (block.is_visible ? 'checked' : '') + '> نمایش این بخش در سایت</label>' +
       '<div class="builder-note">کلید داخلی: <code>' + escapeHtml(block.block_key || '') + '</code><br>برای ویرایش مستقیم متن، روی متن در پیش‌نمایش دوبار کلیک کن.</div>' +
+      '<div class="builder-revision-panel"><div class="builder-panel-heading"><div><strong>تاریخچه نسخه‌ها</strong><small>۳۰ نسخه اخیر این بلوک</small></div><button type="button" class="secondary-button compact" data-load-revisions>بارگذاری</button></div><div class="builder-revision-list" id="builderRevisionList"><small>برای مشاهده نسخه‌ها بارگذاری کن.</small></div></div>' +
       '<div class="builder-form-actions"><button class="primary-button compact" type="button" id="builderSaveNow">ذخیره همین حالا</button></div></section>' +
       '</form>';
 
@@ -312,6 +408,7 @@
         status('ساختار JSON معتبر نیست؛ تغییرات این فیلد پیش‌نمایش داده نشد.','error');
         return;
       }
+      queueUndo(block);
       block.label = payload.label;
       block.content = payload.content;
       block.settings = payload.settings;
@@ -326,6 +423,7 @@
     $('#builderSaveNow').addEventListener('click',() => {
       const payload = currentBlockPayload(block,form);
       if (!payload) { status('ساختار JSON معتبر نیست.','error'); return; }
+      queueUndo(block);
       block.label = payload.label;
       block.content = payload.content;
       block.settings = payload.settings;
@@ -334,6 +432,84 @@
       flushSave(Number(block.id),true);
     });
     setInspectorTab(activeInspectorTab);
+    loadRevisionHistory(Number(block.id));
+  }
+
+  const undoStack = [];
+  const redoStack = [];
+  let pendingUndo = null;
+  let pendingUndoTimer = null;
+
+  function cloneData(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+  function queueUndo(block) {
+    if (!pendingUndo || Number(pendingUndo.id) !== Number(block.id)) {
+      if (pendingUndo) undoStack.push(pendingUndo);
+      pendingUndo = {
+        id:Number(block.id),
+        payload:{
+          label:block.label,
+          content:cloneData(block.content || {}),
+          settings:cloneData(block.settings || {}),
+          is_visible:!!block.is_visible
+        }
+      };
+    }
+    if (pendingUndoTimer) window.clearTimeout(pendingUndoTimer);
+    pendingUndoTimer = window.setTimeout(() => {
+      if (pendingUndo) undoStack.push(pendingUndo);
+      pendingUndo = null;
+      pendingUndoTimer = null;
+      updateHistoryButtons();
+    },700);
+    redoStack.length = 0;
+    updateHistoryButtons();
+  }
+  function updateHistoryButtons() {
+    const undo = document.getElementById('builderUndo');
+    const redo = document.getElementById('builderRedo');
+    if (undo) undo.disabled = !undoStack.length && !pendingUndo;
+    if (redo) redo.disabled = !redoStack.length;
+  }
+  async function applyHistorySnapshot(snapshot, destination) {
+    if (!snapshot) return;
+    const current = blocks.find(item => Number(item.id) === Number(snapshot.id));
+    if (!current) return;
+    destination.push({
+      id:Number(current.id),
+      payload:{
+        label:current.label,
+        content:cloneData(current.content || {}),
+        settings:cloneData(current.settings || {}),
+        is_visible:!!current.is_visible
+      }
+    });
+    await request('builder-block-save','PUT',snapshot.payload,snapshot.id);
+    current.label = snapshot.payload.label;
+    current.content = cloneData(snapshot.payload.content);
+    current.settings = cloneData(snapshot.payload.settings);
+    current.is_visible = !!snapshot.payload.is_visible;
+    selectedId = Number(current.id);
+    renderCanvas();
+    renderInspector();
+    postPreviewState();
+    updateHistoryButtons();
+    status('تغییر قبلی بازیابی شد.','success');
+  }
+  async function undoEdit() {
+    if (pendingUndoTimer) window.clearTimeout(pendingUndoTimer);
+    if (pendingUndo) { undoStack.push(pendingUndo); pendingUndo = null; pendingUndoTimer = null; }
+    const snapshot = undoStack.pop();
+    if (!snapshot) return;
+    try { await applyHistorySnapshot(snapshot,redoStack); }
+    catch (error) { undoStack.push(snapshot); status(error.message,'error'); }
+  }
+  async function redoEdit() {
+    const snapshot = redoStack.pop();
+    if (!snapshot) return;
+    try { await applyHistorySnapshot(snapshot,undoStack); }
+    catch (error) { redoStack.push(snapshot); status(error.message,'error'); }
   }
 
   function scheduleSave(block,payload) {
@@ -506,10 +682,203 @@
     } catch (error) { status(error.message,'error'); }
   }
 
-  $$('[data-add-block]').forEach(button => button.addEventListener('click',() => addBlock(button.dataset.addBlock)));
+  const mediaModal = document.getElementById('builderMediaModal');
+  const mediaGrid = document.getElementById('builderMediaGrid');
+  const mediaStatus = document.getElementById('builderMediaStatus');
+  const templateModal = document.getElementById('builderTemplateModal');
+
+  async function mediaRequest(method='GET',formData=null) {
+    const options = {method,credentials:'same-origin',headers:{'Accept':'application/json'}};
+    if (method !== 'GET') options.headers['X-CSRF-Token'] = csrf;
+    if (formData) options.body = formData;
+    const response = await fetch(basePath + '/api/media.php',options);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) throw new Error(result.error?.message || 'عملیات رسانه ناموفق بود.');
+    return result.data || {};
+  }
+  async function loadMedia() {
+    if (!mediaGrid) return;
+    mediaGrid.innerHTML = '<p class="builder-empty">در حال دریافت فایل‌ها…</p>';
+    try {
+      const data = await mediaRequest();
+      const files = data.files || [];
+      mediaGrid.innerHTML = files.length ? files.map(file => {
+        const isImage = String(file.mime_type || '').indexOf('image/') === 0;
+        const preview = isImage
+          ? '<img src="' + escapeHtml(file.url) + '" alt="' + escapeHtml(file.alt_text || '') + '" loading="lazy">'
+          : '<div class="builder-media-video">VIDEO</div>';
+        return '<article class="builder-media-item" data-media-id="' + Number(file.id) + '">' + preview +
+          '<div><strong>' + escapeHtml(file.filename) + '</strong><small>' + escapeHtml(file.mime_type) + '</small></div>' +
+          '<button type="button" class="secondary-button compact" data-media-select="' + Number(file.id) + '" data-media-url="' + escapeHtml(file.url) + '">انتخاب</button></article>';
+      }).join('') : '<p class="builder-empty">هنوز فایلی بارگذاری نشده است.</p>';
+    } catch (error) {
+      mediaGrid.innerHTML = '<p class="builder-empty">' + escapeHtml(error.message) + '</p>';
+    }
+  }
+  function openMediaPicker() {
+    if (!mediaModal) return;
+    mediaModal.hidden = false;
+    loadMedia();
+  }
+  if (mediaModal) {
+    mediaModal.addEventListener('click',event => {
+      if (event.target === mediaModal || event.target.closest('[data-media-close]')) mediaModal.hidden = true;
+      const select = event.target.closest('[data-media-select]');
+      if (select) {
+        const form = $('#builderBlockForm');
+        const input = form && form.elements.src;
+        if (input) {
+          input.value = select.dataset.mediaUrl || '';
+          input.dispatchEvent(new Event('input',{bubbles:true}));
+        }
+        mediaModal.hidden = true;
+      }
+    });
+  }
+  root.addEventListener('click',event => {
+    if (event.target.closest('[data-open-media]')) openMediaPicker();
+    const addChild = event.target.closest('[data-child-add]');
+    if (addChild) updateNestedChildren('add',-1);
+    const removeChild = event.target.closest('[data-child-delete]');
+    if (removeChild) updateNestedChildren('delete',Number(removeChild.dataset.childDelete));
+    const upChild = event.target.closest('[data-child-up]');
+    if (upChild) updateNestedChildren('up',Number(upChild.dataset.childUp));
+    const downChild = event.target.closest('[data-child-down]');
+    if (downChild) updateNestedChildren('down',Number(downChild.dataset.childDown));
+    const loadHistory = event.target.closest('[data-load-revisions]');
+    if (loadHistory && selectedId !== null) loadRevisionHistory(Number(selectedId));
+    const restore = event.target.closest('[data-restore-revision]');
+    if (restore) restoreRevision(Number(restore.dataset.restoreRevision));
+    const contextAction = event.target.closest('[data-context-action]');
+    if (contextAction && selectedId !== null) {
+      const action = contextAction.dataset.contextAction;
+      if (action === 'up') move(Number(selectedId),-1);
+      else if (action === 'down') move(Number(selectedId),1);
+      else if (action === 'clone') cloneBlock(Number(selectedId));
+      else if (action === 'delete') deleteBlock(Number(selectedId));
+      else if (action === 'toggle') {
+        const block = blocks.find(item => Number(item.id) === Number(selectedId));
+        if (block) {
+          block.is_visible = !block.is_visible;
+          const payload = {label:block.label,content:block.content || {},settings:block.settings || {},is_visible:block.is_visible};
+          postPreviewState();
+          renderCanvas();
+          scheduleSave(block,payload);
+        }
+      }
+    }
+  });
+  document.getElementById('builderMediaUpload')?.addEventListener('submit',async event => {
+    event.preventDefault();
+    if (mediaStatus) mediaStatus.textContent = 'در حال بارگذاری…';
+    try {
+      const formData = new FormData(event.currentTarget);
+      await mediaRequest('POST',formData);
+      event.currentTarget.reset();
+      if (mediaStatus) mediaStatus.textContent = 'فایل بارگذاری شد.';
+      await loadMedia();
+    } catch (error) {
+      if (mediaStatus) mediaStatus.textContent = error.message;
+    }
+  });
+  const templates = {
+    'feature-grid':{type:'grid',label:'گرید ویژگی‌ها',content:{columns:3,children:[
+      {id:'node-feature-1',type:'card',content:{title:'طراحی دقیق',body:'توضیح کوتاه درباره ویژگی اول'}},
+      {id:'node-feature-2',type:'card',content:{title:'توسعه سریع',body:'توضیح کوتاه درباره ویژگی دوم'}},
+      {id:'node-feature-3',type:'card',content:{title:'واکنش‌گرا',body:'توضیح کوتاه درباره ویژگی سوم'}}
+    ]}},
+    callout:{type:'cta',label:'دعوت به اقدام',content:{title:'آماده شروع هستی؟',body:'برای شروع یک گفت‌وگو با من در ارتباط باش.',button_text:'تماس با من',button_url:'#contact'}},
+    'profile-intro':{type:'container',label:'معرفی شخصی',content:{direction:'column',children:[
+      {id:'node-profile-heading',type:'heading',content:{text:'سلام، من میلاد هستم',level:2}},
+      {id:'node-profile-copy',type:'paragraph',content:{text:'اینجا می‌توانی معرفی کوتاهی درباره خودت بنویسی.'}},
+      {id:'node-profile-button',type:'button',content:{text:'مشاهده پروژه‌ها',url:'#work'}}
+    ]}}
+  };
+  async function applyTemplate(key) {
+    const template = templates[key];
+    if (!template) return;
+    try {
+      const created = await request('builder-block-add','POST',{type:template.type});
+      await request('builder-block-save','PUT',{
+        label:template.label,content:template.content,settings:{},is_visible:true
+      },created.id);
+      if (templateModal) templateModal.hidden = true;
+      await load(created.id);
+      status('قالب آماده به صفحه اضافه شد.','success');
+    } catch (error) { status(error.message,'error'); }
+  }
+  $('#builderTemplates')?.addEventListener('click',() => { if (templateModal) templateModal.hidden = false; });
+  if (templateModal) templateModal.addEventListener('click',event => {
+    if (event.target === templateModal || event.target.closest('[data-template-close]')) templateModal.hidden = true;
+    const button = event.target.closest('[data-template]');
+    if (button) applyTemplate(button.dataset.template);
+  });
+
+
+  $('[data-add-block]').forEach(button => button.addEventListener('click',() => addBlock(button.dataset.addBlock)));
   $$('[data-library-tab]').forEach(button => button.addEventListener('click',() => setLibraryTab(button.dataset.libraryTab)));
   $$('[data-inspector-tab]').forEach(button => button.addEventListener('click',() => setInspectorTab(button.dataset.inspectorTab)));
   $('#builderSaveAll')?.addEventListener('click',saveAll);
+  function newChildNode(type) {
+    const id = 'node-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7);
+    const defaults = {
+      heading:{content:{text:'عنوان جدید',level:2}},
+      paragraph:{content:{text:'متن جدید را وارد کن.'}},
+      button:{content:{text:'دکمه جدید',url:'#contact'}},
+      card:{content:{title:'عنوان کارت',body:'توضیحات کارت'}},
+      image:{content:{src:'',alt:''}},
+      icon:{content:{symbol:'✦'}},
+      divider:{content:{}},
+      counter:{content:{value:'۱۲+',label:'عنوان آمار'}},
+      list:{content:{items:[{text:'مورد اول'},{text:'مورد دوم'}]}},
+      container:{content:{direction:'column'},children:[]},
+      grid:{content:{columns:2},children:[
+        {id:id+'-a',type:'card',content:{title:'کارت اول',body:'توضیحات'}},
+        {id:id+'-b',type:'card',content:{title:'کارت دوم',body:'توضیحات'}}
+      ]}
+    };
+    const item = defaults[type] || defaults.paragraph;
+    return Object.assign({id,type},cloneData(item));
+  }
+  function updateNestedChildren(action,index) {
+    const block = blocks.find(item => Number(item.id) === Number(selectedId));
+    if (!block || !['container','grid','card'].includes(block.block_type)) return;
+    block.content = Object.assign({},block.content || {});
+    const children = Array.isArray(block.content.children) ? block.content.children.slice() : [];
+    if (action === 'add') {
+      const select = $('#builderChildType');
+      children.push(newChildNode(select ? select.value : 'paragraph'));
+    } else if (action === 'delete') {
+      if (index < 0 || index >= children.length) return;
+      children.splice(index,1);
+    } else if (action === 'up' || action === 'down') {
+      const target = index + (action === 'up' ? -1 : 1);
+      if (index < 0 || index >= children.length || target < 0 || target >= children.length) return;
+      const moved = children.splice(index,1)[0];
+      children.splice(target,0,moved);
+    }
+    block.content.children = children;
+    const payload = {
+      label:block.label,
+      content:block.content,
+      settings:block.settings || {},
+      is_visible:!!block.is_visible
+    };
+    renderCanvas();
+    renderInspector();
+    postPreviewState();
+    scheduleSave(block,payload);
+  }
+
+  $('#builderUndo')?.addEventListener('click',undoEdit);
+  $('#builderRedo')?.addEventListener('click',redoEdit);
+  document.addEventListener('keydown',event => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
+    const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
+    if (['input','textarea','select'].includes(tag)) return;
+    event.preventDefault();
+    if (event.shiftKey) redoEdit(); else undoEdit();
+  });
   $('#builderDesignForm')?.addEventListener('submit',saveDesign);
   $('#builderDesignForm')?.addEventListener('input',onDesignInput);
   $('#builderReload')?.addEventListener('click',() => {

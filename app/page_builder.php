@@ -57,6 +57,8 @@ function builder_design_css(array $settings): string
         '.builder-custom-block .panel-card{padding:clamp(20px,4vw,44px);border:1px solid var(--line);border-radius:var(--radius-lg)}' .
         '.builder-custom-block h2{margin:0 0 12px;font-size:clamp(24px,4vw,42px)}' .
         '.builder-custom-block p{color:var(--muted);line-height:2.1}' .
+        '.builder-layout-container{display:flex;gap:var(--builder-layout-gap,20px);min-width:0}.builder-layout-container.is-row{flex-direction:row}.builder-layout-container.is-column{flex-direction:column}.builder-layout-grid{display:grid;grid-template-columns:repeat(var(--builder-grid-columns,2),minmax(0,1fr));gap:18px}.builder-widget-card{border:1px solid var(--line);border-radius:var(--radius-lg);padding:22px;background:rgba(255,255,255,.035)}.builder-widget-image img{display:block;width:100%;height:auto;border-radius:inherit}.builder-widget-video iframe{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:var(--radius-lg)}.builder-widget-image-placeholder{padding:36px;border:1px dashed var(--line);border-radius:14px;text-align:center;color:var(--muted)}.builder-widget-counter{display:grid;gap:5px}.builder-widget-counter strong{font-size:clamp(28px,4vw,44px)}.builder-widget-list{padding-inline-start:24px;line-height:2}.builder-widget-divider{border:0;border-top:1px solid var(--line);width:100%}' .
+        '@media(max-width:760px){.builder-layout-container.is-row{flex-direction:column}.builder-layout-grid{grid-template-columns:repeat(min(var(--builder-grid-columns,2),2),minmax(0,1fr))}}@media(max-width:460px){.builder-layout-grid{grid-template-columns:1fr}}' .
         '[data-builder-key][hidden],.principles-grid[hidden]{display:none!important}' .
         '</style>';
 }
@@ -102,15 +104,178 @@ function builder_extract_footer(string &$html): string
 function builder_block_style(array $settings): string
 {
     $styles = [];
-    if (isset($settings['background']) && preg_match('/^#[0-9a-fA-F]{6}$/', (string) $settings['background'])) {
-        $styles[] = 'background-color:' . $settings['background'];
+    $legacy = [
+        'background' => 'background-color',
+        'text_color' => 'color',
+        'padding' => 'padding-block',
+        'radius' => 'border-radius'
+    ];
+    foreach ($legacy as $key => $property) {
+        if (!isset($settings[$key])) continue;
+        if (in_array($key, ['background','text_color'], true)) {
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', (string) $settings[$key])) continue;
+            $styles[] = $property . ':' . $settings[$key];
+        } else {
+            $max = $key === 'padding' ? 180 : 48;
+            $styles[] = $property . ':' . max(0, min($max, (int) $settings[$key])) . 'px';
+        }
     }
-    if (isset($settings['text_color']) && preg_match('/^#[0-9a-fA-F]{6}$/', (string) $settings['text_color'])) {
-        $styles[] = 'color:' . $settings['text_color'];
+    $advanced = builder_widget_style($settings);
+    if ($advanced !== '') {
+        $advanced = substr($advanced, 8, -1);
+        if ($advanced !== '') $styles[] = $advanced;
     }
-    if (isset($settings['padding'])) $styles[] = 'padding-block:' . max(0, min(180, (int) $settings['padding'])) . 'px';
-    if (isset($settings['radius'])) $styles[] = 'border-radius:' . max(0, min(48, (int) $settings['radius'])) . 'px';
     return $styles ? ' style="' . h(implode(';', $styles)) . '"' : '';
+}
+
+
+function builder_widget_safe_url($value, bool $image = false): string
+{
+    $url = trim((string) $value);
+    if ($url === '') return '';
+    if (preg_match('/^#[a-zA-Z0-9_-]+$/', $url)) return $url;
+    if (strpos($url, '/') === 0 && strpos($url, '//') !== 0) return $url;
+    if ($image && preg_match('#^data:image/(?:png|jpe?g|webp|gif);base64,[a-zA-Z0-9+/=]+$#i', $url)) return $url;
+    if (preg_match('#^https://[a-z0-9.-]+(?::[0-9]{1,5})?(?:/[^\\s]*)?$#i', $url)) return $url;
+    return '';
+}
+
+function builder_widget_style(array $styles): string
+{
+    $map = [
+        'background' => 'background-color', 'color' => 'color', 'text_color' => 'color',
+        'font_size' => 'font-size', 'font_weight' => 'font-weight', 'line_height' => 'line-height',
+        'text_align' => 'text-align', 'width' => 'width', 'max_width' => 'max-width',
+        'min_height' => 'min-height', 'gap' => 'gap', 'padding' => 'padding', 'margin' => 'margin',
+        'radius' => 'border-radius', 'border' => 'border', 'shadow' => 'box-shadow', 'display' => 'display'
+    ];
+    $out = [];
+    foreach ($map as $key => $property) {
+        if (!isset($styles[$key]) || !is_scalar($styles[$key])) continue;
+        $value = trim((string) $styles[$key]);
+        if ($value === '') continue;
+        if (in_array($key, ['background','color','text_color'], true)) {
+            if (!preg_match('/^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/', $value)) continue;
+        } elseif ($key === 'text_align') {
+            if (!in_array($value, ['right','left','center','justify','start','end'], true)) continue;
+        } elseif ($key === 'font_weight') {
+            if (!preg_match('/^(100|200|300|400|500|600|700|800|900|normal|bold)$/', $value)) continue;
+        } elseif ($key === 'display') {
+            if (!in_array($value, ['block','flex','grid','inline-flex','inline-block'], true)) continue;
+        } elseif ($key === 'border') {
+            if (!preg_match('/^(0|[0-9]{1,2}px solid #[0-9a-fA-F]{6})$/', $value)) continue;
+        } elseif ($key === 'shadow') {
+            if (!preg_match('/^(?:none|(?:0|[0-9]{1,3}px)\\s+(?:0|[0-9]{1,3}px)\\s+(?:0|[0-9]{1,3}px)\\s*(?:#[0-9a-fA-F]{6}|rgba\\([0-9, .]+\\)))$/', $value)) continue;
+        } else {
+            if (!preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) continue;
+        }
+        $out[] = $property . ':' . $value;
+    }
+    return $out ? ' style="' . h(implode(';', $out)) . '"' : '';
+}
+
+function builder_render_nested_widget(array $widget, int $depth = 0): string
+{
+    if ($depth > 8) return '';
+    $type = (string) ($widget['type'] ?? 'paragraph');
+    $content = is_array($widget['content'] ?? null) ? $widget['content'] : $widget;
+    $styles = is_array($widget['styles'] ?? null) ? $widget['styles'] : [];
+    $children = is_array($widget['children'] ?? null) ? $widget['children'] : [];
+    $style = builder_widget_style($styles);
+    $nodeId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($widget['id'] ?? ''));
+    $nodeAttr = $nodeId !== '' ? ' data-widget-node="' . h($nodeId) . '"' : '';
+    $inner = '';
+    foreach (array_slice($children, 0, 40) as $child) {
+        if (is_array($child)) $inner .= builder_render_nested_widget($child, $depth + 1);
+    }
+    if ($type === 'container') {
+        $direction = (($content['direction'] ?? 'column') === 'row') ? 'row' : 'column';
+        return '<div class="builder-layout-container is-' . $direction . '"' . $nodeAttr . $style . '>' . $inner . '</div>';
+    }
+    if ($type === 'grid') {
+        $columns = max(1, min(6, (int) ($content['columns'] ?? 2)));
+        $styleValue = '--builder-grid-columns:' . $columns;
+        if ($style !== '') $styleValue .= ';' . substr($style, 8, -1);
+        return '<div class="builder-layout-grid"' . $nodeAttr . ' style="' . h($styleValue) . '">' . $inner . '</div>';
+    }
+    if ($type === 'card') {
+        return '<article class="builder-widget-card"' . $nodeAttr . $style . '><div class="builder-widget-card-content"><h3>' .
+            h($content['title'] ?? 'عنوان کارت') . '</h3><p>' . nl2br(h($content['body'] ?? 'توضیحات کارت')) .
+            '</p>' . $inner . '</div></article>';
+    }
+    if ($type === 'heading') {
+        $level = max(1, min(6, (int) ($content['level'] ?? 2)));
+        return '<h' . $level . ' class="builder-widget-heading"' . $nodeAttr . $style . '>' . h($content['text'] ?? 'عنوان جدید') . '</h' . $level . '>';
+    }
+    if ($type === 'paragraph') return '<p class="builder-widget-paragraph"' . $nodeAttr . $style . '>' . nl2br(h($content['text'] ?? 'متن جدید')) . '</p>';
+    if ($type === 'button') {
+        $url = builder_widget_safe_url($content['url'] ?? '#contact');
+        return '<a class="button button-primary builder-widget-button"' . $nodeAttr . $style .
+            ' href="' . h($url !== '' ? $url : '#') . '">' . h($content['text'] ?? 'دکمه جدید') . '</a>';
+    }
+    if ($type === 'image') {
+        $src = builder_widget_safe_url($content['src'] ?? '', true);
+        if ($src === '') return '<div class="builder-widget-image-placeholder"' . $nodeAttr . '>تصویر انتخاب نشده است</div>';
+        return '<figure class="builder-widget-image"' . $nodeAttr . $style . '><img src="' . h($src) .
+            '" alt="' . h($content['alt'] ?? '') . '" loading="lazy"></figure>';
+    }
+    if ($type === 'divider') return '<hr class="builder-widget-divider"' . $nodeAttr . $style . '>';
+    if ($type === 'icon') return '<span class="builder-widget-icon"' . $nodeAttr . $style . ' aria-hidden="true">' . h($content['symbol'] ?? '✦') . '</span>';
+    if ($type === 'counter') {
+        return '<div class="builder-widget-counter"' . $nodeAttr . $style . '><strong>' . h($content['value'] ?? '0') .
+            '</strong><span>' . h($content['label'] ?? 'عنوان آمار') . '</span></div>';
+    }
+    if ($type === 'list') {
+        $items = is_array($content['items'] ?? null) ? $content['items'] : [];
+        $list = '';
+        foreach (array_slice($items, 0, 30) as $item) $list .= '<li>' . h(is_array($item) ? ($item['text'] ?? '') : $item) . '</li>';
+        return '<ul class="builder-widget-list"' . $nodeAttr . $style . '>' . $list . '</ul>';
+    }
+    if ($type === 'video') {
+        $url = (string) ($content['url'] ?? '');
+        if (preg_match('#^https://www\\.youtube\\.com/embed/[a-zA-Z0-9_-]+(?:\\?[a-zA-Z0-9_=&-]+)?$#', $url) ||
+            preg_match('#^https://player\\.vimeo\\.com/video/[0-9]+(?:\\?[a-zA-Z0-9_=&-]+)?$#', $url)) {
+            return '<div class="builder-widget-video"' . $nodeAttr . $style . '><iframe src="' . h($url) .
+                '" title="' . h($content['title'] ?? 'ویدیو') . '" loading="lazy" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+        }
+        return '<div class="builder-widget-image-placeholder"' . $nodeAttr . '>آدرس ویدیو معتبر نیست</div>';
+    }
+    return '';
+}
+
+function builder_responsive_css(array $blocks): string
+{
+    $propertyMap = [
+        'font_size' => 'font-size', 'line_height' => 'line-height', 'width' => 'width',
+        'max_width' => 'max-width', 'min_height' => 'min-height', 'gap' => 'gap',
+        'padding' => 'padding', 'margin' => 'margin', 'text_align' => 'text-align', 'display' => 'display'
+    ];
+    $queries = ['tablet' => '(max-width: 1024px)', 'mobile' => '(max-width: 767px)'];
+    $css = '';
+    foreach ($queries as $device => $query) {
+        $rules = '';
+        foreach ($blocks as $block) {
+            $key = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($block['block_key'] ?? ''));
+            $responsive = $block['settings']['responsive'][$device] ?? [];
+            if ($key === '' || !is_array($responsive)) continue;
+            $declarations = [];
+            foreach ($propertyMap as $field => $property) {
+                if (!isset($responsive[$field]) || !is_scalar($responsive[$field])) continue;
+                $value = trim((string) $responsive[$field]);
+                if ($field === 'text_align') {
+                    if (!in_array($value, ['right','left','center','justify','start','end'], true)) continue;
+                } elseif ($field === 'display') {
+                    if (!in_array($value, ['none','block','flex','grid','inline-flex'], true)) continue;
+                } elseif (!preg_match('/^-?[0-9]{1,4}(?:\\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/', $value)) {
+                    continue;
+                }
+                $declarations[] = $property . ':' . $value;
+            }
+            if ($declarations) $rules .= '[data-builder-key="' . $key . '"]{' . implode(';', $declarations) . '}';
+        }
+        if ($rules !== '') $css .= '@media ' . $query . '{' . $rules . '}';
+    }
+    return $css !== '' ? '<style id="builder-responsive-styles">' . $css . '</style>' : '';
 }
 
 function builder_render_custom_block(array $block): string
@@ -154,6 +319,15 @@ function builder_render_custom_block(array $block): string
     if ($type === 'spacer') {
         $height = max(8, min(240, (int) ($content['height'] ?? 48)));
         return '<div class="builder-spacer" data-builder-key="' . $key . '" data-builder-id="' . (int) $block['id'] . '" aria-hidden="true" style="height:' . $height . 'px"></div>';
+    }
+    $widgetTypes = ['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video'];
+    if (in_array($type, $widgetTypes, true)) {
+        $widget = ['type' => $type, 'content' => $content, 'styles' => $settings,
+            'children' => is_array($content['children'] ?? null) ? $content['children'] : []];
+        $inner = builder_render_nested_widget($widget);
+        $wrapperClass = $type === 'container' || $type === 'grid' ? 'builder-layout-root' : 'builder-widget-root';
+        return '<section class="section-shell builder-custom-block ' . $wrapperClass . '" data-builder-key="' . $key .
+            '" data-builder-id="' . (int) $block['id'] . '"' . $style . '><div class="container">' . $inner . '</div></section>';
     }
     return '';
 }
@@ -225,7 +399,7 @@ function builder_apply_to_html(string $html, array $blocks, array $design, bool 
         if ($bodyEnd !== false) $html = substr($html, 0, $bodyEnd) . $footerHtml . "\n" . substr($html, $bodyEnd);
     }
 
-    $css = builder_design_css($design);
+    $css = builder_design_css($design) . builder_responsive_css($blocks);
     $headEnd = stripos($html, '</head>');
     if ($headEnd !== false) $html = substr($html, 0, $headEnd) . $css . substr($html, $headEnd);
     return $html;
@@ -274,11 +448,87 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     if (value !== undefined) node.textContent = String(value);
     return node;
   }
+
+  function makeNestedWidget(item,depth){
+    if (!item || typeof item !== 'object' || depth > 8) return document.createTextNode('');
+    var type = String(item.type || 'paragraph'), c = item.content || item, node;
+    var allowed = ['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video'];
+    if (allowed.indexOf(type) === -1) return document.createTextNode('');
+    if (type === 'container') {
+      node = card('div','builder-layout-container is-' + (c.direction === 'row' ? 'row' : 'column'));
+    } else if (type === 'grid') {
+      node = card('div','builder-layout-grid');
+      node.style.setProperty('--builder-grid-columns',String(Math.max(1,Math.min(6,Number(c.columns)||2))));
+    } else if (type === 'card') {
+      node = card('article','builder-widget-card');
+      var cardContent = card('div','builder-widget-card-content');
+      cardContent.append(card('h3','',c.title || 'عنوان کارت'),card('p','',c.body || 'توضیحات کارت'));
+      node.appendChild(cardContent);
+    } else if (type === 'heading') {
+      var level = Math.max(1,Math.min(6,Number(c.level)||2));
+      node = card('h' + level,'builder-widget-heading',c.text || 'عنوان جدید');
+    } else if (type === 'paragraph') {
+      node = card('p','builder-widget-paragraph',c.text || 'متن جدید');
+    } else if (type === 'button') {
+      node = card('a','button button-primary builder-widget-button',c.text || 'دکمه جدید');
+      node.href = safeHref(c.url || '#contact');
+    } else if (type === 'image') {
+      node = card('figure','builder-widget-image');
+      if (c.src) {
+        var img = card('img','');
+        img.src = safeHref(c.src);
+        img.alt = String(c.alt || '');
+        img.loading = 'lazy';
+        img.style.width = '100%';
+        node.appendChild(img);
+      } else node = card('div','builder-widget-image-placeholder','تصویر انتخاب نشده است');
+    } else if (type === 'divider') {
+      node = card('hr','builder-widget-divider');
+    } else if (type === 'icon') {
+      node = card('span','builder-widget-icon',c.symbol || '✦');
+    } else if (type === 'counter') {
+      node = card('div','builder-widget-counter');
+      node.append(card('strong','',c.value || '0'),card('span','',c.label || 'عنوان آمار'));
+    } else if (type === 'list') {
+      node = card('ul','builder-widget-list');
+      (Array.isArray(c.items) ? c.items : []).slice(0,30).forEach(function(entry){
+        node.appendChild(card('li','',typeof entry === 'object' ? entry.text || '' : entry));
+      });
+    } else if (type === 'video') {
+      node = card('div','builder-widget-video');
+      var videoUrl = String(c.url || '');
+      if (/^https:\/\/www\.youtube\.com\/embed\/[a-zA-Z0-9_-]+/.test(videoUrl) || /^https:\/\/player\.vimeo\.com\/video\/[0-9]+/.test(videoUrl)) {
+        var iframe = card('iframe','');
+        iframe.src = videoUrl;
+        iframe.title = String(c.title || 'ویدیو');
+        iframe.loading = 'lazy';
+        iframe.allowFullscreen = true;
+        node.appendChild(iframe);
+      } else node = card('div','builder-widget-image-placeholder','آدرس ویدیو معتبر نیست');
+    }
+    var styles = item.styles || {};
+    var styleMap = {background:'backgroundColor',color:'color',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
+    Object.keys(styleMap).forEach(function(key){
+      if (styles[key] !== undefined && styles[key] !== '') node.style[styleMap[key]] = String(styles[key]);
+    });
+    (Array.isArray(item.children) ? item.children : []).slice(0,40).forEach(function(child){
+      node.appendChild(makeNestedWidget(child,depth+1));
+    });
+    return node;
+  }
+
   function makeCustom(block){
     var c = block.content || {}, node, container, title, body;
     if (block.block_type === 'spacer') {
       node = card('div','builder-spacer');
       node.setAttribute('aria-hidden','true');
+      return node;
+    }
+    if (['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video'].indexOf(block.block_type) !== -1) {
+      node = card('section','section-shell builder-custom-block builder-widget-root builder-' + block.block_type + '-block');
+      container = card('div','container');
+      container.appendChild(makeNestedWidget({type:block.block_type,content:c,styles:block.settings || {},children:c.children || []},0));
+      node.appendChild(container);
       return node;
     }
     node = card('section','section-shell builder-custom-block builder-' + block.block_type + '-block');
@@ -317,7 +567,14 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       footer:{tagline:'.footer-brand > span:last-child'},
       text:{title:'h2',body:'p'},
       cta:{title:'h2',body:'p',button_text:'a.button'},
-      stats:{title:'h2'}
+      stats:{title:'h2'},
+      heading:{text:'h1,h2,h3,h4,h5,h6'},
+      paragraph:{text:'p'},
+      button:{text:'a.button'},
+      card:{title:'h3',body:'p'},
+      counter:{value:'strong',label:'span'},
+      image:{alt:'img'},
+      icon:{symbol:'.builder-widget-icon'}
     };
     var fields = maps[type] || {};
     Object.keys(fields).forEach(function(field){
@@ -412,10 +669,49 @@ html[data-builder-preview="1"] body{padding-top:0!important}
           });
         }
       }
+    } else if (['container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video'].indexOf(type) !== -1) {
+      var rebuilt = makeCustom(block);
+      node.className = rebuilt.className;
+      node.replaceChildren.apply(node,Array.prototype.slice.call(rebuilt.childNodes));
     } else if (type === 'spacer') {
       node.style.height = Math.max(8,Math.min(240,Number(c.height) || 48)) + 'px';
     }
   }
+
+  function applyResponsiveStyles(blocks){
+    var style = document.getElementById('builder-responsive-styles');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'builder-responsive-styles';
+      document.head.appendChild(style);
+    }
+    var properties = {font_size:'font-size',line_height:'line-height',width:'width',max_width:'max-width',min_height:'min-height',gap:'gap',padding:'padding',margin:'margin',text_align:'text-align',display:'display'};
+    var media = {tablet:'(max-width: 1024px)',mobile:'(max-width: 767px)'};
+    var output = '';
+    Object.keys(media).forEach(function(device){
+      var rules = '';
+      blocks.forEach(function(block){
+        var key = String(block.block_key || '').replace(/[^a-zA-Z0-9_-]/g,'');
+        var responsive = block.settings && block.settings.responsive && block.settings.responsive[device];
+        if (!key || !responsive || typeof responsive !== 'object') return;
+        var declarations = [];
+        Object.keys(properties).forEach(function(field){
+          if (responsive[field] === undefined) return;
+          var value = String(responsive[field]).trim();
+          if (field === 'text_align') {
+            if (['right','left','center','justify','start','end'].indexOf(value) === -1) return;
+          } else if (field === 'display') {
+            if (['none','block','flex','grid','inline-flex'].indexOf(value) === -1) return;
+          } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
+          declarations.push(properties[field] + ':' + value);
+        });
+        if (declarations.length) rules += '[data-builder-key="' + key + '"]{' + declarations.join(';') + '}';
+      });
+      if (rules) output += '@media ' + media[device] + '{' + rules + '}';
+    });
+    style.textContent = output;
+  }
+
   function applyState(data){
     if (!data || !Array.isArray(data.blocks)) return;
     var main = document.querySelector('#main');
@@ -428,7 +724,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     data.blocks.forEach(function(block){
       if (block.block_type === 'footer') return;
       var node = Array.prototype.find.call(document.querySelectorAll('[data-builder-key]'),function(el){ return el.dataset.builderKey === block.block_key; });
-      if (!node && ['text','cta','stats','spacer'].indexOf(block.block_type) !== -1) {
+      if (!node && ['text','cta','stats','spacer','container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video'].indexOf(block.block_type) !== -1) {
         node = makeCustom(block);
         node.dataset.builderKey = block.block_key;
       }
@@ -439,6 +735,11 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       node.style.color = block.settings && block.settings.text_color || '';
       node.style.paddingBlock = block.settings && block.settings.padding !== undefined ? Number(block.settings.padding) + 'px' : '';
       node.style.borderRadius = block.settings && block.settings.radius !== undefined ? Number(block.settings.radius) + 'px' : '';
+      var rootStyleMap = {font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',border:'border',shadow:'boxShadow',display:'display'};
+      Object.keys(rootStyleMap).forEach(function(key){
+        if (block.settings && block.settings[key] !== undefined) node.style[rootStyleMap[key]] = String(block.settings[key]);
+        else node.style[rootStyleMap[key]] = '';
+      });
       updateContent(node,block);
       markEditable(node,block.block_type);
       main.appendChild(node);
@@ -453,6 +754,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     } else if (footerNode) {
       footerNode.hidden = true;
     }
+    applyResponsiveStyles(data.blocks);
     var d = data.design || {};
     document.documentElement.style.setProperty('--accent',d.accent_color || '#a58aff');
     document.documentElement.style.setProperty('--accent-strong',d.accent_color || '#a58aff');
