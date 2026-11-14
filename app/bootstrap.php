@@ -42,8 +42,8 @@ function app_config(): array
         'database' => [
             'host' => 'localhost',
             'port' => 3306,
-            'name' => 'zenorali_milad',
-            'username' => 'zenorali_milad',
+            'name' => '',
+            'username' => '',
             'password' => '',
             'charset' => 'utf8mb4',
         ],
@@ -154,8 +154,9 @@ function db(): PDO
 
     $database = cfg('database', []);
     foreach (['host', 'name', 'username', 'password'] as $key) {
-        if (!isset($database[$key]) || ($key !== 'password' && trim((string) $database[$key]) === '')) {
-            throw new RuntimeException('اطلاعات دیتابیس در config.php کامل نیست.');
+        $value = isset($database[$key]) ? trim((string) $database[$key]) : '';
+        if (!isset($database[$key]) || ($key !== 'password' && $value === '') || stripos($value, 'YOUR_DATABASE_') === 0) {
+            throw new RuntimeException('مقادیر database در فایل config.php هنوز کامل نشده‌اند.');
         }
     }
 
