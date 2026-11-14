@@ -211,9 +211,9 @@
     });
   }
   function legacyFieldGroup(field) {
-    if (field === 'title_line1') return ['title_line1','title_line2'];
-    if (field === 'text_before') return ['text_before','text_emphasis'];
-    if (field === 'heading_before') return ['heading_before','heading_emphasis'];
+    if (['title_line1','title_line2'].includes(field)) return ['title_line1','title_line2'];
+    if (['text_before','text_emphasis'].includes(field)) return ['text_before','text_emphasis'];
+    if (['heading_before','heading_emphasis'].includes(field)) return ['heading_before','heading_emphasis'];
     return [field];
   }
   function summarize(block) {
@@ -1120,7 +1120,7 @@
       ? (Array.isArray(parentNode.children) ? parentNode.children.slice() : (Array.isArray(content.children) ? content.children.slice() : []))
       : (Array.isArray(content.children) ? content.children.slice() : []);
     if (action === 'add') {
-      const select = $('#builderChildType');
+      const select = $('#builderNodeChildType') || $('#builderChildType');
       children.push(newChildNode(select ? select.value : 'paragraph'));
     } else if (action === 'delete') {
       if (index < 0 || index >= children.length) return;
@@ -1196,7 +1196,7 @@
       if (!allowed) return;
       block.content = Object.assign({},block.content || {});
       block.content[field] = String(message.value ?? '');
-      const form = $('#builderBlockForm');
+      const form = $('#builderLegacyForm') || $('#builderBlockForm');
       if (form && form.elements[field]) form.elements[field].value = block.content[field];
       renderCanvas();
       scheduleSave(block,{
