@@ -170,5 +170,24 @@ if ($hadPreviewFlag) $_GET['builder_preview'] = $originalPreviewFlag; else unset
 <div class="builder-template-grid studio-template-grid" id="builderTemplateGrid"></div>
 <p class="studio-template-footnote">قالب‌های سکشن یا صفحه کامل به انتهای صفحه اضافه می‌شوند؛ محتوای قبلی حذف نمی‌شود.</p>
 </section></div>
+<div class="builder-canvas-context-menu" id="builderCanvasContextMenu" role="menu" aria-label="عملیات المان" hidden>
+  <button type="button" role="menuitem" data-canvas-action="edit">ویرایش المان</button>
+  <div class="builder-context-separator"></div>
+  <button type="button" role="menuitem" data-canvas-action="copy">کپی <kbd>Ctrl+C</kbd></button>
+  <button type="button" role="menuitem" data-canvas-action="paste">جای‌گذاری <kbd>Ctrl+V</kbd></button>
+  <button type="button" role="menuitem" data-canvas-action="duplicate">تکثیر <kbd>Ctrl+D</kbd></button>
+  <button type="button" role="menuitem" data-canvas-action="rename">تغییر نام <kbd>F2</kbd></button>
+  <button type="button" role="menuitem" data-canvas-action="delete">حذف <kbd>Del</kbd></button>
+  <div class="builder-context-separator"></div>
+  <button type="button" role="menuitem" data-canvas-action="up">انتقال به بالا</button>
+  <button type="button" role="menuitem" data-canvas-action="down">انتقال به پایین</button>
+  <button type="button" role="menuitem" data-canvas-action="hide">نمایش / مخفی‌کردن</button>
+  <button type="button" role="menuitem" data-canvas-action="reset-styles">بازنشانی استایل</button>
+  <button type="button" role="menuitem" data-canvas-action="copy-styles">کپی استایل</button>
+  <button type="button" role="menuitem" data-canvas-action="paste-styles">جای‌گذاری استایل</button>
+  <div class="builder-context-separator"></div>
+  <button type="button" role="menuitem" data-canvas-action="parent">انتخاب والد</button>
+  <button type="button" role="menuitem" data-canvas-action="child">انتخاب فرزند اول</button>
+</div>
 <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 </body></html>

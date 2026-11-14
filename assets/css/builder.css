@@ -340,3 +340,14 @@
 .builder-project-form textarea{min-height:76px}
 .builder-project-form label small{display:block;color:var(--muted);font-size:9px}
 .builder-project-form [data-inspector-panel="advanced"]{display:grid;gap:12px}
+
+/* Canvas-origin context menu */
+.builder-canvas-context-menu{position:fixed;z-index:2147483600;width:218px;max-height:min(80vh,520px);overflow:auto;padding:7px;border:1px solid rgba(180,164,255,.24);border-radius:13px;background:#11131d;color:#f5f3ff;box-shadow:0 18px 55px rgba(0,0,0,.48);display:grid;gap:2px}
+.builder-canvas-context-menu[hidden]{display:none}
+.builder-canvas-context-menu button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;font-size:11px;text-align:right;cursor:pointer}
+.builder-canvas-context-menu button:hover{background:rgba(165,138,255,.14)}
+.builder-canvas-context-menu button:disabled{opacity:.38;cursor:not-allowed}
+.builder-canvas-context-menu kbd{font:9px/1.4 monospace;color:#b8b3c9;opacity:.75}
+.builder-context-separator{height:1px;margin:4px 5px;background:rgba(255,255,255,.09)}
+.builder-project-layer.is-selected{outline:1px solid rgba(165,138,255,.28)}
+.project-card.is-draft{outline:2px dashed rgba(165,138,255,.75);outline-offset:-5px}

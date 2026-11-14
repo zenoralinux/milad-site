@@ -1028,6 +1028,112 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     style.textContent = output;
   }
 
+  function renderProjectVisual(visual,variant){
+    if (!visual) return;
+    visual.replaceChildren();
+    visual.className = 'project-visual project-visual--' + variant;
+    if (variant === 'zenora') {
+      var mark=card('div','zenora-symbol');mark.append(document.createTextNode('Z'),card('span','','.'));
+      visual.append(mark,card('span','visual-caption','A Linux experience, reimagined.'),card('span','visual-orbit',''));
+    } else if (variant === 'chat') {
+      var win=card('div','chat-window'),head=card('div','chat-window-head');
+      head.append(card('i',''),card('i',''),card('i',''),card('span','','ZenoraChat'));
+      win.append(head,card('div','chat-bubble chat-bubble--a',''),card('div','chat-bubble chat-bubble--b',''),card('div','chat-bubble chat-bubble--a short',''));
+      var compose=card('div','chat-compose');compose.append(card('span',''),card('b','','↗'));win.append(compose);
+      visual.append(win,card('span','visual-caption','Conversations, thoughtfully designed.'));
+    } else if (variant === 'android') {
+      var device=card('div','android-device'),screen=card('div','android-screen');
+      screen.append(card('span','android-logo','Z'),card('span','android-line',''),card('span','android-line small',''),card('span','android-card',''));
+      device.append(screen);visual.append(device,card('span','visual-caption','Native, focused, familiar.'));
+    } else if (variant === 'arm') {
+      var terminal=card('div','terminal-window'),terminalHead=card('div','terminal-head');
+      terminalHead.append(card('span',''),card('span',''),card('span',''),card('b','','zenora — terminal'));
+      terminal.append(terminalHead);
+      var code=card('div','terminal-code');code.append(document.createTextNode('$ zenora --start'));
+      code.append(card('br',''),card('i','','»'),document.createTextNode(' initializing environment'),card('br',''),card('i','','»'),document.createTextNode(' ready'),card('span','terminal-caret',''));
+      terminal.append(code);visual.append(terminal,card('span','visual-caption','Linux tools, on the move.'));
+    } else if (variant === 'wsl') {
+      var markW=card('div','wsl-mark');markW.append(card('span','','W'),card('b','','+'),card('span','','Z'));
+      var lines=card('div','wsl-lines');lines.append(card('i',''),card('i',''),card('i',''));
+      visual.append(markW,lines,card('span','visual-caption','A familiar Linux workflow on Windows.'));
+    } else {
+      var generic=card('div','generic-project-mark');generic.append(document.createTextNode('M'),card('span','','.'));
+      visual.append(generic,card('span','visual-caption','Designed and built with intent.'));
+    }
+  }
+  function createProjectCard(project,index){
+    var id=Number(project.id);
+    if (!Number.isSafeInteger(id) || id < 1) return null;
+    var category=['os','apps','tools'].indexOf(String(project.category))!==-1?String(project.category):'tools';
+    var variant=['zenora','chat','android','arm','wsl','generic'].indexOf(String(project.visual_variant))!==-1?String(project.visual_variant):'generic';
+    var statusLabels={active:'فعال',in_progress:'در توسعه',paused:'متوقف',project:'پروژه',archived:'بایگانی'};
+    var node=card('article','project-card reveal');
+    node.dataset.projectCard='1';node.dataset.projectId=String(id);node.dataset.widgetNode='project-card-'+id;
+    node.dataset.category=category;
+    var top=card('div','project-card-top');top.append(card('span','project-number',String(index+1).padStart(2,'0')),card('span','project-kind',project.kind_label||'')); 
+    var visual=card('div','project-visual');renderProjectVisual(visual,variant);
+    var content=card('div','project-card-content'),row=card('div','project-title-row');
+    row.append(card('h3','',project.title||''));
+    var status=card('span','project-status');status.append(card('i',''),document.createTextNode(statusLabels[project.status]||'پروژه'));
+    row.append(status);
+    var excerpt=card('p','',project.excerpt||''),tags=card('div','tag-list'),actions=card('div','project-actions');
+    content.append(row,excerpt,tags,actions);node.append(top,visual,content);
+    return node;
+  }
+  function applyProjectState(projects){
+    if (!Array.isArray(projects)) return;
+    var grid=document.getElementById('projectsGrid');
+    if(!grid)return;
+    var activeIds=new Set();
+    var statusLabels={active:'فعال',in_progress:'در توسعه',paused:'متوقف',project:'پروژه',archived:'بایگانی'};
+    projects.slice(0,500).forEach(function(project,index){
+      if(!project||typeof project!=='object')return;
+      var id=Number(project.id);
+      if(!Number.isSafeInteger(id)||id<1)return;
+      activeIds.add(String(id));
+      var node=grid.querySelector('[data-project-id="'+id+'"]');
+      if(!node){node=createProjectCard(project,index);if(node)grid.appendChild(node);}
+      if(!node)return;
+      node.hidden=false;
+      node.classList.toggle('is-draft',!project.is_published);
+      node.dataset.category=['os','apps','tools'].indexOf(String(project.category))!==-1?String(project.category):'tools';
+      node.classList.toggle('project-card--featured',!!project.is_featured);
+      var variant=['zenora','chat','android','arm','wsl','generic'].indexOf(String(project.visual_variant))!==-1?String(project.visual_variant):'generic';
+      var visual=node.querySelector('.project-visual');
+      if(visual&&(!visual.classList.contains('project-visual--'+variant)))renderProjectVisual(visual,variant);
+      setText(node,'.project-number',String(index+1).padStart(2,'0'));
+      setText(node,'.project-kind',project.kind_label||'');
+      setText(node,'.project-title-row h3',project.title||'');
+      var status=node.querySelector('.project-status');
+      if(status){var dot=status.querySelector('i')||card('i','');status.replaceChildren(dot,document.createTextNode(statusLabels[project.status]||'پروژه'));}
+      setText(node,'.project-card-content > p',project.excerpt||'');
+      var tags=node.querySelector('.tag-list');
+      if(tags){tags.replaceChildren();(Array.isArray(project.technologies)?project.technologies:[]).slice(0,20).forEach(function(value){tags.appendChild(card('span','',String(value)));});}
+      var actions=node.querySelector('.project-actions');
+      if(actions){
+        actions.replaceChildren();
+        (Array.isArray(project.links)?project.links:[]).slice(0,12).forEach(function(link){
+          if(!link||typeof link!=='object')return;
+          var href=safeHref(link.url||''),label=String(link.label||'');
+          if(!label||href==='#')return;
+          var anchor=card('a','',label+' ');
+          anchor.href=href;
+          if(href.indexOf('https://')===0){anchor.target='_blank';anchor.rel='noopener noreferrer';}
+          anchor.appendChild(card('span','','↗'));actions.appendChild(anchor);
+        });
+      }
+      node.dataset.search=[project.title,project.slug,project.excerpt,project.description,project.kind_label]
+        .concat(Array.isArray(project.technologies)?project.technologies:[]).join(' ');
+    });
+    grid.querySelectorAll('[data-project-card]').forEach(function(node){
+      if(!activeIds.has(String(node.dataset.projectId||'')))node.hidden=true;
+    });
+    projects.slice(0,500).forEach(function(project){
+      var node=project&&grid.querySelector('[data-project-id="'+Number(project.id)+'"]');
+      if(node)grid.appendChild(node);
+    });
+  }
+
   function applyState(data){
     if (!data || !Array.isArray(data.blocks)) return;
     var main = document.querySelector('#main');
@@ -1148,6 +1254,13 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     });
   },true);
   document.addEventListener('click',function(event){
+    var projectCard = event.target.closest('[data-project-card][data-project-id]');
+    if (projectCard) {
+      if (event.target.closest('a')) event.preventDefault();
+      event.stopPropagation();
+      sendToParent({type:'milad-builder-project-select',projectId:Number(projectCard.dataset.projectId)});
+      return;
+    }
     var block = event.target.closest('[data-builder-key]');
     if (!block) return;
     if (event.target.closest('a')) event.preventDefault();
@@ -1169,6 +1282,19 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       return;
     }
     sendToParent({type:'milad-builder-select',key:block.dataset.builderKey});
+  },true);
+  document.addEventListener('contextmenu',function(event){
+    var projectCard=event.target.closest('[data-project-card][data-project-id]');
+    if(projectCard){
+      event.preventDefault();event.stopPropagation();
+      sendToParent({type:'milad-builder-context-menu',projectId:Number(projectCard.dataset.projectId),x:event.clientX,y:event.clientY});
+      return;
+    }
+    var block=event.target.closest('[data-builder-key]');
+    if(!block)return;
+    event.preventDefault();event.stopPropagation();
+    var widget=event.target.closest('[data-widget-node]');
+    sendToParent({type:'milad-builder-context-menu',key:block.dataset.builderKey,nodeId:widget&&block.contains(widget)?String(widget.dataset.widgetNode||''):'',x:event.clientX,y:event.clientY});
   },true);
   var resizeOverlay = null;
   var resizeTarget = null;
@@ -1299,6 +1425,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       return;
     }
     if (message.type === 'milad-builder-state') applyState(message);
+    if (message.type === 'milad-builder-project-state') applyProjectState(message.projects || []);
     if (message.type === 'milad-builder-select-outline') selectOutline(String(message.key || ''),String(message.nodeId || ''),String(message.legacyField || ''));
   });
   sendToParent({type:'milad-builder-ready'});
