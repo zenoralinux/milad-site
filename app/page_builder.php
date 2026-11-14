@@ -193,7 +193,9 @@ function builder_render_nested_widget(array $widget, int $depth = 0): string
     }
     if ($type === 'grid') {
         $columns = max(1, min(6, (int) ($content['columns'] ?? 2)));
-        return '<div class="builder-layout-grid" style="--builder-grid-columns:' . $columns . '"' . $nodeAttr . $style . '>' . $inner . '</div>';
+        $styleValue = '--builder-grid-columns:' . $columns;
+        if ($style !== '') $styleValue .= ';' . substr($style, 8, -1);
+        return '<div class="builder-layout-grid"' . $nodeAttr . ' style="' . h($styleValue) . '">' . $inner . '</div>';
     }
     if ($type === 'card') {
         return '<article class="builder-widget-card"' . $nodeAttr . $style . '><div class="builder-widget-card-content"><h3>' .
@@ -504,7 +506,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       } else node = card('div','builder-widget-image-placeholder','آدرس ویدیو معتبر نیست');
     }
     var styles = item.styles || {};
-    var styleMap = {background:'backgroundColor',color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
+    var styleMap = {background:'backgroundColor',color:'color',text_color:'color',font_size:'fontSize',font_weight:'fontWeight',line_height:'lineHeight',text_align:'textAlign',width:'width',max_width:'maxWidth',min_height:'minHeight',gap:'gap',padding:'padding',margin:'margin',radius:'borderRadius',border:'border',shadow:'boxShadow',display:'display'};
     Object.keys(styleMap).forEach(function(key){
       if (styles[key] !== undefined && styles[key] !== '') node.style[styleMap[key]] = String(styles[key]);
     });
@@ -564,7 +566,14 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       footer:{tagline:'.footer-brand > span:last-child'},
       text:{title:'h2',body:'p'},
       cta:{title:'h2',body:'p',button_text:'a.button'},
-      stats:{title:'h2'}
+      stats:{title:'h2'},
+      heading:{text:'h1,h2,h3,h4,h5,h6'},
+      paragraph:{text:'p'},
+      button:{text:'a.button'},
+      card:{title:'h3',body:'p'},
+      counter:{value:'strong',label:'span'},
+      image:{alt:'img'},
+      icon:{symbol:'.builder-widget-icon'}
     };
     var fields = maps[type] || {};
     Object.keys(fields).forEach(function(field){
@@ -667,6 +676,41 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       node.style.height = Math.max(8,Math.min(240,Number(c.height) || 48)) + 'px';
     }
   }
+
+  function applyResponsiveStyles(blocks){
+    var style = document.getElementById('builder-responsive-styles');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'builder-responsive-styles';
+      document.head.appendChild(style);
+    }
+    var properties = {font_size:'font-size',line_height:'line-height',width:'width',max_width:'max-width',min_height:'min-height',gap:'gap',padding:'padding',margin:'margin',text_align:'text-align',display:'display'};
+    var media = {tablet:'(max-width: 1024px)',mobile:'(max-width: 767px)'};
+    var output = '';
+    Object.keys(media).forEach(function(device){
+      var rules = '';
+      blocks.forEach(function(block){
+        var key = String(block.block_key || '').replace(/[^a-zA-Z0-9_-]/g,'');
+        var responsive = block.settings && block.settings.responsive && block.settings.responsive[device];
+        if (!key || !responsive || typeof responsive !== 'object') return;
+        var declarations = [];
+        Object.keys(properties).forEach(function(field){
+          if (responsive[field] === undefined) return;
+          var value = String(responsive[field]).trim();
+          if (field === 'text_align') {
+            if (['right','left','center','justify','start','end'].indexOf(value) === -1) return;
+          } else if (field === 'display') {
+            if (['none','block','flex','grid','inline-flex'].indexOf(value) === -1) return;
+          } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
+          declarations.push(properties[field] + ':' + value);
+        });
+        if (declarations.length) rules += '[data-builder-key="' + key + '"]{' + declarations.join(';') + '}';
+      });
+      if (rules) output += '@media ' + media[device] + '{' + rules + '}';
+    });
+    style.textContent = output;
+  }
+
   function applyState(data){
     if (!data || !Array.isArray(data.blocks)) return;
     var main = document.querySelector('#main');
@@ -679,7 +723,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     data.blocks.forEach(function(block){
       if (block.block_type === 'footer') return;
       var node = Array.prototype.find.call(document.querySelectorAll('[data-builder-key]'),function(el){ return el.dataset.builderKey === block.block_key; });
-      if (!node && ['text','cta','stats','spacer'].indexOf(block.block_type) !== -1) {
+      if (!node && ['text','cta','stats','spacer','container','grid','card','heading','paragraph','button','image','divider','icon','counter','list','video'].indexOf(block.block_type) !== -1) {
         node = makeCustom(block);
         node.dataset.builderKey = block.block_key;
       }
@@ -704,6 +748,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     } else if (footerNode) {
       footerNode.hidden = true;
     }
+    applyResponsiveStyles(data.blocks);
     var d = data.design || {};
     document.documentElement.style.setProperty('--accent',d.accent_color || '#a58aff');
     document.documentElement.style.setProperty('--accent-strong',d.accent_color || '#a58aff');
