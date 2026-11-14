@@ -307,11 +307,21 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     var c = block.content || {};
     var type = block.block_type;
     if (type === 'hero') {
-      setText(node,'.hero-copy .eyebrow',c.eyebrow);
+      var eyebrow = node.querySelector('.hero-copy .eyebrow');
+      if (eyebrow) {
+        var dot = eyebrow.querySelector('.status-dot');
+        if (dot) eyebrow.replaceChildren(dot,document.createTextNode(' ' + String(c.eyebrow || '')));
+        else eyebrow.textContent = String(c.eyebrow || '');
+      }
       setSplit(node,'.hero-copy h1',c.title_line1,c.title_line2);
       setText(node,'.hero-description',c.description);
       var links = node.querySelectorAll('.hero-actions a');
-      if (links[0]) { links[0].textContent = String(c.primary_cta_text || ''); links[0].href = safeHref(c.primary_cta_url || '#work'); }
+      if (links[0]) {
+        var arrow = links[0].querySelector('span[aria-hidden="true"]');
+        if (arrow) links[0].replaceChildren(document.createTextNode(String(c.primary_cta_text || '') + ' '),arrow);
+        else links[0].textContent = String(c.primary_cta_text || '');
+        links[0].href = safeHref(c.primary_cta_url || '#work');
+      }
       if (links[1]) { links[1].textContent = String(c.secondary_cta_text || ''); links[1].href = safeHref(c.secondary_cta_url || '#contact'); }
       setText(node,'.hero-footnote span:last-child',c.footnote);
     } else if (type === 'intro') {
