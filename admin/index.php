@@ -70,7 +70,10 @@ try {
     }
 
     $rawMessage = $rootCause->getMessage();
-    if (stripos($rawMessage, 'could not find driver') !== false) {
+    if (!($rootCause instanceof PDOException)) {
+        // Application-generated setup/config errors are already safe and actionable.
+        $setupError = $rawMessage;
+    } elseif (stripos($rawMessage, 'could not find driver') !== false) {
         $setupError = 'افزونه pdo_mysql روی PHP هاست فعال نیست. آن را از بخش Select PHP Version / Extensions فعال کن.';
     } else {
         switch ($driverCode) {
