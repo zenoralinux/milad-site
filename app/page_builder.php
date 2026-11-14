@@ -1030,7 +1030,6 @@ html[data-builder-preview="1"] body{padding-top:0!important}
             } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
             declarations.push(properties[field] + ':' + value);
           });
-          });
           if (declarations.length) rules += '[data-widget-node="' + id + '"]{' + declarations.join(';') + '}';
         }
         rules += widgetRules(item.children || (item.content && item.content.children),device,depth + 1);
@@ -1051,7 +1050,18 @@ html[data-builder-preview="1"] body{padding-top:0!important}
             if (field === 'text_align') {
               if (['right','left','center','justify','start','end'].indexOf(value) === -1) return;
             } else if (field === 'display') {
-              if (['none','block','flex','grid','inline-flex'].indexOf(value) === -1) return;
+              if (['none','block','flex','grid','inline-flex','inline-block'].indexOf(value) === -1) return;
+            } else if (field === 'flex_direction') {
+              if (['row','row-reverse','column','column-reverse'].indexOf(value) === -1) return;
+            } else if (field === 'align_items') {
+              if (['stretch','center','flex-start','flex-end','baseline'].indexOf(value) === -1) return;
+            } else if (field === 'justify_content') {
+              if (['flex-start','center','flex-end','space-between','space-around','space-evenly'].indexOf(value) === -1) return;
+            } else if (field === 'visibility') {
+              if (['visible','hidden'].indexOf(value) === -1) return;
+            } else if (field === 'grid_columns') {
+              if (!/^[1-6]$/.test(value)) return;
+              value = 'repeat(' + Number(value) + ',minmax(0,1fr))';
             } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
             declarations.push(properties[field] + ':' + value);
           });
@@ -1068,7 +1078,18 @@ html[data-builder-preview="1"] body{padding-top:0!important}
             if (property === 'text_align') {
               if (['right','left','center','justify','start','end'].indexOf(value) === -1) return;
             } else if (property === 'display') {
-              if (['none','block','flex','grid','inline-flex'].indexOf(value) === -1) return;
+              if (['none','block','flex','grid','inline-flex','inline-block'].indexOf(value) === -1) return;
+            } else if (property === 'flex_direction') {
+              if (['row','row-reverse','column','column-reverse'].indexOf(value) === -1) return;
+            } else if (property === 'align_items') {
+              if (['stretch','center','flex-start','flex-end','baseline'].indexOf(value) === -1) return;
+            } else if (property === 'justify_content') {
+              if (['flex-start','center','flex-end','space-between','space-around','space-evenly'].indexOf(value) === -1) return;
+            } else if (property === 'visibility') {
+              if (['visible','hidden'].indexOf(value) === -1) return;
+            } else if (property === 'grid_columns') {
+              if (!/^[1-6]$/.test(value)) return;
+              value = 'repeat(' + Number(value) + ',minmax(0,1fr))';
             } else if (!/^-?[0-9]{1,4}(?:\.[0-9]{1,2})?(?:px|%|rem|em|vh|vw|fr)?$/.test(value)) return;
             declarations.push(properties[property] + ':' + value);
           });
@@ -1217,6 +1238,9 @@ html[data-builder-preview="1"] body{padding-top:0!important}
         if (block.settings && block.settings[key] !== undefined) node.style[rootStyleMap[key]] = String(block.settings[key]);
         else node.style[rootStyleMap[key]] = '';
       });
+      if (block.settings && block.settings.grid_columns !== undefined && /^[1-6]$/.test(String(block.settings.grid_columns))) {
+        node.style.gridTemplateColumns = 'repeat(' + Number(block.settings.grid_columns) + ',minmax(0,1fr))';
+      } else node.style.gridTemplateColumns = '';
       updateContent(node,block);
       markEditable(node,block.block_type);
       applyLegacyElementStyles(node,block);
