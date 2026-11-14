@@ -378,6 +378,10 @@ html[data-builder-preview="1"] body{padding-top:0!important}
     var main = document.querySelector('#main');
     if (!main) return;
     var footerNode = document.querySelector('footer.site-footer');
+    var activeKeys = new Set(data.blocks.map(function(block){ return String(block.block_key); }));
+    document.querySelectorAll('[data-builder-key]').forEach(function(node){
+      if (!activeKeys.has(String(node.dataset.builderKey))) node.hidden = true;
+    });
     data.blocks.forEach(function(block){
       if (block.block_type === 'footer') return;
       var node = Array.prototype.find.call(document.querySelectorAll('[data-builder-key]'),function(el){ return el.dataset.builderKey === block.block_key; });
@@ -401,6 +405,8 @@ html[data-builder-preview="1"] body{padding-top:0!important}
       footerNode.dataset.builderId = String(footerBlock.id);
       footerNode.hidden = !footerBlock.is_visible;
       updateContent(footerNode,footerBlock);
+    } else if (footerNode) {
+      footerNode.hidden = true;
     }
     var d = data.design || {};
     document.documentElement.style.setProperty('--accent',d.accent_color || '#a58aff');
