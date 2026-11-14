@@ -567,12 +567,16 @@ function builder_make_internal_preview(string $html): string
     $html = str_replace(['./milad_avatar.jpg', 'milad_avatar.jpg'], $imageUri, $html);
 
     // Metadata and schema links are irrelevant inside an editor preview.
-    $html = preg_replace('#<script\\b[^>]*type=["\\']application/ld\\+json["\\'][^>]*>.*?</script>#is', '', $html) ?? $html;
-    $html = preg_replace('#<link\\b(?=[^>]*\\brel=["\\'](?:canonical|icon|preload)["\\'])[^>]*>#i', '', $html) ?? $html;
-    $html = preg_replace('#<meta\\b(?=[^>]*(?:property=["\\']og:|name=["\\']twitter:))[^>]*>#i', '', $html) ?? $html;
+    $schemaPattern = "#<script\\\\b[^>]*type=[\\\"']application/ld\\\\+json[\\\"'][^>]*>.*?</script>#is";
+    $linkMetadataPattern = "#<link\\\\b(?=[^>]*\\\\brel=[\\\"'](?:canonical|icon|preload)[\\\"'])[^>]*>#i";
+    $socialMetadataPattern = "#<meta\\\\b(?=[^>]*(?:property=[\\\"']og:|name=[\\\"']twitter:))[^>]*>#i";
+    $html = preg_replace($schemaPattern, '', $html) ?? $html;
+    $html = preg_replace($linkMetadataPattern, '', $html) ?? $html;
+    $html = preg_replace($socialMetadataPattern, '', $html) ?? $html;
 
     // Fail closed if a future template change reintroduces remote assets.
-    if (preg_match('#<(?:script|link|img|source)\\b[^>]*(?:src|href|srcset)=["\\']https?://#i', $html)) {
+    $remoteAssetPattern = "#<(?:script|link|img|source)\\\\b[^>]*(?:src|href|srcset)=[\\\"']https?://#i";
+    if (preg_match($remoteAssetPattern, $html)) {
         throw new RuntimeException('قالب پیش‌نمایش هنوز وابستگی مستقیم به منبع خارجی دارد.');
     }
     if (strpos($html, './assets/') !== false || strpos($html, '../assets/') !== false) {
