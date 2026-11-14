@@ -473,6 +473,26 @@
     renderCanvas();renderInspector();postPreviewState();scheduleSave(block,payload);
   }
 
+  let builderContextMenu=null;
+  function showBuilderContextMenu(message){
+    if(builderContextMenu)builderContextMenu.remove();
+    builderContextMenu=document.createElement('div');
+    builderContextMenu.className='builder-canvas-context-menu';
+    builderContextMenu.innerHTML='<button data-context-cmd="copy">کپی عنصر</button><button data-context-cmd="paste">چسباندن عنصر</button><button data-context-cmd="duplicate">تکثیر عنصر</button><button data-context-cmd="delete">حذف عنصر</button>';
+    builderContextMenu.style.left=Math.max(8,Math.min(window.innerWidth-190,Number(message.x)||40))+'px';
+    builderContextMenu.style.top=Math.max(8,Math.min(window.innerHeight-180,Number(message.y)||40))+'px';
+    document.body.appendChild(builderContextMenu);
+    builderContextMenu.querySelectorAll('[data-context-cmd]').forEach(button=>button.addEventListener('click',()=>{
+      const action=button.dataset.contextCmd;
+      if(action==='copy')copySelectedNode();
+      if(action==='paste')pasteSelectedNode();
+      if(action==='duplicate')duplicateSelectedNode();
+      if(action==='delete')deleteSelectedNode();
+      builderContextMenu.remove();builderContextMenu=null;
+    }));
+    window.setTimeout(()=>document.addEventListener('pointerdown',function closeMenu(){if(builderContextMenu){builderContextMenu.remove();builderContextMenu=null;}document.removeEventListener('pointerdown',closeMenu);},{once:true}),0);
+  }
+
   function directStyleUpdate(message) {
     const block=blocks.find(item=>blockKey(item)===String(message.key||''));
     if(!block)return;
@@ -1633,13 +1653,7 @@
       if(key==='z'){event.preventDefault();if(event.shiftKey)redoEdit();else undoEdit();return;}
     }
   });
-  document.addEventListener('keydown',event => {
-    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return;
-    const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
-    if (['input','textarea','select'].includes(tag)) return;
-    event.preventDefault();
-    if (event.shiftKey) redoEdit(); else undoEdit();
-  });
+
   $('#builderDesignForm')?.addEventListener('submit',saveDesign);
   $('#builderDesignForm')?.addEventListener('input',onDesignInput);
   $('#builderReload')?.addEventListener('click',() => {
@@ -1683,6 +1697,7 @@
     } else if (message.type === 'milad-builder-direct-style') {
       directStyleUpdate(message);
     } else if (message.type === 'milad-builder-context-action') {
+      if(message.action==='open')showBuilderContextMenu(message);
       if(message.action==='copy')copySelectedNode();
       else if(message.action==='paste')pasteSelectedNode();
       else if(message.action==='duplicate')duplicateSelectedNode();
