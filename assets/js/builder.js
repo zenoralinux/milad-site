@@ -127,6 +127,20 @@
     }
   }
 
+  function renderContextToolbar() {
+    const toolbar = $('#builderContextToolbar');
+    if (!toolbar) return;
+    const block = blocks.find(item => Number(item.id) === Number(selectedId));
+    toolbar.hidden = !block;
+    if (!block) return;
+    const label = $('#builderContextLabel');
+    if (label) label.textContent = block.label || names[block.block_type] || block.block_type;
+    const clone = toolbar.querySelector('[data-context-action="clone"]');
+    if (clone) clone.hidden = ['hero','intro','projects','about','now','contact','footer'].includes(block.block_type);
+    const toggle = toolbar.querySelector('[data-context-action="toggle"]');
+    if (toggle) toggle.textContent = block.is_visible ? '◉' : '○';
+  }
+
   function renderCanvas() {
     const canvas = $('#builderCanvas');
     if (!blocks.length) {
@@ -188,7 +202,8 @@
     $$('[data-up]').forEach(button => button.addEventListener('click',() => move(Number(button.dataset.up),-1)));
     $$('[data-down]').forEach(button => button.addEventListener('click',() => move(Number(button.dataset.down),1)));
     $$('[data-clone]').forEach(button => button.addEventListener('click',() => cloneBlock(Number(button.dataset.clone))));
-    $$('[data-delete]').forEach(button => button.addEventListener('click',() => deleteBlock(Number(button.dataset.delete))));
+    $('[data-delete]').forEach(button => button.addEventListener('click',() => deleteBlock(Number(button.dataset.delete))));
+    renderContextToolbar();
   }
 
   function move(id,delta) {
@@ -734,6 +749,24 @@
     if (loadHistory && selectedId !== null) loadRevisionHistory(Number(selectedId));
     const restore = event.target.closest('[data-restore-revision]');
     if (restore) restoreRevision(Number(restore.dataset.restoreRevision));
+    const contextAction = event.target.closest('[data-context-action]');
+    if (contextAction && selectedId !== null) {
+      const action = contextAction.dataset.contextAction;
+      if (action === 'up') move(Number(selectedId),-1);
+      else if (action === 'down') move(Number(selectedId),1);
+      else if (action === 'clone') cloneBlock(Number(selectedId));
+      else if (action === 'delete') deleteBlock(Number(selectedId));
+      else if (action === 'toggle') {
+        const block = blocks.find(item => Number(item.id) === Number(selectedId));
+        if (block) {
+          block.is_visible = !block.is_visible;
+          const payload = {label:block.label,content:block.content || {},settings:block.settings || {},is_visible:block.is_visible};
+          postPreviewState();
+          renderCanvas();
+          scheduleSave(block,payload);
+        }
+      }
+    }
   });
   document.getElementById('builderMediaUpload')?.addEventListener('submit',async event => {
     event.preventDefault();
