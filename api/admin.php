@@ -300,8 +300,13 @@ try {
                 'settings_json' => $existing['settings_json'],
                 'is_visible' => (int) $existing['is_visible']
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            $revision = $pdo->prepare("INSERT INTO content_revisions (entity_type,entity_id,snapshot_json,created_by) VALUES ('block',?,?,?)");
-            $revision->execute([$id,$snapshot,(int) $admin['id']]);
+            $recentRevision = $pdo->prepare("SELECT created_at FROM content_revisions WHERE entity_type='block' AND entity_id=? ORDER BY id DESC LIMIT 1");
+            $recentRevision->execute([$id]);
+            $lastRevision = $recentRevision->fetchColumn();
+            if (!$lastRevision || strtotime((string) $lastRevision) < time() - 300) {
+                $revision = $pdo->prepare("INSERT INTO content_revisions (entity_type,entity_id,snapshot_json,created_by) VALUES ('block',?,?,?)");
+                $revision->execute([$id,$snapshot,(int) $admin['id']]);
+            }
             $visible = !empty($data['is_visible']) ? 1 : 0;
             $save = $pdo->prepare("UPDATE page_blocks SET label=?,content_json=?,settings_json=?,is_visible=? WHERE id=?");
             $save->execute([$label,$contentJson,$settingsJson,$visible,$id]);
@@ -309,6 +314,18 @@ try {
             if (in_array($existing['block_type'], $legacyTypes, true) && $existing['block_key'] === $existing['block_type']) {
                 $sync = $pdo->prepare("UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key=?");
                 $sync->execute([$contentJson,$visible,$existing['block_type']]);
+            }
+            if ($existing['block_type'] === 'about') {
+                if (isset($content['principles_items']) && is_array($content['principles_items'])) {
+                    $principlesJson = json_encode(['items' => array_slice($content['principles_items'], 0, 12)], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    $showPrinciples = !isset($content['show_principles']) || !empty($content['show_principles']) ? 1 : 0;
+                    $syncPrinciples = $pdo->prepare("UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key='principles'");
+                    $syncPrinciples->execute([$principlesJson,$showPrinciples]);
+                }
+            }
+            if ($existing['block_type'] === 'footer' && $existing['block_key'] === 'footer') {
+                $syncFooter = $pdo->prepare("UPDATE site_sections SET content_json=?,is_visible=? WHERE section_key='footer'");
+                $syncFooter->execute([$contentJson,$visible]);
             }
             log_activity((int) $admin['id'], 'update', 'page_block', $id, 'ویرایش بلوک ' . $label);
             json_response(['ok' => true, 'data' => [
@@ -369,6 +386,9 @@ try {
                 $hideLegacy = $pdo->prepare("UPDATE site_sections SET is_visible=0 WHERE section_key=?");
                 $hideLegacy->execute([$removed['block_type']]);
             }
+            if ($removed['block_type'] === 'footer' && $removed['block_key'] === 'footer') {
+                $pdo->exec("UPDATE site_sections SET is_visible=0 WHERE section_key='footer'");
+            }
             log_activity((int) $admin['id'], 'delete', 'page_block', $id, 'حذف بلوک صفحه اصلی');
             json_response(['ok' => true, 'data' => [], 'message' => 'بلوک حذف شد.']);
 
@@ -379,7 +399,7 @@ try {
             $find->execute([$id,builder_home_page_id()]);
             $source = $find->fetch(PDO::FETCH_ASSOC);
             if (!$source) api_fail('NOT_FOUND', 'بلوک پیدا نشد.', 404);
-            if (in_array($source['block_type'], ['hero','intro','projects','about','now','contact'], true)) {
+            if (in_array($source['block_type'], ['hero','intro','projects','about','now','contact','footer'], true)) {
                 api_fail('DUPLICATE_NOT_SUPPORTED', 'برای جلوگیری از نمایش تکراری سکشن‌های اصلی، این بلوک قابل تکثیر نیست.', 422);
             }
             $insert = $pdo->prepare("INSERT INTO page_blocks (page_id,block_key,block_type,label,content_json,settings_json,is_visible,sort_order) VALUES (?,?,?,?,?,?,1,?)");
