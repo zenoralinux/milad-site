@@ -1,7 +1,22 @@
 <?php
 declare(strict_types=1);
-require dirname(__DIR__) . '/app/bootstrap.php';
-start_admin_session();
+
+// Load the application and start the session defensively. A malformed local
+// config, missing PHP extension, or unwritable session directory must not
+// turn the admin route into an opaque HTTP 500 response.
+try {
+    require dirname(__DIR__) . '/app/bootstrap.php';
+    start_admin_session();
+    $csrf = csrf_token();
+} catch (Throwable $e) {
+    error_log('Admin bootstrap/session failed: ' . $e->getMessage());
+    http_response_code(503);
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-store');
+    echo '<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>پنل مدیریت موقتاً در دسترس نیست</title><body style="margin:0;background:#080b12;color:#e8edf7;font:16px system-ui;display:grid;min-height:100vh;place-items:center"><main style="max-width:620px;padding:36px;text-align:center"><h1>پنل مدیریت موقتاً در دسترس نیست</h1><p style="color:#aab5c8;line-height:2">راه‌اندازی PHP یا نشست مدیریتی با مشکل روبه‌رو شده است. گزارش خطای PHP هاست را بررسی کنید و مطمئن شوید نسخه PHP با نیازمندی‌های پروژه سازگار است.</p><a style="color:#89c0ff" href="../">بازگشت به سایت</a></main></body></html>';
+    exit;
+}
+
 $admin = null;
 $setupError = null;
 try {
@@ -15,7 +30,6 @@ try {
 } catch (Throwable $e) {
     $setupError = $e->getMessage();
 }
-$csrf = csrf_token();
 ?><!doctype html>
 <html lang="fa" dir="rtl">
 <head>
