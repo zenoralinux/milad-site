@@ -4,7 +4,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/app/bootstrap.php';
 start_admin_session();
 
-function api_fail(string $code, string $message, int $status = 400, array $fields = []): never
+function api_fail(string $code, string $message, int $status = 400, array $fields = []): void
 {
     json_response(['ok' => false, 'error' => ['code' => $code, 'message' => $message, 'fields' => (object) $fields]], $status);
 }
