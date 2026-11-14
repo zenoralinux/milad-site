@@ -819,7 +819,7 @@
     try { links = JSON.parse(form.elements.links.value || '[]'); }
     catch (error) { return null; }
     if (!Array.isArray(links)) return null;
-    const technologies = String(form.elements.technologies.value || '').split(/[\\n,]/).map(value => value.trim()).filter(Boolean);
+    const technologies = String(form.elements.technologies.value || '').split(/[\n,]/).map(value => value.trim()).filter(Boolean);
     return {
       slug:String(form.elements.slug.value || '').trim(),
       title:String(form.elements.title.value || '').trim(),

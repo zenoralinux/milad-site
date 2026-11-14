@@ -45,4 +45,5 @@ assert(!projectRenderer.includes('$projectStart') && !projectRenderer.includes('
 assert(js.indexOf('function setNestedNodeVisibility') < js.indexOf('function move(id,delta)'), 'nested Navigator actions are in builder scope');
 assert(js.indexOf('function bindNestedNavigatorDrag') < js.indexOf('function move(id,delta)'), 'nested drag binding is in builder scope');
 assert(js.indexOf('function toggleLockSelectedElement') < js.indexOf('function moveSelectedElement(delta)'), 'context lock handler is in builder scope');
+assert(js.includes(".split(/[\\n,]/)"), 'project technologies split on line breaks and commas');
 console.log('Milad Studio Pro static invariants passed');
