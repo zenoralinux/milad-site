@@ -848,7 +848,7 @@ html[data-builder-preview="1"] body{padding-top:0!important}
 
   function studioPlainText(value){
     var text=String(value===undefined||value===null?'':value);
-    text=text.replace(/<\/?(?:script|style|iframe|object|embed|pre|code)\b[^>]*>/gi,' ');
+    text=text.replace(/<(script|style|iframe|object|embed|pre|code)\b[^>]*>[\s\S]*?<\/\1>/gi,' ');
     text=text.replace(/<[^>]+>/g,' ');
     text=text.replace(/&lt;\/?[a-z][^&]*?&gt;/gi,' ');
     text=text.replace(/\s+/g,' ').trim();
