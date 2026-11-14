@@ -469,6 +469,51 @@ try {
             log_activity((int) $admin['id'], 'duplicate', 'page_block', $newId, 'تکثیر بلوک');
             json_response(['ok' => true, 'data' => ['id' => $newId], 'message' => 'بلوک تکثیر شد.'], 201);
 
+        case 'builder-revisions':
+            if ($method !== 'GET') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $blockId = (int) ($_GET['id'] ?? 0);
+            if ($blockId < 1) api_fail('INVALID_ID', 'شناسه بلوک معتبر نیست.', 422);
+            $blockCheck = $pdo->prepare('SELECT id FROM page_blocks WHERE id=? AND page_id=? LIMIT 1');
+            $blockCheck->execute([$blockId,builder_home_page_id()]);
+            if (!$blockCheck->fetchColumn()) api_fail('NOT_FOUND', 'بلوک پیدا نشد.', 404);
+            $history = $pdo->prepare("SELECT id,created_at,created_by FROM content_revisions WHERE entity_type='block' AND entity_id=? ORDER BY created_at DESC,id DESC LIMIT 30");
+            $history->execute([$blockId]);
+            json_response(['ok' => true, 'data' => ['revisions' => $history->fetchAll(PDO::FETCH_ASSOC)]]);
+
+        case 'builder-revision-restore':
+            if ($method !== 'POST') api_fail('METHOD_NOT_ALLOWED', 'متد درخواست مجاز نیست.', 405);
+            $restoreData = json_body();
+            $blockId = (int) ($restoreData['block_id'] ?? 0);
+            $revisionId = (int) ($restoreData['revision_id'] ?? 0);
+            if ($blockId < 1 || $revisionId < 1) api_fail('INVALID_ID', 'شناسه نسخه معتبر نیست.', 422);
+            $blockCheck = $pdo->prepare('SELECT * FROM page_blocks WHERE id=? AND page_id=? LIMIT 1');
+            $blockCheck->execute([$blockId,builder_home_page_id()]);
+            $currentBlock = $blockCheck->fetch(PDO::FETCH_ASSOC);
+            if (!$currentBlock) api_fail('NOT_FOUND', 'بلوک پیدا نشد.', 404);
+            $revisionStmt = $pdo->prepare("SELECT snapshot_json FROM content_revisions WHERE id=? AND entity_type='block' AND entity_id=? LIMIT 1");
+            $revisionStmt->execute([$revisionId,$blockId]);
+            $revisionJson = $revisionStmt->fetchColumn();
+            if (!$revisionJson) api_fail('REVISION_NOT_FOUND', 'نسخه انتخاب‌شده پیدا نشد.', 404);
+            $snapshot = json_decode((string) $revisionJson, true);
+            if (!is_array($snapshot) || !isset($snapshot['content_json'],$snapshot['settings_json'])) api_fail('INVALID_REVISION', 'ساختار نسخه ذخیره‌شده معتبر نیست.', 409);
+            $currentSnapshot = json_encode([
+                'label' => $currentBlock['label'],
+                'content_json' => $currentBlock['content_json'],
+                'settings_json' => $currentBlock['settings_json'],
+                'is_visible' => (int) $currentBlock['is_visible']
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $saveCurrent = $pdo->prepare("INSERT INTO content_revisions (entity_type,entity_id,snapshot_json,created_by) VALUES ('block',?,?,?)");
+            $saveCurrent->execute([$blockId,$currentSnapshot,(int) $admin['id']]);
+            $restoredContent = json_decode((string) $snapshot['content_json'], true);
+            $restoredSettings = json_decode((string) $snapshot['settings_json'], true);
+            if (!is_array($restoredContent) || !is_array($restoredSettings)) api_fail('INVALID_REVISION', 'محتوا یا استایل نسخه معتبر نیست.', 409);
+            $restoredLabel = trim((string) ($snapshot['label'] ?? $currentBlock['label']));
+            if ($restoredLabel === '') $restoredLabel = (string) $currentBlock['label'];
+            $restore = $pdo->prepare('UPDATE page_blocks SET label=?,content_json=?,settings_json=?,is_visible=? WHERE id=?');
+            $restore->execute([$restoredLabel,(string) $snapshot['content_json'],(string) $snapshot['settings_json'],!empty($snapshot['is_visible']) ? 1 : 0,$blockId]);
+            log_activity((int) $admin['id'], 'restore', 'page_block', $blockId, 'بازیابی نسخه قبلی بلوک');
+            json_response(['ok' => true, 'data' => ['id' => $blockId], 'message' => 'نسخه قبلی بازیابی شد.']);
+
         case 'builder-design':
             if ($method === 'GET') {
                 json_response(['ok' => true, 'data' => builder_design_settings()]);
